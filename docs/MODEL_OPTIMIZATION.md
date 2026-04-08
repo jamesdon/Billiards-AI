@@ -34,6 +34,99 @@ names:
 EOF
 ```
 
+## Minimal dataset bootstrap checklist (zero to first model)
+
+Use this to get a first usable detector quickly.
+
+1. Capture source video/images on your target table and camera setup.
+2. Extract candidate frames (or label still images directly).
+3. Label `ball` first; add `person` and `cue_stick` once baseline works.
+4. Split train/val by session (not random frame-level only) to avoid leakage.
+5. Train YOLO baseline.
+6. Export ONNX.
+7. Run Phase 3 and collect failures.
+8. Add hard examples, retrain, repeat.
+
+Recommended starter volume:
+
+- **Ball-only baseline**: 300-800 labeled images
+- **Ball + person + cue_stick**: 800-2000 labeled images
+- **Val split**: 15-20% (from different sessions/lighting when possible)
+
+## Can I train by hitting balls on my pool table?
+
+Yes. That is a good approach and usually gives the best domain match.
+
+Capture real play sequences:
+
+- break shots
+- slow rolls
+- clustered balls
+- rail shots
+- pocket approach and pocketing
+- player leaning/occluding balls
+- cue stick near cue ball and across table
+
+Do multiple sessions:
+
+- day and night lighting
+- different camera exposure settings
+- small camera angle shifts
+
+## What should images look like? How close up?
+
+Prefer the same framing used in runtime:
+
+- full table visible (or the exact operational crop)
+- camera fixed at production position
+- consistent resolution with runtime (or proportional downsample)
+
+Practical composition guidance:
+
+- balls should generally be at least ~12-20 px diameter in labeled frames
+- include both sparse and dense ball layouts
+- include empty-table and low-motion frames occasionally
+- avoid only dramatic close-ups; model must learn full-scene context
+
+Do **not** train only on close-up ball crops if inference is on full table frames.
+
+## Labeling tools (common options)
+
+- CVAT (self-hosted/open-source, strong QA workflows)
+- Label Studio (flexible workflows)
+- Roboflow annotation tools (fast bootstrap and export convenience)
+
+Use consistent class naming and IDs:
+
+- `0: ball`
+- `1: person`
+- `2: cue_stick`
+
+## Public datasets you can leverage
+
+Yes, but treat them as supplemental data. Domain mismatch is common.
+
+Good sources to explore:
+
+- Roboflow Universe billiards/pool datasets (various projects and label schemas)
+- public billiards/snooker academic datasets and GitHub repos
+
+Best practice:
+
+1. Normalize classes to your schema (`ball/person/cue_stick`).
+2. Merge with your own table/camera data.
+3. Prioritize your in-domain data in later fine-tuning rounds.
+4. Validate on your own held-out sessions before Phase 3 sign-off.
+
+## Helpful frame extraction tip
+
+If you capture long videos, extract frames at low frequency first (for diversity):
+
+```bash
+mkdir -p "/home/$USER/Billiards-AI/data/datasets/billiards/images/raw"
+ffmpeg -i "/absolute/path/to/session.mp4" -vf "fps=2" "/home/$USER/Billiards-AI/data/datasets/billiards/images/raw/%06d.jpg"
+```
+
 ## Option A: Train directly on Jetson Nano/Orin
 
 Use this if you do not have another GPU machine available.
