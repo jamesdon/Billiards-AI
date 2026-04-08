@@ -1,5 +1,99 @@
 # Model optimization (ONNX → TensorRT)
 
+## Do I have to train on another machine?
+
+No. You can train on Jetson Nano/Orin directly, but it is usually much slower.
+
+- **Train on Nano/Orin**: acceptable for small datasets and early iteration.
+- **Train on a stronger GPU machine**: recommended for faster iteration and larger datasets.
+- In both cases, the runtime artifact consumed by this project is the same:
+  - `"/home/$USER/Billiards-AI/models/model.onnx"`
+
+## Required input (for any training machine)
+
+You need a labeled detection dataset in YOLO format.
+
+Recommended project-local location:
+
+- `"/home/$USER/Billiards-AI/data/datasets/billiards/images/train"`
+- `"/home/$USER/Billiards-AI/data/datasets/billiards/images/val"`
+- `"/home/$USER/Billiards-AI/data/datasets/billiards/labels/train"`
+- `"/home/$USER/Billiards-AI/data/datasets/billiards/labels/val"`
+
+Create YAML:
+
+```bash
+cat > "/home/$USER/Billiards-AI/data/datasets/billiards/billiards-data.yaml" <<'EOF'
+path: /home/$USER/Billiards-AI/data/datasets/billiards
+train: images/train
+val: images/val
+names:
+  0: ball
+  1: person
+  2: cue_stick
+EOF
+```
+
+## Option A: Train directly on Jetson Nano/Orin
+
+Use this if you do not have another GPU machine available.
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python -m pip install -U ultralytics
+```
+
+Train (Jetson-friendly defaults):
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+yolo detect train \
+  data="/home/$USER/Billiards-AI/data/datasets/billiards/billiards-data.yaml" \
+  model="yolov8n.pt" \
+  imgsz=640 \
+  epochs=100 \
+  batch=4 \
+  workers=2
+```
+
+Export ONNX:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+yolo export model="/home/$USER/Billiards-AI/runs/detect/train/weights/best.pt" format=onnx imgsz=640
+mkdir -p "/home/$USER/Billiards-AI/models"
+cp "/home/$USER/Billiards-AI/runs/detect/train/weights/best.onnx" "/home/$USER/Billiards-AI/models/model.onnx"
+ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
+```
+
+## Option B: Train on another machine, run on Nano
+
+This is usually the fastest path overall.
+
+On training machine:
+
+```bash
+python3 -m pip install -U ultralytics
+yolo detect train data="/ABSOLUTE/PATH/TO/billiards-data.yaml" model="yolov8n.pt" imgsz=640 epochs=100 batch=16
+yolo export model="/ABSOLUTE/PATH/TO/runs/detect/train/weights/best.pt" format=onnx imgsz=640
+```
+
+Copy artifact to Nano:
+
+```bash
+mkdir -p "/home/$USER/Billiards-AI/models"
+scp "/ABSOLUTE/PATH/TO/best.onnx" "$USER@<NANO_IP>:/home/$USER/Billiards-AI/models/model.onnx"
+```
+
+Verify on Nano:
+
+```bash
+ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
+```
+
 ## From-scratch baseline model procedure (required before Phase 3+)
 
 If you are starting from scratch, there is no detector artifact in this repo.
