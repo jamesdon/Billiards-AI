@@ -17,7 +17,7 @@ In another terminal:
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main --camera 0 --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" --class-map "/home/$USER/Billiards-AI/class_map.json" --identities "/home/$USER/Billiards-AI/identities.json"
+python -m edge.main --camera csi --csi-sensor-id 0 --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" --class-map "/home/$USER/Billiards-AI/class_map.json" --identities "/home/$USER/Billiards-AI/identities.json"
 ```
 
 ## 2) List profiles
@@ -38,7 +38,7 @@ curl -s -X PATCH "http://127.0.0.1:8000/profiles/stick/STICK_PROFILE_ID" -H "Con
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main --camera 0 --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" --class-map "/home/$USER/Billiards-AI/class_map.json" --identities "/home/$USER/Billiards-AI/identities.json"
+python -m edge.main --camera csi --csi-sensor-id 0 --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" --class-map "/home/$USER/Billiards-AI/class_map.json" --identities "/home/$USER/Billiards-AI/identities.json"
 ```
 
 ## Pass criteria

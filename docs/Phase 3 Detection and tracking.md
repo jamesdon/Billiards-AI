@@ -23,7 +23,8 @@ EOF
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m edge.main \
-  --camera 0 \
+  --camera csi \
+  --csi-sensor-id 0 \
   --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" \
   --class-map "/home/$USER/Billiards-AI/class_map.json" \
   --detect-every-n 2 \
@@ -35,7 +36,7 @@ python -m edge.main \
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main --camera 0 --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" --class-map "/home/$USER/Billiards-AI/class_map.json" --detect-every-n 1 --mjpeg-port 8082
+python -m edge.main --camera csi --csi-sensor-id 0 --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" --class-map "/home/$USER/Billiards-AI/class_map.json" --detect-every-n 1 --mjpeg-port 8082
 ```
 
 Repeat with `--detect-every-n 3`.

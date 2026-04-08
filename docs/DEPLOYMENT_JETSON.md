@@ -39,12 +39,30 @@ python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
 
 See `docs/MODEL_OPTIMIZATION.md` for ONNX/TensorRT steps.
 
-## Run edge pipeline (USB cam example)
+## Run edge pipeline (CSI camera required)
 
 ```bash
 cd "/home/$USER/Billiards-AI"
 source .venv/bin/activate
-python -m edge.main --camera 0 --calib "./calibration.json" --mjpeg-port 8080
+python -m edge.main --camera csi --csi-sensor-id 0 --calib "./calibration.json" --mjpeg-port 8080
+```
+
+## CSI troubleshooting (Jetson)
+
+If startup fails with `RuntimeError: Failed to open camera source=...`, validate
+the Jetson camera stack before retrying the app:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+chmod +x "/home/$USER/Billiards-AI/scripts/jetson_csi_setup.sh"
+"/home/$USER/Billiards-AI/scripts/jetson_csi_setup.sh"
+```
+
+Manual checks:
+
+```bash
+sudo /usr/bin/systemctl restart nvargus-daemon
+/usr/bin/timeout 10 /usr/bin/gst-launch-1.0 -e nvarguscamerasrc sensor-id=0 ! "video/x-raw(memory:NVMM),width=1280,height=720,framerate=30/1" ! nvvidconv ! "video/x-raw,format=I420" ! fakesink
 ```
 
 ## Docker-first deployment (recommended)

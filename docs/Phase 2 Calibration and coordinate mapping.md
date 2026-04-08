@@ -30,7 +30,7 @@ EOF
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main --camera 0 --calib "/home/$USER/Billiards-AI/calibration.json" --mjpeg-port 8080
+python -m edge.main --camera csi --csi-sensor-id 0 --calib "/home/$USER/Billiards-AI/calibration.json" --mjpeg-port 8080
 ```
 
 ## 3) Negative test: invalid pocket label should fail
@@ -53,7 +53,7 @@ Run and confirm error:
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main --camera 0 --calib "/home/$USER/Billiards-AI/calibration_invalid.json" --mjpeg-port 8081
+python -m edge.main --camera csi --csi-sensor-id 0 --calib "/home/$USER/Billiards-AI/calibration_invalid.json" --mjpeg-port 8081
 ```
 
 ## Pass criteria

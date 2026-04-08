@@ -18,7 +18,8 @@ uvicorn backend.app:app --host 0.0.0.0 --port 8000
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m edge.main \
-  --camera 0 \
+  --camera csi \
+  --csi-sensor-id 0 \
   --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" \
   --class-map "/home/$USER/Billiards-AI/class_map.json" \
   --calib "/home/$USER/Billiards-AI/calibration.json" \

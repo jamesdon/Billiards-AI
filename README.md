@@ -19,7 +19,7 @@ python -m edge.main --help
 - **Project path**: expected at `"/home/$USER/Billiards-AI"` on device.
 - **Camera source**:
   - CSI camera is the default: `--camera csi`
-  - USB camera: `--camera usb --usb-index 0`
+  - CSI camera is the required production/test path for this project
   - optional CSI controls: `--csi-sensor-id`, `--csi-framerate`, `--csi-flip-method`
   - setup helper script: `scripts/jetson_csi_setup.sh`
 - **Acceleration**:

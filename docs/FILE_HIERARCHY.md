@@ -43,7 +43,7 @@ Billiards-AI/
     pipeline.py                     Build/run the module graph
     io/
       __init__.py
-      camera_opencv.py              OpenCV camera capture (CSI/USB)
+      camera_opencv.py              OpenCV/GStreamer camera capture (Jetson CSI primary)
       video_file.py                 Replay from file
       clock.py                      Monotonic clock, fps limiter
     vision/

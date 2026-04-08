@@ -4,6 +4,12 @@
 
 Bring up edge + backend reliably and verify core services.
 
+## Phase 1 status notes (Jetson CSI)
+
+- Backend and software integrity checks can pass independently of camera bring-up.
+- For this project, a **CSI camera is always intended** for edge runtime validation on Jetson.
+- If CSI camera open fails (`RuntimeError: Failed to open camera source='nvarguscamerasrc ...'`), treat Phase 1 as blocked on device camera stack readiness.
+
 ## 1) Create and activate environment
 
 Install venv support first (required on minimal Ubuntu/Jetson images):
@@ -35,9 +41,9 @@ python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m compileall "/home/$USER/Billiards-AI/core" "/home/$USER/Billiards-AI/edge" "/home/$USER/Billiards-AI/backend"
-ruff check "/home/$USER/Billiards-AI"
-pytest -q "/home/$USER/Billiards-AI/tests"
+/usr/bin/timeout 180 python -m compileall "/home/$USER/Billiards-AI/core" "/home/$USER/Billiards-AI/edge" "/home/$USER/Billiards-AI/backend"
+/usr/bin/timeout 120 ruff check "/home/$USER/Billiards-AI"
+/usr/bin/timeout 300 pytest -q "/home/$USER/Billiards-AI/tests"
 ```
 
 ## 3) Start backend
@@ -60,7 +66,7 @@ curl -s "http://127.0.0.1:8000/live/state"
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main --camera 0 --mjpeg-port 8080
+/usr/bin/timeout 1200 python -m edge.main --camera csi --csi-sensor-id 0 --mjpeg-port 8080
 ```
 
 In another terminal:
@@ -72,8 +78,32 @@ curl -I "http://127.0.0.1:8080/mjpeg"
 ## Pass criteria
 
 - backend `/health` returns `{"ok":true}`
-- edge process runs without crash for at least 5 minutes
+- edge process runs without crash for at least 15 minutes
 - MJPEG endpoint responds with `200`
+
+## CSI troubleshooting (if camera open fails)
+
+When edge startup fails with `Failed to open camera source='nvarguscamerasrc ...'`, run:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+chmod +x "/home/$USER/Billiards-AI/scripts/jetson_csi_setup.sh"
+"/home/$USER/Billiards-AI/scripts/jetson_csi_setup.sh"
+```
+
+Additional checks:
+
+- verify camera ribbon orientation and secure connector lock
+- ensure no competing process holds the camera
+- restart Argus: `sudo /usr/bin/systemctl restart nvargus-daemon`
+- verify GStreamer pipeline manually:
+
+```bash
+/usr/bin/timeout 10 gst-launch-1.0 -e nvarguscamerasrc sensor-id=0 ! \
+  "video/x-raw(memory:NVMM),width=1280,height=720,framerate=30/1" ! \
+  nvvidconv ! "video/x-raw,format=I420" ! \
+  fakesink
+```
 
 ## Docker alternative (Jetson recommended)
 
