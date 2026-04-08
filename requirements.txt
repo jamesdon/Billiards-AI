@@ -1,5 +1,5 @@
 numpy
-opencv-python; platform_machine != "aarch64"
+opencv-python; platform_machine != "aarch64" and platform_machine != "arm64"
 onnxruntime
 fastapi
 uvicorn

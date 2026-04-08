@@ -61,3 +61,29 @@ python -m edge.main --camera csi --csi-sensor-id 0 --calib "/home/$USER/Billiard
 - valid `calibration.json` loads successfully
 - invalid label is rejected
 
+## Troubleshooting note from field run (Jetson Orin Nano)
+
+If Phase 2 fails at edge startup with:
+
+`RuntimeError: Failed to open camera source='nvarguscamerasrc ...'`
+
+and `nvgstcapture-1.0` or `gst-launch-1.0` works, the usual issue is Python
+OpenCV build mismatch (venv wheel without GStreamer).
+
+Verify:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python - <<'PY'
+import cv2
+print("cv2_path:", cv2.__file__)
+for ln in cv2.getBuildInformation().splitlines():
+    if "GStreamer" in ln:
+        print(ln)
+PY
+```
+
+If this shows `GStreamer: NO`, uninstall pip OpenCV wheels and rely on distro
+`python3-opencv` in a `--system-site-packages` venv before retrying Phase 2.
+

@@ -33,7 +33,9 @@ cd "/home/$USER/Billiards-AI"
 /usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m pip install -U pip
+# Install non-OpenCV deps first on Jetson, then force-remove any pip OpenCV wheel.
 python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
+python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless || true
 ```
 
 Jetson note: this project expects the Jetson OS OpenCV (`python3-opencv`) for CSI/GStreamer support.
@@ -119,6 +121,18 @@ cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m pip install -U pip
 python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
+python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless || true
+```
+- note: some pip resolver runs on Jetson/aarch64 can still select `opencv-python`; always verify with:
+
+```bash
+python - <<'PY'
+import cv2
+print("cv2_path:", cv2.__file__)
+for ln in cv2.getBuildInformation().splitlines():
+    if "GStreamer" in ln:
+        print(ln)
+PY
 ```
 - verify GStreamer pipeline manually:
 

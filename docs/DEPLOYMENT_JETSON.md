@@ -10,7 +10,9 @@
 Install venv and pip system packages before creating a virtual environment:
 
 ```bash
-sudo /usr/bin/apt-get update
+# If apt update fails on third-party repos (for example gh-cli key issues),
+# you can still install camera prerequisites from Ubuntu/NVIDIA repos:
+sudo /usr/bin/apt-get update || true
 sudo /usr/bin/apt-get install -y python3-venv python3-pip
 ```
 
@@ -32,8 +34,9 @@ cd "/home/$USER/Billiards-AI"
 /usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 /usr/bin/python3 -m pip install -U pip wheel
-# Use Jetson system OpenCV (GStreamer-enabled); avoid pip wheel OpenCV for CSI.
-python -m pip install --no-cache-dir --upgrade --ignore-installed -r "/home/$USER/Billiards-AI/requirements.txt"
+# IMPORTANT: prevent pip from pulling opencv-python wheel on Jetson.
+python -m pip install --no-cache-dir --upgrade --ignore-installed --no-deps -r "/home/$USER/Billiards-AI/requirements.txt"
+python -m pip install --no-cache-dir --upgrade --ignore-installed onnxruntime fastapi uvicorn pydantic orjson pytest pytest-timeout ruff boto3
 # Quick verification: "GStreamer: YES" is required for --camera csi
 python - <<'PY'
 import cv2
@@ -48,8 +51,14 @@ If this reports `GStreamer: NO`, remove pip OpenCV and use distro OpenCV:
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless
 sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools
-python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
+# reinstall non-OpenCV Python deps only
+python -m pip install --no-cache-dir --upgrade --ignore-installed onnxruntime fastapi uvicorn pydantic orjson pytest pytest-timeout ruff boto3
 ```
+
+Expected check output after fix:
+
+- `cv2_path` should point to `/usr/lib/python3/dist-packages/...`
+- `GStreamer:                   YES`
 
 ## Model optimization
 
