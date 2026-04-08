@@ -17,12 +17,33 @@ cat > "/home/$USER/Billiards-AI/class_map.json" <<'EOF'
 EOF
 ```
 
-## 2) Run edge with ONNX model
+## 2) Run Phase 3 verification script (recommended)
+
+This script performs:
+
+- baseline run at `--detect-every-n 2`
+- sweep runs at `--detect-every-n 1` and `--detect-every-n 3`
+- MJPEG readiness checks for each run
+- per-run logs under repo root: `.phase3_n1.log`, `.phase3_n2.log`, `.phase3_n3.log`
 
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main \
+MODEL_PATH="/ABSOLUTE/PATH/TO/model.onnx" \
+CLASS_MAP_PATH="/home/$USER/Billiards-AI/class_map.json" \
+CAMERA_SOURCE="csi" \
+CSI_SENSOR_ID=0 \
+MJPEG_PORT=8080 \
+EDGE_TIMEOUT_SECONDS=1200 \
+"/home/$USER/Billiards-AI/scripts/phase3.sh"
+```
+
+## 3) Optional manual single-run command
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+/usr/bin/timeout 1200 python -m edge.main \
   --camera csi \
   --csi-sensor-id 0 \
   --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" \
@@ -31,18 +52,9 @@ python -m edge.main \
   --mjpeg-port 8080
 ```
 
-## 3) Run performance sweep
-
-```bash
-cd "/home/$USER/Billiards-AI"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main --camera csi --csi-sensor-id 0 --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" --class-map "/home/$USER/Billiards-AI/class_map.json" --detect-every-n 1 --mjpeg-port 8082
-```
-
-Repeat with `--detect-every-n 3`.
-
 ## Pass criteria
 
 - no detector/tracker crashes
 - IDs remain stable for moving balls/players/sticks in normal play
+- sweep logs exist for `n=1,2,3` and each run reaches MJPEG endpoint
 

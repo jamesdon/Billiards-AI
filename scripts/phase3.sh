@@ -4,14 +4,91 @@ source "$(dirname "$0")/common.sh"
 
 cd_root
 activate_venv
-MODEL_PATH="${MODEL_PATH:-}"
+
+python -m pip install -U pip
+python -m pip install -r "$PROJECT_ROOT/requirements.txt"
+
+MODEL_PATH="${MODEL_PATH:-$PROJECT_ROOT/models/model.onnx}"
 CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/class_map.json}"
-if [[ -z "$MODEL_PATH" ]]; then
-  echo "Set MODEL_PATH to an ONNX model path." >&2
-  exit 1
+CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
+MJPEG_PORT="${MJPEG_PORT:-8080}"
+EDGE_TIMEOUT_SECONDS="${EDGE_TIMEOUT_SECONDS:-1200}"
+BASELINE_SECONDS="${BASELINE_SECONDS:-20}"
+SWEEP_SECONDS="${SWEEP_SECONDS:-20}"
+AUTO_WRITE_CLASS_MAP="${AUTO_WRITE_CLASS_MAP:-1}"
+
+if [[ ! -f "$CLASS_MAP_PATH" ]] && [[ "$AUTO_WRITE_CLASS_MAP" == "1" ]]; then
+  cat > "$CLASS_MAP_PATH" <<'EOF'
+{
+  "0": "ball",
+  "1": "person",
+  "2": "cue_stick"
+}
+EOF
 fi
+
 require_file "$MODEL_PATH"
 require_file "$CLASS_MAP_PATH"
 
-python -m edge.main --camera "${CAMERA_SOURCE:-0}" --onnx-model "$MODEL_PATH" --class-map "$CLASS_MAP_PATH" --detect-every-n "${DETECT_EVERY_N:-2}" --mjpeg-port "${MJPEG_PORT:-8080}"
+EDGE_PID=""
+cleanup() {
+  if [[ -n "${EDGE_PID}" ]] && kill -0 "${EDGE_PID}" 2>/dev/null; then
+    kill "${EDGE_PID}" || true
+    wait "${EDGE_PID}" || true
+  fi
+}
+trap cleanup EXIT
+
+run_case() {
+  local detect_n="$1"
+  local port="$2"
+  local seconds="$3"
+  local log_file="$4"
+  local label="$5"
+
+  echo "[Phase3] Starting ${label} detect_every_n=${detect_n} port=${port}"
+  /usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" python -m edge.main \
+    --camera csi \
+    --csi-sensor-id "${CSI_SENSOR_ID}" \
+    --onnx-model "$MODEL_PATH" \
+    --class-map "$CLASS_MAP_PATH" \
+    --detect-every-n "${detect_n}" \
+    --mjpeg-port "${port}" >"${log_file}" 2>&1 &
+  EDGE_PID="$!"
+
+  local ready=0
+  for _ in $(seq 1 45); do
+    if /usr/bin/curl -fsS "http://127.0.0.1:${port}/mjpeg" --max-time 2 --output /dev/null >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
+    if ! kill -0 "$EDGE_PID" 2>/dev/null; then
+      break
+    fi
+    /usr/bin/sleep 1
+  done
+
+  if [[ "$ready" -ne 1 ]]; then
+    echo "[Phase3] ${label} failed to start stream. Log: ${log_file}" >&2
+    exit 1
+  fi
+
+  /usr/bin/sleep "${seconds}"
+  if ! kill -0 "$EDGE_PID" 2>/dev/null; then
+    echo "[Phase3] ${label} exited unexpectedly. Log: ${log_file}" >&2
+    exit 1
+  fi
+
+  kill "$EDGE_PID" || true
+  wait "$EDGE_PID" || true
+  EDGE_PID=""
+  echo "[Phase3] ${label} PASS"
+}
+
+run_case 2 "${MJPEG_PORT}" "${BASELINE_SECONDS}" "${PROJECT_ROOT}/.phase3_n2.log" "baseline"
+run_case 1 "$((MJPEG_PORT + 2))" "${SWEEP_SECONDS}" "${PROJECT_ROOT}/.phase3_n1.log" "sweep-n1"
+run_case 3 "$((MJPEG_PORT + 3))" "${SWEEP_SECONDS}" "${PROJECT_ROOT}/.phase3_n3.log" "sweep-n3"
+
+echo "[Phase3] Automated checks PASS."
+echo "[Phase3] Manual gate still required: confirm ID continuity/re-acquisition in live overlay."
 
