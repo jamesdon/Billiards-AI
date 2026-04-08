@@ -1,0 +1,31 @@
+# Jetson-targeted edge container.
+# Default base is set to a current JetPack 6 / L4T r36 family image.
+# Override with --build-arg JETSON_BASE=<image> if your Nano uses a different stack.
+ARG JETSON_BASE=nvcr.io/nvidia/l4t-jetpack:r36.4.0
+FROM ${JETSON_BASE}
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip python3-venv python3-dev \
+    gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad gstreamer1.0-libav \
+    v4l-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /app/requirements.txt
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install --no-cache-dir -r /app/requirements.txt
+
+COPY core /app/core
+COPY edge /app/edge
+
+EXPOSE 8080
+
+# Default to CSI camera on Jetson.
+CMD ["python3", "-m", "edge.main", "--camera", "csi", "--mjpeg-port", "8080"]
+

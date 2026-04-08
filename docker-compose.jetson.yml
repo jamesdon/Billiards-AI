@@ -1,0 +1,58 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: billiards-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - AWS_REGION=${AWS_REGION:-}
+      - BILLIARDS_DDB_PLAYER_TABLE=${BILLIARDS_DDB_PLAYER_TABLE:-}
+      - BILLIARDS_DDB_STICK_TABLE=${BILLIARDS_DDB_STICK_TABLE:-}
+      - BILLIARDS_IDENTITIES_PATH=/data/identities.json
+    volumes:
+      - ./data:/data
+      - ./billiards.db:/app/billiards.db
+    restart: unless-stopped
+
+  edge:
+    build:
+      context: .
+      dockerfile: Dockerfile.edge.jetson
+      args:
+        - JETSON_BASE=${JETSON_BASE:-nvcr.io/nvidia/l4t-jetpack:r36.4.0}
+    container_name: billiards-edge
+    depends_on:
+      - backend
+    ports:
+      - "8080:8080"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    volumes:
+      - ./data:/data
+      - ./models:/models
+      - /tmp/argus_socket:/tmp/argus_socket
+      - /dev:/dev
+    # host networking and privileged mode simplify camera access on Jetson.
+    network_mode: host
+    privileged: true
+    runtime: nvidia
+    restart: unless-stopped
+    command: >
+      python3 -m edge.main
+      --camera ${CAMERA_SOURCE:-csi}
+      --csi-sensor-id ${CSI_SENSOR_ID:-0}
+      --csi-framerate ${CSI_FRAMERATE:-30}
+      --csi-flip-method ${CSI_FLIP_METHOD:-0}
+      --width ${CAM_WIDTH:-1280}
+      --height ${CAM_HEIGHT:-720}
+      --mjpeg-port ${MJPEG_PORT:-8080}
+      --onnx-model ${MODEL_PATH:-/models/model.onnx}
+      --class-map ${CLASS_MAP_PATH:-/models/class_map.json}
+      --identities /data/identities.json
+      --calib ${CALIB_PATH:-/data/calibration.json}
+      --game ${GAME_TYPE:-8ball}
+      --players "${PLAYERS:-Player A,Player B}"
+

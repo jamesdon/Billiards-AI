@@ -1,0 +1,11 @@
+numpy
+opencv-python
+onnxruntime
+fastapi
+uvicorn
+pydantic
+orjson
+pytest
+pytest-timeout
+ruff
+boto3
