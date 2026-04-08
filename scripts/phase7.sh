@@ -11,7 +11,7 @@ curl -s -X POST "http://127.0.0.1:${BACKEND_PORT}/event" \
 
 python - <<'PY'
 import sqlite3, os
-db=os.path.join("/Home", os.environ.get("USER",""), "Billiards AI", "billiards.db")
+db=os.path.join("/Home", os.environ.get("USER",""), "Billiards-AI", "billiards.db")
 con=sqlite3.connect(db)
 print(con.execute("select count(*) from events").fetchone()[0])
 PY

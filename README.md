@@ -1,11 +1,11 @@
-# Billiards AI (edge-first)
+# Billiards-AI (edge-first)
 
 Real-time billiards perception + rules engine designed for constrained edge hardware (Jetson Nano) with optional backend offload.
 
 ## Quickstart (dev)
 
 ```bash
-cd "/home/$USER/Billiards AI"
+cd "/home/$USER/Billiards-AI"
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -U pip
@@ -16,7 +16,7 @@ python -m edge.main --help
 ## Jetson-only assumptions
 
 - **Target platform**: NVIDIA Jetson Nano (JetPack 4.x baseline).
-- **Project path**: expected at `"/home/$USER/Billiards AI"` on device.
+- **Project path**: expected at `"/home/$USER/Billiards-AI"` on device.
 - **Camera source**:
   - CSI camera is the default: `--camera csi`
   - USB camera: `--camera usb --usb-index 0`
@@ -33,7 +33,7 @@ python -m edge.main --help
 Use the Jetson compose stack to minimize dependency drift:
 
 ```bash
-cd "/home/$USER/Billiards AI"
+cd "/home/$USER/Billiards-AI"
 chmod +x scripts/docker_jetson_build.sh scripts/docker_jetson_up.sh scripts/docker_jetson_down.sh
 scripts/docker_jetson_build.sh
 scripts/docker_jetson_up.sh
@@ -41,14 +41,14 @@ scripts/docker_jetson_up.sh
 
 Required runtime assets:
 
-- `/home/$USER/Billiards AI/models/model.onnx`
-- `/home/$USER/Billiards AI/models/class_map.json`
-- `/home/$USER/Billiards AI/data/calibration.json`
+- `/home/$USER/Billiards-AI/models/model.onnx`
+- `/home/$USER/Billiards-AI/models/class_map.json`
+- `/home/$USER/Billiards-AI/data/calibration.json`
 
 Stop:
 
 ```bash
-cd "/home/$USER/Billiards AI"
+cd "/home/$USER/Billiards-AI"
 scripts/docker_jetson_down.sh
 ```
 

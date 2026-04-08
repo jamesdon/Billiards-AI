@@ -7,22 +7,22 @@ Run a full real-world match and validate output correctness.
 ## 1) Start backend
 
 ```bash
-cd "/home/$USER/Billiards AI"
-source "/home/$USER/Billiards AI/.venv/bin/activate"
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
 uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
 ## 2) Start edge with full config
 
 ```bash
-cd "/home/$USER/Billiards AI"
-source "/home/$USER/Billiards AI/.venv/bin/activate"
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m edge.main \
   --camera 0 \
   --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" \
-  --class-map "/home/$USER/Billiards AI/class_map.json" \
-  --calib "/home/$USER/Billiards AI/calibration.json" \
-  --identities "/home/$USER/Billiards AI/identities.json" \
+  --class-map "/home/$USER/Billiards-AI/class_map.json" \
+  --calib "/home/$USER/Billiards-AI/calibration.json" \
+  --identities "/home/$USER/Billiards-AI/identities.json" \
   --players "Player A,Player B" \
   --game 8ball \
   --mjpeg-port 8080
@@ -45,7 +45,7 @@ curl -s -X POST "http://127.0.0.1:8000/fouls/manual" -H "Content-Type: applicati
 ```bash
 python - <<'PY'
 import sqlite3, json
-db="/home/$USER/Billiards AI/billiards.db"
+db="/home/$USER/Billiards-AI/billiards.db"
 con=sqlite3.connect(db)
 rows=con.execute("select payload from events where json_extract(payload, '$.type') in ('game_over','shot_summary') order by id desc limit 20").fetchall()
 print("recent summaries:", len(rows))

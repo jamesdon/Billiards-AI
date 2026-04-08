@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="${PROJECT_ROOT:-/home/$USER/Billiards AI}"
+PROJECT_ROOT="${PROJECT_ROOT:-/home/$USER/Billiards-AI}"
 VENV_PATH="${VENV_PATH:-$PROJECT_ROOT/.venv}"
 BACKEND_HOST="${BACKEND_HOST:-0.0.0.0}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"

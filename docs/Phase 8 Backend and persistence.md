@@ -15,8 +15,8 @@ export BILLIARDS_DDB_STICK_TABLE="billiards_stick_stats"
 ## 2) Start backend
 
 ```bash
-cd "/home/$USER/Billiards AI"
-source "/home/$USER/Billiards AI/.venv/bin/activate"
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
 uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
@@ -32,7 +32,7 @@ curl -s -X POST "http://127.0.0.1:8000/event" -H "Content-Type: application/json
 ```bash
 python - <<'PY'
 import sqlite3
-db="/home/$USER/Billiards AI/billiards.db"
+db="/home/$USER/Billiards-AI/billiards.db"
 con=sqlite3.connect(db)
 print("events:", con.execute("select count(*) from events").fetchone()[0])
 print("states:", con.execute("select count(*) from states").fetchone()[0])

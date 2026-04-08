@@ -13,7 +13,7 @@ from .ws import Hub
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Billiards AI Backend", version="0.1")
+    app = FastAPI(title="Billiards-AI Backend", version="0.1")
     app.include_router(profiles_router)
     store = Store("billiards.db")
     hub = Hub()

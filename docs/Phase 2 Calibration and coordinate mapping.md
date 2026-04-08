@@ -9,8 +9,8 @@ Validate calibration schema, pocket labels, and coordinate mapping assumptions.
 Create/edit calibration file:
 
 ```bash
-cd "/home/$USER/Billiards AI"
-cat > "/home/$USER/Billiards AI/calibration.json" <<'EOF'
+cd "/home/$USER/Billiards-AI"
+cat > "/home/$USER/Billiards-AI/calibration.json" <<'EOF'
 {
   "H": [[1,0,0],[0,1,0],[0,0,1]],
   "pockets": [
@@ -28,19 +28,19 @@ EOF
 ## 2) Load calibration in edge startup
 
 ```bash
-cd "/home/$USER/Billiards AI"
-source "/home/$USER/Billiards AI/.venv/bin/activate"
-python -m edge.main --camera 0 --calib "/home/$USER/Billiards AI/calibration.json" --mjpeg-port 8080
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python -m edge.main --camera 0 --calib "/home/$USER/Billiards-AI/calibration.json" --mjpeg-port 8080
 ```
 
 ## 3) Negative test: invalid pocket label should fail
 
 ```bash
-cd "/home/$USER/Billiards AI"
-cp "/home/$USER/Billiards AI/calibration.json" "/home/$USER/Billiards AI/calibration_invalid.json"
+cd "/home/$USER/Billiards-AI"
+cp "/home/$USER/Billiards-AI/calibration.json" "/home/$USER/Billiards-AI/calibration_invalid.json"
 python - <<'PY'
 import json
-p="/home/$USER/Billiards AI/calibration_invalid.json"
+p="/home/$USER/Billiards-AI/calibration_invalid.json"
 d=json.load(open(p))
 d["pockets"][0]["label"]="top_middle_side"
 json.dump(d, open(p,"w"), indent=2)
@@ -51,9 +51,9 @@ PY
 Run and confirm error:
 
 ```bash
-cd "/home/$USER/Billiards AI"
-source "/home/$USER/Billiards AI/.venv/bin/activate"
-python -m edge.main --camera 0 --calib "/home/$USER/Billiards AI/calibration_invalid.json" --mjpeg-port 8081
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python -m edge.main --camera 0 --calib "/home/$USER/Billiards-AI/calibration_invalid.json" --mjpeg-port 8081
 ```
 
 ## Pass criteria

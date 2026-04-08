@@ -6,7 +6,7 @@ echo "This script targets NVIDIA Jetson Nano (JetPack)."
 
 echo
 echo "[1/6] Verify project path"
-PROJECT_ROOT="${PROJECT_ROOT:-/home/$USER/Billiards AI}"
+PROJECT_ROOT="${PROJECT_ROOT:-/home/$USER/Billiards-AI}"
 if [[ ! -d "$PROJECT_ROOT" ]]; then
   echo "Project root not found: $PROJECT_ROOT" >&2
   exit 1

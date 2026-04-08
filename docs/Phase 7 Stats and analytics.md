@@ -7,8 +7,8 @@ Validate shot summaries and derived analytics fields.
 ## 1) Start backend
 
 ```bash
-cd "/home/$USER/Billiards AI"
-source "/home/$USER/Billiards AI/.venv/bin/activate"
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
 uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
@@ -47,7 +47,7 @@ curl -s -X POST "http://127.0.0.1:8000/event" \
 ```bash
 python - <<'PY'
 import sqlite3, json
-db="/home/$USER/Billiards AI/billiards.db"
+db="/home/$USER/Billiards-AI/billiards.db"
 con=sqlite3.connect(db)
 row=con.execute("select payload from events where json_extract(payload, '$.type')='shot_summary' order by id desc limit 1").fetchone()
 print(json.dumps(json.loads(row[0]), indent=2))

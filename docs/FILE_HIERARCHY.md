@@ -5,7 +5,7 @@ This project is split into **edge** (Jetson Nano real-time pipeline), **core** (
 ## Diagram
 
 ```text
-billiards-ai/
+Billiards-AI/
   docs/
     ARCHITECTURE.md                 System overview + data flow
     FILE_HIERARCHY.md               This file

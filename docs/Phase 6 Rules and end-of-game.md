@@ -7,9 +7,9 @@ Validate per-game and per-ruleset end-of-game outcomes.
 ## 1) Run automated rules tests
 
 ```bash
-cd "/home/$USER/Billiards AI"
-source "/home/$USER/Billiards AI/.venv/bin/activate"
-pytest -q "/home/$USER/Billiards AI/tests/test_rules_8ball.py" "/home/$USER/Billiards AI/tests/test_rules_9ball.py" "/home/$USER/Billiards AI/tests/test_end_of_game_straight_pool.py"
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+pytest -q "/home/$USER/Billiards-AI/tests/test_rules_8ball.py" "/home/$USER/Billiards-AI/tests/test_rules_9ball.py" "/home/$USER/Billiards-AI/tests/test_end_of_game_straight_pool.py"
 ```
 
 ## 2) Manual end-of-game event validation
@@ -17,8 +17,8 @@ pytest -q "/home/$USER/Billiards AI/tests/test_rules_8ball.py" "/home/$USER/Bill
 Start backend:
 
 ```bash
-cd "/home/$USER/Billiards AI"
-source "/home/$USER/Billiards AI/.venv/bin/activate"
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
 uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
