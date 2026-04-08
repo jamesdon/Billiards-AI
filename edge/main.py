@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import time
 import json
+import time
 
 from core.rules.eight_ball import EightBallRules
 from core.rules.nine_ball import NineBallRules
@@ -13,7 +13,7 @@ from core.types import Event, GameConfig, GameState, GameType, PlayerState
 
 from core.identity_store import IdentityStore
 from .calib.calib_store import Calibration
-from .io.camera_opencv import OpenCVCamera, jetson_csi_gstreamer_pipeline
+from .io.camera_opencv import OpenCVCamera, jetson_csi_gstreamer_pipeline, opencv_gstreamer_enabled
 from .overlay.draw import draw_overlay
 from .overlay.stream_mjpeg import MjpegServer
 from .pipeline import EdgePipeline
@@ -65,6 +65,16 @@ def main() -> None:
     if cam_arg == "csi":
         w = int(args.width or 1280)
         h = int(args.height or 720)
+        if not opencv_gstreamer_enabled():
+            raise RuntimeError(
+                "CSI camera mode requires OpenCV with GStreamer support, but current cv2 build has "
+                "GStreamer=NO. On Jetson, remove pip OpenCV wheels and use system OpenCV.\n"
+                "Suggested fix:\n"
+                "  /usr/bin/python3 -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless\n"
+                "  sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools\n"
+                "  # recreate virtualenv with system site packages\n"
+                "  /usr/bin/python3 -m venv --system-site-packages /home/$USER/Billiards-AI/.venv"
+            )
         cam_src = jetson_csi_gstreamer_pipeline(
             sensor_id=int(args.csi_sensor_id),
             capture_width=w,

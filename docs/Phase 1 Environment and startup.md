@@ -30,11 +30,14 @@ Then create and activate the virtual environment:
 
 ```bash
 cd "/home/$USER/Billiards-AI"
-python3 -m venv "/home/$USER/Billiards-AI/.venv"
+/usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m pip install -U pip
 python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
 ```
+
+Jetson note: this project expects the Jetson OS OpenCV (`python3-opencv`) for CSI/GStreamer support.
+Avoid installing `opencv-python` from pip on-device.
 
 ## 2) Quick integrity checks
 
@@ -96,6 +99,27 @@ Additional checks:
 - verify camera ribbon orientation and secure connector lock
 - ensure no competing process holds the camera
 - restart Argus: `sudo /usr/bin/systemctl restart nvargus-daemon`
+- verify OpenCV has GStreamer enabled:
+
+```bash
+python - <<'PY'
+import cv2
+print("OpenCV:", cv2.__version__)
+print("GStreamer:", "YES" if "GStreamer:                   YES" in cv2.getBuildInformation() else "NO")
+PY
+```
+
+- if GStreamer shows `NO`, rebuild the venv without pip OpenCV and install Jetson OpenCV:
+
+```bash
+sudo /usr/bin/apt-get install -y python3-opencv
+cd "/home/$USER/Billiards-AI"
+/usr/bin/rm -rf "/home/$USER/Billiards-AI/.venv"
+/usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python -m pip install -U pip
+python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
+```
 - verify GStreamer pipeline manually:
 
 ```bash

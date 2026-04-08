@@ -16,7 +16,12 @@ require_file() {
 
 activate_venv() {
   if [[ ! -d "$VENV_PATH" ]]; then
-    python3 -m venv "$VENV_PATH"
+    if [[ "$(/usr/bin/uname -m)" == "aarch64" ]]; then
+      # Jetson CSI requires distro OpenCV with GStreamer support.
+      python3 -m venv --system-site-packages "$VENV_PATH"
+    else
+      python3 -m venv "$VENV_PATH"
+    fi
   fi
   # shellcheck disable=SC1090
   source "$VENV_PATH/bin/activate"

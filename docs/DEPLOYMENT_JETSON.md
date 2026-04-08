@@ -29,9 +29,25 @@ From repo root:
 ```bash
 cd "/home/$USER/Billiards-AI"
 /usr/bin/rm -rf "/home/$USER/Billiards-AI/.venv"
-/usr/bin/python3 -m venv "/home/$USER/Billiards-AI/.venv"
+/usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m pip install -U pip wheel
+/usr/bin/python3 -m pip install -U pip wheel
+# Use Jetson system OpenCV (GStreamer-enabled); avoid pip wheel OpenCV for CSI.
+python -m pip install --no-cache-dir --upgrade --ignore-installed -r "/home/$USER/Billiards-AI/requirements.txt"
+# Quick verification: "GStreamer: YES" is required for --camera csi
+python - <<'PY'
+import cv2
+print("cv2:", cv2.__file__)
+print("GStreamer:", "YES" if "GStreamer:                   YES" in cv2.getBuildInformation() else "NO")
+PY
+```
+
+If this reports `GStreamer: NO`, remove pip OpenCV and use distro OpenCV:
+
+```bash
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless
+sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools
 python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
 ```
 
