@@ -6,6 +6,22 @@ Bring up edge + backend reliably and verify core services.
 
 ## 1) Create and activate environment
 
+Install venv support first (required on minimal Ubuntu/Jetson images):
+
+```bash
+sudo /usr/bin/apt-get update
+sudo /usr/bin/apt-get install -y python3-venv python3-pip
+```
+
+If `python3 -m venv` reports `ensurepip is not available`, install the versioned package matching your Python runtime and retry:
+
+```bash
+/usr/bin/python3 --version
+sudo /usr/bin/apt-get install -y "python3.10-venv"
+```
+
+Then create and activate the virtual environment:
+
 ```bash
 cd "/home/$USER/Billiards-AI"
 python3 -m venv "/home/$USER/Billiards-AI/.venv"
