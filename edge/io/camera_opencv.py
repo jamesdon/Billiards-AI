@@ -4,7 +4,16 @@ from dataclasses import dataclass
 import time
 from typing import Iterator, Optional, Tuple
 
-import cv2
+try:
+    import cv2
+except Exception as exc:  # pragma: no cover - import-time environment issue
+    raise RuntimeError(
+        "Failed to import OpenCV (cv2). On Jetson this is commonly caused by a NumPy/OpenCV ABI mismatch.\n"
+        "Use distro OpenCV with a NumPy<2 runtime in your venv:\n"
+        "  python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless\n"
+        "  python -m pip install \"numpy<2\"\n"
+        "  sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools"
+    ) from exc
 import numpy as np
 
 

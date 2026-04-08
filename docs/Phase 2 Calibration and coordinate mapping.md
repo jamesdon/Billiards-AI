@@ -87,3 +87,11 @@ PY
 If this shows `GStreamer: NO`, uninstall pip OpenCV wheels and rely on distro
 `python3-opencv` in a `--system-site-packages` venv before retrying Phase 2.
 
+If OpenCV import fails with NumPy ABI errors like:
+
+- `AttributeError: _ARRAY_API not found`
+- `ImportError: numpy.core.multiarray failed to import`
+
+then pip likely installed NumPy 2.x while Jetson distro OpenCV was built against
+NumPy 1.x. Pin NumPy `<2` in the venv and rerun Phase 2.
+

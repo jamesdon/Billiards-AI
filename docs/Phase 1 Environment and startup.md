@@ -36,6 +36,8 @@ python -m pip install -U pip
 # Install non-OpenCV deps first on Jetson, then force-remove any pip OpenCV wheel.
 python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
 python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless || true
+# Ensure NumPy remains compatible with distro OpenCV ABI.
+python -m pip install --upgrade "numpy<2"
 ```
 
 Jetson note: this project expects the Jetson OS OpenCV (`python3-opencv`) for CSI/GStreamer support.
@@ -133,6 +135,14 @@ for ln in cv2.getBuildInformation().splitlines():
     if "GStreamer" in ln:
         print(ln)
 PY
+```
+- if OpenCV import fails with `_ARRAY_API not found` or
+  `numpy.core.multiarray failed to import`, force NumPy 1.x and retry:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python -m pip install --upgrade --force-reinstall "numpy<2"
 ```
 - verify GStreamer pipeline manually:
 

@@ -34,6 +34,8 @@ cd "/home/$USER/Billiards-AI"
 /usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 /usr/bin/python3 -m pip install -U pip wheel
+# IMPORTANT: install Jetson-compatible numeric stack first.
+python -m pip install "numpy<2"
 # IMPORTANT: prevent pip from pulling opencv-python wheel on Jetson.
 python -m pip install --no-cache-dir --upgrade --ignore-installed --no-deps -r "/home/$USER/Billiards-AI/requirements.txt"
 python -m pip install --no-cache-dir --upgrade --ignore-installed onnxruntime fastapi uvicorn pydantic orjson pytest pytest-timeout ruff boto3
@@ -52,13 +54,23 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless
 sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools
 # reinstall non-OpenCV Python deps only
-python -m pip install --no-cache-dir --upgrade --ignore-installed onnxruntime fastapi uvicorn pydantic orjson pytest pytest-timeout ruff boto3
+python -m pip install --no-cache-dir --upgrade --ignore-installed "numpy<2" onnxruntime fastapi uvicorn pydantic orjson pytest pytest-timeout ruff boto3
 ```
 
 Expected check output after fix:
 
 - `cv2_path` should point to `/usr/lib/python3/dist-packages/...`
 - `GStreamer:                   YES`
+
+If `cv2` import fails with `_ARRAY_API not found` or `numpy.core.multiarray failed to import`,
+your environment has a NumPy ABI mismatch (NumPy 2.x with OpenCV built against NumPy 1.x).
+Fix by pinning NumPy below 2:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python -m pip install --force-reinstall "numpy<2"
+```
 
 ## Model optimization
 
