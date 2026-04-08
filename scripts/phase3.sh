@@ -27,7 +27,22 @@ if [[ ! -f "$CLASS_MAP_PATH" ]] && [[ "$AUTO_WRITE_CLASS_MAP" == "1" ]]; then
 EOF
 fi
 
-require_file "$MODEL_PATH"
+if [[ ! -f "$MODEL_PATH" ]]; then
+  cat >&2 <<EOF
+Missing required file: $MODEL_PATH
+
+Phase 3 requires a detector ONNX model. This repo does not ship model weights.
+
+From-scratch options:
+  1) Train/export your billiards detector model to ONNX and place it at:
+     $PROJECT_ROOT/models/model.onnx
+  2) For pipeline smoke only (not accuracy validation), copy any local ONNX file:
+     cp "/path/to/some_model.onnx" "$PROJECT_ROOT/models/model.onnx"
+
+See: $PROJECT_ROOT/docs/MODEL_OPTIMIZATION.md
+EOF
+  exit 1
+fi
 require_file "$CLASS_MAP_PATH"
 
 EDGE_PID=""

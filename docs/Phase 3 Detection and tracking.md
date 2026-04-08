@@ -17,7 +17,47 @@ cat > "/home/$USER/Billiards-AI/class_map.json" <<'EOF'
 EOF
 ```
 
-## 2) Run Phase 3 verification script (recommended)
+## 2) Bootstrap a starter ONNX model (from scratch)
+
+If you are starting from scratch and do not yet have a trained billiards model,
+you must create one before running Phase 3. This is a bootstrap path to get a
+valid detector artifact quickly (accuracy will depend on your dataset quality).
+
+### 2a) Train a small YOLO model (example with Ultralytics)
+
+On a machine with GPU and training data:
+
+```bash
+python3 -m pip install -U ultralytics
+yolo detect train data="/ABSOLUTE/PATH/TO/billiards-data.yaml" model="yolov8n.pt" imgsz=640 epochs=100 batch=16
+```
+
+Expected labels in dataset should align with your class map:
+
+- `0: ball`
+- `1: person`
+- `2: cue_stick`
+
+### 2b) Export the trained model to ONNX
+
+```bash
+yolo export model="runs/detect/train/weights/best.pt" format=onnx imgsz=640
+```
+
+Copy the exported ONNX to Jetson:
+
+```bash
+mkdir -p "/home/$USER/Billiards-AI/models"
+cp "/ABSOLUTE/PATH/TO/best.onnx" "/home/$USER/Billiards-AI/models/model.onnx"
+```
+
+### 2c) Verify model file exists on Jetson
+
+```bash
+/usr/bin/ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
+```
+
+## 3) Run Phase 3 verification script (recommended)
 
 This script performs:
 
@@ -38,7 +78,7 @@ EDGE_TIMEOUT_SECONDS=1200 \
 "/home/$USER/Billiards-AI/scripts/phase3.sh"
 ```
 
-## 3) Optional manual single-run command
+## 4) Optional manual single-run command
 
 ```bash
 cd "/home/$USER/Billiards-AI"

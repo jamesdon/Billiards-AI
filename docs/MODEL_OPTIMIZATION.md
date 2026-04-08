@@ -1,5 +1,50 @@
 # Model optimization (ONNX → TensorRT)
 
+## From-scratch baseline model procedure (required before Phase 3+)
+
+If you are starting from scratch, there is no detector artifact in this repo.
+You must create/export `model.onnx` before Phase 3, 4, or 9.
+
+### 1) Train a lightweight detector
+
+Train a small YOLO-family detector with classes aligned to `class_map.json`:
+
+- `0`: `ball`
+- `1`: `person` (optional but recommended for identity tracking)
+- `2`: `cue_stick` (optional but recommended for identity tracking)
+
+### 2) Export to ONNX
+
+Export the trained model with a static input shape (example 416x416).
+Preferred export settings:
+
+- opset: 12+ (14 common)
+- static input shape
+- FP16 where available
+
+### 3) Place artifact in expected project path
+
+```bash
+cd "/home/$USER/Billiards-AI"
+mkdir -p "/home/$USER/Billiards-AI/models"
+cp "/absolute/path/to/your/exported/model.onnx" "/home/$USER/Billiards-AI/models/model.onnx"
+ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
+```
+
+### 4) Sanity run before full phase
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+/usr/bin/timeout 60 python -m edge.main \
+  --camera csi \
+  --csi-sensor-id 0 \
+  --onnx-model "/home/$USER/Billiards-AI/models/model.onnx" \
+  --class-map "/home/$USER/Billiards-AI/class_map.json" \
+  --detect-every-n 2 \
+  --mjpeg-port 8080
+```
+
 ## Detector choice
 
 Use a small model class (YOLOv8n / YOLOv5n / custom tiny) trained for:

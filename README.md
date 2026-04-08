@@ -45,6 +45,10 @@ Required runtime assets:
 - `/home/$USER/Billiards-AI/models/class_map.json`
 - `/home/$USER/Billiards-AI/data/calibration.json`
 
+If you are starting from scratch, there is no bundled detector model in this repository.
+You must train/export your own ONNX detector and place it at
+`/home/$USER/Billiards-AI/models/model.onnx` before running phases 3/4/9.
+
 Stop:
 
 ```bash
