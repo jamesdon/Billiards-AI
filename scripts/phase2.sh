@@ -69,7 +69,7 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   EDGE_PID="$!"
   READY=0
   for _ in $(seq 1 45); do
-    if /usr/bin/curl -fsSI "http://127.0.0.1:${MJPEG_PORT}/mjpeg" >/dev/null 2>&1; then
+    if /usr/bin/curl -fsS "http://127.0.0.1:${MJPEG_PORT}/mjpeg" --max-time 2 --output /dev/null >/dev/null 2>&1; then
       READY=1
       break
     fi

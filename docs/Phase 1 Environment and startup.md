@@ -79,7 +79,7 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
 In another terminal:
 
 ```bash
-curl -I "http://127.0.0.1:8080/mjpeg"
+curl -s "http://127.0.0.1:8080/mjpeg" >/dev/null
 ```
 
 ## Pass criteria
@@ -160,6 +160,6 @@ cd "/home/$USER/Billiards-AI"
 scripts/docker_jetson_build.sh
 scripts/docker_jetson_up.sh
 curl -s "http://127.0.0.1:8000/health"
-curl -I "http://127.0.0.1:8080/mjpeg"
+curl -s "http://127.0.0.1:8080/mjpeg" >/dev/null
 ```
 

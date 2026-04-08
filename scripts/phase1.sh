@@ -70,7 +70,7 @@ EDGE_PID="$!"
 
 EDGE_READY=0
 for _ in $(seq 1 45); do
-  if /usr/bin/curl -fsSI "http://127.0.0.1:${MJPEG_PORT}/mjpeg" >/dev/null 2>&1; then
+  if /usr/bin/curl -fsS "http://127.0.0.1:${MJPEG_PORT}/mjpeg" >/dev/null 2>&1; then
     EDGE_READY=1
     break
   fi
