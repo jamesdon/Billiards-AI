@@ -77,8 +77,7 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --camera csi \
   --csi-sensor-id 0 \
   --flip 6 \
-  --out "/home/$USER/Billiards-AI/calibration.json" \
-  --table-size 6ft
+  --out "/home/$USER/Billiards-AI/calibration.json"
 ```
 
 If your local `edge.main` is also older and does not support `--auto-calib-out`,
@@ -95,6 +94,7 @@ In-window workflow (new default):
   - click radio circles or press keys `1..5`
   - options: `6ft (bar box)`, `7ft`, `8ft`, `9ft`, `snooker`
   - detected/default option is preselected from previous calibration file when available
+- `--table-size` is intentionally not used by this GUI workflow; selection happens in-window.
 - Unit display toggle uses an in-window radio list:
   - click radio circles or press `6` (`imperial`) / `7` (`metric`)
   - default UI unit is `imperial`
@@ -114,11 +114,12 @@ They are **not** pocket centers.
 Controls:
 
 - drag points to adjust
-- `a`: reset to auto-detected corners
+- `r`: reset to auto-detected corners
 - `q` or `Esc`: quit without saving
 - `Enter`: save calibration
-- `u`: toggle units (m/ft)
-- `p`: toggle side-pocket visibility
+- `u`: undo the most recent point in current mode
+- `t`: toggle units (imperial/metric)
+- `6`: select imperial units, `7`: select metric units
 - `m`: toggle side-pocket edit mode
 
 ### Jetson camera orientation (repeatable)

@@ -48,7 +48,7 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   can be edited before save.
 - Left-click near a point to drag it.
 - `r` resets corners back to fresh auto-detection.
-- **Table size** uses an on-screen radio list.
+- **Table size** uses an on-screen radio list only (no CLI table-size selection).
 - **Units** use an on-screen radio toggle (`imperial` default, `metric` optional).
 - **Side pocket mapping** is integrated in the same editor:
   - press `m` to toggle between outside-corner editing and side-pocket editing
@@ -76,7 +76,6 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --camera csi \
   --csi-sensor-id 0 \
   --flip 6 \
-  --table-size 9ft \
   --out "/home/$USER/Billiards-AI/calibration.json"
 ```
 
@@ -102,8 +101,8 @@ These four points are the **outside corners of the table playing surface**
 
 Side pocket controls:
 
-- `m`: toggle side pocket mode (`AUTO_SIDE_POCKETS` / `MANUAL_SIDE_POCKETS`)
-- In manual mode, click `LP` then `RP` (left/right side pocket centers)
+- `m`: toggle side pocket mode (`outside corners` / `side pockets`)
+- In side-pocket mode, set/drag exactly two points: `LS` then `RS`
 
 This writes:
 

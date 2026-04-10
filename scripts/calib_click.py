@@ -21,10 +21,6 @@ TABLE_PRESETS_M: dict[str, tuple[float, float]] = {
     "9ft": (2.84, 1.42),
     "snooker": (3.569, 1.778),
 }
-TABLE_SIZE_ALIASES: dict[str, str] = {
-    "bar_box": "6ft",
-    "bar_box_6ft": "6ft",
-}
 TABLE_MENU: list[str] = ["6ft", "7ft", "8ft", "9ft", "snooker"]
 UNIT_MENU: list[str] = ["imperial", "metric"]
 CORNER_LABELS: list[str] = ["TL", "TR", "BL", "BR"]
@@ -60,13 +56,9 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--csi-flip-method", "--flip", dest="csi_flip_method", type=int, default=0)
     p.add_argument("--width", type=int, default=1280)
     p.add_argument("--height", type=int, default=720)
-    p.add_argument(
-        "--table-size",
-        type=str,
-        default="auto",
-        choices=["auto", "6ft", "bar_box", "bar_box_6ft", "7ft", "8ft", "9ft", "snooker"],
-        help="Table preset. Use 'auto' to use detected default with editable radio list.",
-    )
+    # Table size is selected only via in-window radio UI.
+    # Keep CLI non-interactive and camera-focused so automated launches can hand
+    # off directly to GUI selection.
     p.add_argument("--units", type=str, default="imperial", choices=["imperial", "metric"])
     p.add_argument("--pocket-radius-m", type=float, default=0.07)
     p.add_argument("--out", type=str, default="/home/$USER/Billiards-AI/calibration.json")
@@ -150,12 +142,6 @@ def _detected_default_table_size(out_path: Path) -> str:
     if dims is None:
         return "9ft"
     return _closest_preset(dims[0], dims[1])
-
-
-def _initial_table_size(arg_table_size: str, out_path: Path) -> str:
-    if arg_table_size != "auto":
-        return TABLE_SIZE_ALIASES.get(arg_table_size, arg_table_size)
-    return _detected_default_table_size(out_path)
 
 
 def _table_size_label(size_name: str) -> str:
@@ -300,7 +286,7 @@ def main() -> None:
     args = _parse_args()
     out_path = Path(str(args.out)).expanduser()
     detected_default_table_size = _detected_default_table_size(out_path)
-    selected_table_size = _initial_table_size(str(args.table_size), out_path)
+    selected_table_size = _detected_default_table_size(out_path)
     selected_units = str(args.units)
     print(
         "Corner meaning: TL/TR/BL/BR are the four outside corners of the table "
