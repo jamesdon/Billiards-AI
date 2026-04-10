@@ -54,6 +54,10 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --out "/home/$USER/Billiards-AI/calibration.json"
 ```
 
+If your local `edge.main` is older and does not support `--auto-calib-out`, the
+updated `scripts/calib_click.py` still writes `calibration.json` directly (no
+`edge.main` auto-calibration CLI needed).
+
 `--csi-flip-method` is passed directly to Jetson `nvvidconv flip-method`:
 
 - `0`: no rotation/flip

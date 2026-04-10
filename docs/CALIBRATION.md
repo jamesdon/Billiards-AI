@@ -79,6 +79,9 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --table-size 9ft
 ```
 
+If your local `edge.main` is also older and does not support `--auto-calib-out`,
+the helper now writes `calibration.json` directly without calling `edge.main`.
+
 Click order:
 
 1. top-left

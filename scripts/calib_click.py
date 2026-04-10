@@ -8,8 +8,16 @@ from pathlib import Path
 from typing import List, Tuple
 
 import cv2
+import numpy as np
 
-from edge.calib.table_geometry import auto_calibration_from_corners, table_geometry_dict
+try:
+    from edge.calib.table_geometry import auto_calibration_from_corners, table_geometry_dict
+
+    _HAS_EDGE_AUTOCAL = True
+except Exception:
+    auto_calibration_from_corners = None
+    table_geometry_dict = None
+    _HAS_EDGE_AUTOCAL = False
 
 
 def _parse_args() -> argparse.Namespace:
@@ -117,6 +125,76 @@ def _table_dims(table_size: str) -> Tuple[float, float]:
     return presets[table_size]
 
 
+def _estimate_homography(
+    image_points: List[Tuple[float, float]],
+    table_length_m: float,
+    table_width_m: float,
+) -> np.ndarray:
+    src = np.array(image_points, dtype=np.float64)
+    dst = np.array(
+        [
+            [0.0, 0.0],
+            [table_length_m, 0.0],
+            [0.0, table_width_m],
+            [table_length_m, table_width_m],
+        ],
+        dtype=np.float64,
+    )
+    a = []
+    for (x, y), (X, Y) in zip(src, dst):
+        a.append([-x, -y, -1.0, 0.0, 0.0, 0.0, x * X, y * X, X])
+        a.append([0.0, 0.0, 0.0, -x, -y, -1.0, x * Y, y * Y, Y])
+    a = np.array(a, dtype=np.float64)
+    _, _, vt = np.linalg.svd(a)
+    h = vt[-1].reshape(3, 3)
+    if abs(float(h[2, 2])) > 1e-12:
+        h = h / h[2, 2]
+    return h
+
+
+def _manual_calibration_payload(
+    image_points: List[Tuple[float, float]],
+    table_length_m: float,
+    table_width_m: float,
+    pocket_radius_m: float,
+) -> dict:
+    h = _estimate_homography(image_points, table_length_m, table_width_m)
+    return {
+        "H": [[float(v) for v in row] for row in h.tolist()],
+        "pockets": [
+            {"label": "top_left_corner", "center_xy_m": [0.0, 0.0], "radius_m": pocket_radius_m},
+            {"label": "top_right_corner", "center_xy_m": [table_length_m, 0.0], "radius_m": pocket_radius_m},
+            {"label": "bottom_left_corner", "center_xy_m": [0.0, table_width_m], "radius_m": pocket_radius_m},
+            {
+                "label": "bottom_right_corner",
+                "center_xy_m": [table_length_m, table_width_m],
+                "radius_m": pocket_radius_m,
+            },
+            {"label": "left_side_pocket", "center_xy_m": [0.0, table_width_m * 0.5], "radius_m": pocket_radius_m},
+            {
+                "label": "right_side_pocket",
+                "center_xy_m": [table_length_m, table_width_m * 0.5],
+                "radius_m": pocket_radius_m,
+            },
+        ],
+        # Additional keys are ignored by older loaders and used by newer ones.
+        "table_length_m": table_length_m,
+        "table_width_m": table_width_m,
+        "kitchen_polygon_xy_m": [
+            [0.0, 0.0],
+            [table_length_m * 0.25, 0.0],
+            [table_length_m * 0.25, table_width_m],
+            [0.0, table_width_m],
+        ],
+        "break_area_polygon_xy_m": [
+            [table_length_m * 0.5, 0.0],
+            [table_length_m, 0.0],
+            [table_length_m, table_width_m],
+            [table_length_m * 0.5, table_width_m],
+        ],
+    }
+
+
 def main() -> None:
     args = _parse_args()
 
@@ -183,18 +261,35 @@ def main() -> None:
     cv2.destroyAllWindows()
 
     L, W = _table_dims(str(args.table_size))
-    calib, geom = auto_calibration_from_corners(
-        image_points=points,
-        table_length_m=L,
-        table_width_m=W,
-        pocket_radius_m=float(args.pocket_radius_m),
-    )
     out_path = Path(str(args.out)).expanduser()
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    calib.save(str(out_path))
+    wrote_with_edge_helpers = False
+    if _HAS_EDGE_AUTOCAL:
+        try:
+            calib, geom = auto_calibration_from_corners(
+                image_points=points,
+                table_length_m=L,
+                table_width_m=W,
+                pocket_radius_m=float(args.pocket_radius_m),
+            )
+            calib.save(str(out_path))
+            print(json.dumps(table_geometry_dict(geom), indent=2))
+            wrote_with_edge_helpers = True
+        except Exception:
+            wrote_with_edge_helpers = False
+    if not wrote_with_edge_helpers:
+        payload = _manual_calibration_payload(
+            image_points=points,
+            table_length_m=L,
+            table_width_m=W,
+            pocket_radius_m=float(args.pocket_radius_m),
+        )
+        with out_path.open("w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
     print(f"Wrote calibration: {out_path}")
     print("Corners (TL,TR,BL,BR):", json.dumps(points))
-    print(json.dumps(table_geometry_dict(geom), indent=2))
+    if not wrote_with_edge_helpers:
+        print("Saved using standalone calibration writer fallback.")
 
 
 if __name__ == "__main__":
