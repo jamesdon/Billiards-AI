@@ -50,8 +50,8 @@ Corner order for `--table-corners-px` is strictly:
 3. bottom-left
 4. bottom-right
 
-These points are **table playfield corners** (the cushion intersection corners), **not**
-the centers of pockets.
+These points are the **outside corners of the playable table rectangle**
+(the cushion intersection corners), **not** the centers of pockets.
 
 This is still a baseline and should be visually validated before match use.
 
@@ -101,17 +101,17 @@ Table size selection behavior in the helper:
 
 ### What TL/TR/BL/BR means
 
-These points are **table cloth corners** (the cushion intersection points of the
-playable rectangle), in this strict order:
+These points are the **outside corners of the table play area**
+(the cushion intersection points of the playable rectangle), in this strict order:
 
-1. `TL`: top-left cloth corner
-2. `TR`: top-right cloth corner
-3. `BL`: bottom-left cloth corner
-4. `BR`: bottom-right cloth corner
+1. `TL`: top-left outside corner
+2. `TR`: top-right outside corner
+3. `BL`: bottom-left outside corner
+4. `BR`: bottom-right outside corner
 
 They are **not** pocket centers.
 
-Click order (corners of playable table surface, not pocket centers):
+Click order (outside corners of playable table surface, not pocket centers):
 
 1. top-left
 2. top-right

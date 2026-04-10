@@ -37,7 +37,10 @@ TABLE_MENU: list[str] = ["6ft", "7ft", "8ft", "9ft", "snooker"]
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Interactive 4-corner calibration helper (TL, TR, BL, BR).",
+        description=(
+            "Interactive 4-corner calibration helper. "
+            "TL/TR/BL/BR are outside table corners (not pocket centers)."
+        ),
     )
     p.add_argument(
         "--frame",
@@ -254,8 +257,8 @@ def main() -> None:
     detected_default_table_size = _detected_default_table_size(out_path)
     selected_table_size = _initial_table_size(str(args.table_size), out_path)
     print(
-        "Corner meaning: TL/TR/BL/BR are the four table cloth corners "
-        "(cushion intersections), not pocket centers."
+        "Corner meaning: TL/TR/BL/BR are the four outside corners of the table "
+        "(cushion intersection corners), not pocket centers."
     )
     print(f"Initial table size preset: {selected_table_size}")
 
@@ -292,13 +295,13 @@ def main() -> None:
                 cv2.LINE_AA,
             )
         if len(points) < 4:
-            prompt = f"Click {labels[len(points)]} cloth corner (not pocket center)"
+            prompt = f"Click {labels[len(points)]} outside table corner (not pocket center)"
         else:
             prompt = "Press Enter to save, r to reset, q to quit"
         cv2.putText(view, prompt, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
         cv2.putText(
             view,
-            "Order: TL=top-left, TR=top-right, BL=bottom-left, BR=bottom-right",
+            "Order: TL/TR/BL/BR are outside table corners (not pocket centers)",
             (20, 58),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,

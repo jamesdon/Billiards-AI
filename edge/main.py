@@ -88,7 +88,11 @@ def parse_args() -> argparse.Namespace:
         "--table-corners-px",
         type=str,
         default=None,
-        help="Required with --auto-calib-out. Four corners TL,TR,BL,BR as 'x1,y1;x2,y2;x3,y3;x4,y4'",
+        help=(
+            "Required with --auto-calib-out. Four OUTSIDE table corners TL,TR,BL,BR "
+            "(playfield cushion intersections) as 'x1,y1;x2,y2;x3,y3;x4,y4'; "
+            "do not use pocket centers"
+        ),
     )
     ap.add_argument(
         "--pocket-radius-m",

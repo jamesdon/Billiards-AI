@@ -82,8 +82,8 @@ The helper asks you to click corners in order:
 3. bottom-left
 4. bottom-right
 
-These four points are the **table playing-surface corners** (cushion nose
-intersections), **not pocket centers**.
+These four points are the **outside corners of the table playing surface**
+(outside cushion/corner intersections), **not pocket centers**.
 
 This writes:
 
