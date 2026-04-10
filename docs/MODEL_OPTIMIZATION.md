@@ -126,6 +126,13 @@ Best practice:
 
 If you capture long videos, extract frames at low frequency first (for diversity):
 
+Install ffmpeg first (Jetson/Ubuntu):
+
+```bash
+sudo /usr/bin/apt-get update || true
+sudo /usr/bin/apt-get install -y ffmpeg
+```
+
 ```bash
 mkdir -p "/home/$USER/Billiards-AI/data/datasets/billiards/images/raw"
 ffmpeg -i "/absolute/path/to/session.mp4" -vf "fps=2" "/home/$USER/Billiards-AI/data/datasets/billiards/images/raw/%06d.jpg"
