@@ -18,16 +18,35 @@ Validate calibration schema, pocket labels, and coordinate mapping assumptions.
 
 ## 0) Generate calibration with table geometry automation
 
-Use corner clicks from a frame (order: top-left, top-right, bottom-left, bottom-right):
+Use one command after selecting four corners manually (or from a helper click tool):
 
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m edge.main \
-  --init-calib "/home/$USER/Billiards-AI/calibration.json" \
+  --auto-calib-out "/home/$USER/Billiards-AI/calibration.json" \
   --table-size 9ft \
   --table-corners-px "120,90;1160,95;110,640;1170,645"
 ```
+
+### Optional: interactive corner-click helper (recommended)
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python "/home/$USER/Billiards-AI/scripts/click_table_corners.py" \
+  --camera csi \
+  --csi-sensor-id 0 \
+  --table-size 9ft \
+  --out "/home/$USER/Billiards-AI/calibration.json"
+```
+
+The helper asks you to click corners in order:
+
+1. top-left
+2. top-right
+3. bottom-left
+4. bottom-right
 
 This writes:
 

@@ -38,7 +38,7 @@ CLI workflow:
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m edge.main \
-  --init-calib "/home/$USER/Billiards-AI/calibration.json" \
+  --auto-calib-out "/home/$USER/Billiards-AI/calibration.json" \
   --table-size 9ft \
   --table-corners-px "120,80;1160,80;120,640;1160,640"
 ```
@@ -51,6 +51,33 @@ Corner order for `--table-corners-px` is strictly:
 4. bottom-right
 
 This is still a baseline and should be visually validated before match use.
+
+### Optional interactive corner picker (recommended)
+
+Use the helper script to click corners from a live frame instead of typing pixels:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
+  --camera csi \
+  --csi-sensor-id 0 \
+  --output "/home/$USER/Billiards-AI/calibration.json" \
+  --table-size 9ft
+```
+
+Click order:
+
+1. top-left
+2. top-right
+3. bottom-left
+4. bottom-right
+
+Controls:
+
+- `r`: reset points
+- `q` or `Esc`: quit without saving
+- auto-saves when 4 points are collected
 
 ## Table dimensions presets
 
