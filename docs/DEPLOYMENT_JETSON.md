@@ -53,6 +53,13 @@ PY
 If `cv2` path points to `/home/$USER/.local/...`, remove user-site OpenCV packages
 or run with `PYTHONNOUSERSITE=1`.
 
+Example cleanup for user-site shadow packages:
+
+```bash
+/usr/bin/python3 -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless
+/usr/bin/rm -rf "/home/$USER/.local/lib/python3.10/site-packages/cv2"*
+```
+
 If this reports `GStreamer: NO`, remove pip OpenCV and use distro OpenCV:
 
 ```bash

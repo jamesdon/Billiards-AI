@@ -37,6 +37,8 @@ python -m pip install -U pip
 # Install non-OpenCV deps first on Jetson, then force-remove any pip OpenCV wheel.
 python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
 python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless || true
+# Also clean user-site packages that can shadow system cv2.
+/usr/bin/python3 -m pip uninstall -y --break-system-packages opencv-python opencv-contrib-python opencv-python-headless || true
 # Ensure NumPy remains compatible with distro OpenCV ABI.
 python -m pip install --upgrade "numpy<2"
 ```
@@ -134,6 +136,8 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m pip install -U pip
 python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
 python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless || true
+# Also clean user-site packages that can shadow system cv2.
+/usr/bin/python3 -m pip uninstall -y --break-system-packages opencv-python opencv-contrib-python opencv-python-headless || true
 ```
 - note: some pip resolver runs on Jetson/aarch64 can still select `opencv-python`; always verify with:
 

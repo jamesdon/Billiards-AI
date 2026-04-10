@@ -59,10 +59,11 @@ Use the helper script to click corners from a live frame instead of typing pixel
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
+export PYTHONNOUSERSITE=1
 python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --camera csi \
   --csi-sensor-id 0 \
-  --output "/home/$USER/Billiards-AI/calibration.json" \
+  --out "/home/$USER/Billiards-AI/calibration.json" \
   --table-size 9ft
 ```
 
