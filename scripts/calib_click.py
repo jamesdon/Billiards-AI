@@ -295,6 +295,10 @@ def main() -> None:
     print(f"Initial table size preset: {selected_table_size}")
     print(f"Display units: {selected_units}")
 
+    # Backward compatibility for direct invocation snippets on Nano:
+    # newer script expects --csi-flip-method, older snippets may pass --flip.
+    # argparse already aliases --flip, so nothing else is needed besides keeping
+    # this code path explicit and stable.
     if args.frame:
         img = cv2.imread(str(args.frame))
         if img is None:
@@ -303,7 +307,21 @@ def main() -> None:
         img = _capture_frame(args)
 
     win = "calib-click"
-    corner_points: List[Tuple[float, float]] = _estimate_outside_corners(img)
+    auto_corner_status = "AUTO corners loaded from frame contour."
+    try:
+        corner_points: List[Tuple[float, float]] = _estimate_outside_corners(img)
+    except Exception as exc:
+        h, w = img.shape[:2]
+        margin_x = 0.12 * w
+        margin_y = 0.12 * h
+        corner_points = [
+            (margin_x, margin_y),
+            (w - margin_x, margin_y),
+            (margin_x, h - margin_y),
+            (w - margin_x, h - margin_y),
+        ]
+        auto_corner_status = f"AUTO corner detect failed ({exc}); using fallback corners."
+    print("Auto corners (TL,TR,BL,BR):", json.dumps(corner_points))
     side_pocket_points: List[Tuple[float, float]] = []
     active_point_idx: Optional[int] = None
     dragging = False
@@ -372,8 +390,11 @@ def main() -> None:
         nonlocal view
         view = img.copy()
 
+        if len(corner_points) == 4:
+            poly = np.array([(int(x), int(y)) for x, y in corner_points], dtype=np.int32).reshape((-1, 1, 2))
+            cv2.polylines(view, [poly], isClosed=True, color=(0, 200, 255), thickness=1, lineType=cv2.LINE_AA)
         for i, (x, y) in enumerate(corner_points):
-            cv2.circle(view, (int(x), int(y)), 6, (0, 255, 255), -1)
+            cv2.circle(view, (int(x), int(y)), 8, (0, 255, 255), -1)
             cv2.putText(
                 view,
                 CORNER_LABELS[i],
@@ -409,7 +430,7 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            "Mode: m toggles corner<->side-pocket edit | Enter=save | r=reset auto-corners | q=quit",
+            "Mode: m toggles corner<->side-pocket edit | Enter=save | a/r=reset auto-corners | q=quit",
             (20, 54),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
@@ -429,8 +450,18 @@ def main() -> None:
         )
         cv2.putText(
             view,
+            auto_corner_status,
+            (20, 120),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (180, 255, 180),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            view,
             f"Current edit mode: {'outside corners' if mode == 'corners' else 'side pockets'}",
-            (20, 98),
+            (20, 142),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
             (0, 255, 255) if mode == "corners" else (255, 200, 0),
@@ -530,9 +561,10 @@ def main() -> None:
             cv2.destroyAllWindows()
             print("Cancelled.", file=sys.stderr)
             raise SystemExit(1)
-        if key == ord("r"):
+        if key in (ord("r"), ord("a")):
             corner_points = _estimate_outside_corners(img)
             side_pocket_points = []
+            auto_corner_status = "AUTO corners reloaded from frame contour."
             redraw()
         if key in (ord("m"),):
             mode = "side_pockets" if mode == "corners" else "corners"
