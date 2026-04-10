@@ -20,10 +20,16 @@ except Exception:
     _HAS_EDGE_AUTOCAL = False
 
 TABLE_PRESETS: dict[str, tuple[float, float]] = {
+    "6ft": (1.829, 0.914),  # 72x36 in playing surface
     "7ft": (1.981, 0.991),
     "8ft": (2.235, 1.118),
     "9ft": (2.84, 1.42),
     "snooker": (3.569, 1.778),
+}
+
+TABLE_SIZE_ALIASES: dict[str, str] = {
+    "bar_box": "6ft",
+    "bar_box_6ft": "6ft",
 }
 
 
@@ -67,7 +73,7 @@ def _parse_args() -> argparse.Namespace:
         "--table-size",
         type=str,
         default="auto",
-        choices=["auto", "7ft", "8ft", "9ft", "snooker"],
+        choices=["auto", "6ft", "bar_box", "bar_box_6ft", "7ft", "8ft", "9ft", "snooker"],
         help="Table preset. Use 'auto' to show a menu with detected default.",
     )
     p.add_argument("--pocket-radius-m", type=float, default=0.07)
@@ -162,10 +168,10 @@ def _detected_default_table_size(out_path: Path) -> str:
 
 def _choose_table_size(arg_table_size: str, out_path: Path) -> str:
     if arg_table_size != "auto":
-        return arg_table_size
+        return TABLE_SIZE_ALIASES.get(arg_table_size, arg_table_size)
 
     detected_default = _detected_default_table_size(out_path)
-    menu = ["7ft", "8ft", "9ft", "snooker"]
+    menu = ["6ft", "7ft", "8ft", "9ft", "snooker"]
     default_idx = menu.index(detected_default) + 1
 
     if not sys.stdin.isatty():
@@ -176,7 +182,8 @@ def _choose_table_size(arg_table_size: str, out_path: Path) -> str:
     for idx, name in enumerate(menu, start=1):
         marker = " (detected default)" if name == detected_default else ""
         dims = TABLE_PRESETS[name]
-        print(f"  {idx}) {name} ({dims[0]:.3f}m x {dims[1]:.3f}m){marker}")
+        label = "6ft (bar box)" if name == "6ft" else name
+        print(f"  {idx}) {label} ({dims[0]:.3f}m x {dims[1]:.3f}m){marker}")
     raw = input(f"Enter choice [1-{len(menu)}] (default {default_idx}): ").strip()
     if not raw:
         return detected_default
@@ -184,8 +191,9 @@ def _choose_table_size(arg_table_size: str, out_path: Path) -> str:
         sel = int(raw)
         if 1 <= sel <= len(menu):
             return menu[sel - 1]
-    if raw in menu:
-        return raw
+    raw_alias = TABLE_SIZE_ALIASES.get(raw, raw)
+    if raw_alias in menu:
+        return raw_alias
     print(f"Invalid selection {raw!r}; using detected default {detected_default}.")
     return detected_default
 

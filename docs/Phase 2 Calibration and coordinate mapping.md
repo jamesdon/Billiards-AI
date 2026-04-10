@@ -45,6 +45,14 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
 When `--table-size` is omitted, the helper shows a table-size menu and defaults
 to the value detected from an existing `--out` calibration file (if present).
 
+Table size menu options include:
+
+- `6ft` (bar box)
+- `7ft`
+- `8ft`
+- `9ft`
+- `snooker`
+
 If your local helper is an older script version, use:
 
 ```bash

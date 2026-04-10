@@ -19,6 +19,29 @@ from .overlay.draw import draw_overlay
 from .overlay.stream_mjpeg import MjpegServer
 from .pipeline import EdgePipeline
 
+TABLE_SIZE_PRESETS: dict[str, tuple[float, float]] = {
+    "6ft": (1.829, 0.914),  # bar box
+    "7ft": (1.981, 0.991),
+    "8ft": (2.235, 1.118),
+    "9ft": (2.84, 1.42),
+    "snooker": (3.569, 1.778),
+}
+
+TABLE_SIZE_ALIASES: dict[str, str] = {
+    "bar_box": "6ft",
+    "bar_box_6ft": "6ft",
+}
+
+TABLE_SIZE_CHOICES: tuple[str, ...] = (
+    "6ft",
+    "bar_box",
+    "bar_box_6ft",
+    "7ft",
+    "8ft",
+    "9ft",
+    "snooker",
+)
+
 
 def _rules_for(game_type: GameType):
     if game_type == GameType.EIGHT_BALL:
@@ -58,7 +81,7 @@ def parse_args() -> argparse.Namespace:
         "--table-size",
         type=str,
         default="9ft",
-        choices=["7ft", "8ft", "9ft", "snooker"],
+        choices=list(TABLE_SIZE_CHOICES),
         help="Table size preset used by --auto-calib-out",
     )
     ap.add_argument(
@@ -97,13 +120,8 @@ def main() -> None:
             if len(parts) != 2:
                 raise ValueError(f"Invalid corner format: {c!r}")
             corners.append((float(parts[0]), float(parts[1])))
-        size_presets = {
-            "7ft": (1.981, 0.991),
-            "8ft": (2.235, 1.118),
-            "9ft": (2.84, 1.42),
-            "snooker": (3.569, 1.778),
-        }
-        table_length_m, table_width_m = size_presets[str(args.table_size)]
+        table_size = TABLE_SIZE_ALIASES.get(str(args.table_size), str(args.table_size))
+        table_length_m, table_width_m = TABLE_SIZE_PRESETS[table_size]
         calib, geom = auto_calibration_from_corners(
             image_points=corners,
             table_length_m=table_length_m,

@@ -39,7 +39,7 @@ cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m edge.main \
   --auto-calib-out "/home/$USER/Billiards-AI/calibration.json" \
-  --table-size 9ft \
+  --table-size 6ft \
   --table-corners-px "120,80;1160,80;120,640;1160,640"
 ```
 
@@ -68,7 +68,7 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --csi-sensor-id 0 \
   --csi-flip-method 6 \
   --out "/home/$USER/Billiards-AI/calibration.json" \
-  --table-size 9ft
+  --table-size 6ft
 ```
 
 If your local script is older and does not accept `--csi-flip-method`, use:
@@ -79,7 +79,7 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --csi-sensor-id 0 \
   --flip 6 \
   --out "/home/$USER/Billiards-AI/calibration.json" \
-  --table-size 9ft
+  --table-size 6ft
 ```
 
 If your local `edge.main` is also older and does not support `--auto-calib-out`,
@@ -94,7 +94,19 @@ Table size selection behavior in the helper:
   - pocket geometry fallback.
 - If no prior calibration is available, it defaults to `9ft`.
 - The helper then presents a menu allowing you to accept the detected/default
-  value or choose `7ft`, `8ft`, `9ft`, or `snooker`.
+  value or choose `6ft` (bar box), `7ft`, `8ft`, `9ft`, or `snooker`.
+
+### What TL/TR/BL/BR means
+
+These points are **table cloth corners** (the cushion intersection points of the
+playable rectangle), in this strict order:
+
+1. `TL`: top-left cloth corner
+2. `TR`: top-right cloth corner
+3. `BL`: bottom-left cloth corner
+4. `BR`: bottom-right cloth corner
+
+They are **not** pocket centers.
 
 Click order (corners of playable table surface, not pocket centers):
 
@@ -131,7 +143,7 @@ Calibration stores:
 - pocket centers/radii (or polygons) in table coords
 - kitchen and break area polygons in table coords
 
-Presets can be created per table type (7ft/8ft/9ft, snooker).
+Presets can be created per table type (6ft bar box/7ft/8ft/9ft, snooker).
 
 ## Output artifact
 
