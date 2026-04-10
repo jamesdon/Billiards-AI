@@ -63,6 +63,7 @@ export PYTHONNOUSERSITE=1
 python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --camera csi \
   --csi-sensor-id 0 \
+  --csi-flip-method 6 \
   --out "/home/$USER/Billiards-AI/calibration.json" \
   --table-size 9ft
 ```
@@ -79,6 +80,20 @@ Controls:
 - `r`: reset points
 - `q` or `Esc`: quit without saving
 - auto-saves when 4 points are collected
+
+### Jetson camera orientation (repeatable)
+
+If the live view is upside down and you want a vertical flip, use:
+
+- `--csi-flip-method 6` (vertical mirror)
+
+Common Jetson `nvvidconv` values used in this project:
+
+- `0`: no transform
+- `2`: rotate 180 degrees
+- `6`: vertical mirror
+
+For repeatable runs, set this in every CSI command you use (calibration + edge runtime).
 
 ## Table dimensions presets
 

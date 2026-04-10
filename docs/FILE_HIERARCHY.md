@@ -88,8 +88,22 @@ Billiards-AI/
     routes.py                       REST endpoints
 
   scripts/
-    run_edge.sh                     Convenience runner
-    run_backend.sh                  Convenience runner
+    common.sh                       Shared env/bootstrap helpers (venv + PYTHONNOUSERSITE)
+    run_phase.sh                    Entry point for phase scripts
+    phase1.sh                       Environment + backend + CSI smoke checks
+    phase2.sh                       Calibration validation (valid/invalid label tests)
+    phase3.sh                       Detection/tracking verification sweep (n=1/2/3)
+    phase4.sh                       Identity/profile persistence checks
+    phase5.sh                       Foul event injection sanity checks
+    phase6.sh                       Rules test execution
+    phase7.sh                       Stats event injection checks
+    phase8.sh                       Backend persistence checks (SQLite + optional Dynamo)
+    phase9.sh                       End-to-end runtime launcher
+    calib_click.py                  Interactive TL/TR/BL/BR corner picker, writes calibration.json
+    jetson_csi_setup.sh             Jetson camera stack triage (Argus + gst + app smoke)
+    docker_jetson_build.sh          Build Jetson runtime image
+    docker_jetson_up.sh             Start Jetson runtime container
+    docker_jetson_down.sh           Stop Jetson runtime container
 
   tests/
     test_rules_8ball.py

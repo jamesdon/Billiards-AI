@@ -11,6 +11,7 @@ python -m pip install -r "$PROJECT_ROOT/requirements.txt"
 MODEL_PATH="${MODEL_PATH:-$PROJECT_ROOT/models/model.onnx}"
 CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/class_map.json}"
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
+CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
 MJPEG_PORT="${MJPEG_PORT:-8080}"
 EDGE_TIMEOUT_SECONDS="${EDGE_TIMEOUT_SECONDS:-1200}"
 BASELINE_SECONDS="${BASELINE_SECONDS:-20}"
@@ -66,6 +67,7 @@ run_case() {
   /usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" python -m edge.main \
     --camera csi \
     --csi-sensor-id "${CSI_SENSOR_ID}" \
+    --csi-flip-method "${CSI_FLIP_METHOD}" \
     --onnx-model "$MODEL_PATH" \
     --class-map "$CLASS_MAP_PATH" \
     --detect-every-n "${detect_n}" \

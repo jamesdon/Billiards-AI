@@ -34,12 +34,20 @@ python -m edge.main \
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python "/home/$USER/Billiards-AI/scripts/click_table_corners.py" \
+export PYTHONNOUSERSITE=1
+python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --camera csi \
   --csi-sensor-id 0 \
+  --csi-flip-method 6 \
   --table-size 9ft \
   --out "/home/$USER/Billiards-AI/calibration.json"
 ```
+
+`--csi-flip-method` is passed directly to Jetson `nvvidconv flip-method`:
+
+- `0`: no rotation/flip
+- `6`: vertical mirror (use this for vertically flipped view)
+- `2`: 180-degree rotate (if the camera is physically upside-down)
 
 The helper asks you to click corners in order:
 
@@ -82,7 +90,7 @@ EOF
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main --camera csi --csi-sensor-id 0 --calib "/home/$USER/Billiards-AI/calibration.json" --mjpeg-port 8080
+python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "/home/$USER/Billiards-AI/calibration.json" --mjpeg-port 8080
 ```
 
 ## 3) Negative test: invalid pocket label should fail
@@ -105,7 +113,7 @@ Run and confirm error:
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main --camera csi --csi-sensor-id 0 --calib "/home/$USER/Billiards-AI/calibration_invalid.json" --mjpeg-port 8081
+python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "/home/$USER/Billiards-AI/calibration_invalid.json" --mjpeg-port 8081
 ```
 
 ## Pass criteria

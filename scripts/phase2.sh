@@ -13,6 +13,7 @@ CALIB_INVALID_PATH="${CALIB_INVALID_PATH:-$PROJECT_ROOT/calibration_invalid.json
 VALID_LOG="${PROJECT_ROOT}/.phase2_valid.log"
 INVALID_LOG="${PROJECT_ROOT}/.phase2_invalid.log"
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
+CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
 MJPEG_PORT="${MJPEG_PORT:-8080}"
 EDGE_TIMEOUT_SECONDS="${EDGE_TIMEOUT_SECONDS:-1200}"
 PHASE2_REQUIRE_CAMERA="${PHASE2_REQUIRE_CAMERA:-1}"
@@ -65,7 +66,7 @@ trap cleanup EXIT
 
 if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   echo "[Phase2] Running valid calibration edge startup smoke..."
-  /usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
+  /usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
   EDGE_PID="$!"
   READY=0
   for _ in $(seq 1 45); do
@@ -106,7 +107,7 @@ print("written", path)
 PY
 
 set +e
-/usr/bin/timeout 120 python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --calib "$CALIB_INVALID_PATH" --mjpeg-port "$((MJPEG_PORT + 1))" >"$INVALID_LOG" 2>&1
+/usr/bin/timeout 120 python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_INVALID_PATH" --mjpeg-port "$((MJPEG_PORT + 1))" >"$INVALID_LOG" 2>&1
 RC=$?
 set -e
 if [[ "$RC" -eq 0 ]]; then

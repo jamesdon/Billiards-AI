@@ -75,6 +75,7 @@ MODEL_PATH="/ABSOLUTE/PATH/TO/model.onnx" \
 CLASS_MAP_PATH="/home/$USER/Billiards-AI/class_map.json" \
 CAMERA_SOURCE="csi" \
 CSI_SENSOR_ID=0 \
+CSI_FLIP_METHOD=6 \
 MJPEG_PORT=8080 \
 EDGE_TIMEOUT_SECONDS=1200 \
 "/home/$USER/Billiards-AI/scripts/phase3.sh"

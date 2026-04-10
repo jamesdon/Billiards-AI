@@ -94,8 +94,14 @@ See `docs/MODEL_OPTIMIZATION.md` for ONNX/TensorRT steps.
 ```bash
 cd "/home/$USER/Billiards-AI"
 source .venv/bin/activate
-python -m edge.main --camera csi --csi-sensor-id 0 --calib "./calibration.json" --mjpeg-port 8080
+python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "./calibration.json" --mjpeg-port 8080
 ```
+
+`--csi-flip-method` is passed directly to Jetson `nvvidconv`:
+
+- `0`: no flip
+- `6`: vertical flip (typical "camera mounted upside down" fix)
+- `2`: 180 degree rotate (if both vertical and horizontal appear inverted)
 
 ## CSI troubleshooting (Jetson)
 

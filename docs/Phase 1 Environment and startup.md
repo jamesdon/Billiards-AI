@@ -79,6 +79,14 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
 /usr/bin/timeout 1200 python -m edge.main --camera csi --csi-sensor-id 0 --mjpeg-port 8080
 ```
 
+To vertically flip the CSI camera image, add `--csi-flip-method 6`:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+/usr/bin/timeout 1200 python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --mjpeg-port 8080
+```
+
 In another terminal:
 
 ```bash

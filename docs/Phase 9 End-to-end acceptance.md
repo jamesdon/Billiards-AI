@@ -20,6 +20,7 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
 python -m edge.main \
   --camera csi \
   --csi-sensor-id 0 \
+  --csi-flip-method 6 \
   --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" \
   --class-map "/home/$USER/Billiards-AI/class_map.json" \
   --calib "/home/$USER/Billiards-AI/calibration.json" \
