@@ -32,6 +32,7 @@ Then create and activate the virtual environment:
 cd "/home/$USER/Billiards-AI"
 /usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
+export PYTHONNOUSERSITE=1
 python -m pip install -U pip
 # Install non-OpenCV deps first on Jetson, then force-remove any pip OpenCV wheel.
 python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
@@ -108,9 +109,18 @@ Additional checks:
 ```bash
 python - <<'PY'
 import cv2
+import site
 print("OpenCV:", cv2.__version__)
+print("cv2_path:", cv2.__file__)
+print("user_site:", site.getusersitepackages())
 print("GStreamer:", "YES" if "GStreamer:                   YES" in cv2.getBuildInformation() else "NO")
 PY
+```
+
+- if `cv2_path` points under `/home/$USER/.local/...`, disable user-site packages:
+
+```bash
+export PYTHONNOUSERSITE=1
 ```
 
 - if GStreamer shows `NO`, rebuild the venv without pip OpenCV and install Jetson OpenCV:

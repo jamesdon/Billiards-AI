@@ -33,6 +33,9 @@ cd "/home/$USER/Billiards-AI"
 /usr/bin/rm -rf "/home/$USER/Billiards-AI/.venv"
 /usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
+# Prevent Python from loading user-site packages like ~/.local/lib/pythonX.Y/site-packages
+# that can shadow Jetson system OpenCV with a non-GStreamer build.
+export PYTHONNOUSERSITE=1
 /usr/bin/python3 -m pip install -U pip wheel
 # IMPORTANT: install Jetson-compatible numeric stack first.
 python -m pip install "numpy<2"
@@ -46,6 +49,9 @@ print("cv2:", cv2.__file__)
 print("GStreamer:", "YES" if "GStreamer:                   YES" in cv2.getBuildInformation() else "NO")
 PY
 ```
+
+If `cv2` path points to `/home/$USER/.local/...`, remove user-site OpenCV packages
+or run with `PYTHONNOUSERSITE=1`.
 
 If this reports `GStreamer: NO`, remove pip OpenCV and use distro OpenCV:
 

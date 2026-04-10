@@ -25,6 +25,9 @@ activate_venv() {
   fi
   # shellcheck disable=SC1090
   source "$VENV_PATH/bin/activate"
+  # Ensure user-site Python packages (e.g. ~/.local) do not override Jetson
+  # distro OpenCV with a non-GStreamer pip build.
+  export PYTHONNOUSERSITE=1
 }
 
 cd_root() {
