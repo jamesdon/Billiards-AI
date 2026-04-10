@@ -33,6 +33,7 @@ Includes:
 - identity: `{ profile_id, display_name }`
 - profile rename: `PATCH /profiles/player/{id}` or `PATCH /profiles/stick/{id}`
 - game over: edge emits `type="game_over"` with `{ winner_team, game_over_reason, rulesets, final scores }`
+- rack detected: edge emits `type="rack_detected"` with `{ confidence, bbox_xyxy, fallback_reason }`
 - manual foul injection: `POST /fouls/manual` with `{ game_type, foul_type, player_idx/team_idx, notes, foul_points? }`
 - live reducer state: `GET /live/state`
 - reset live reducer: `POST /live/reset`

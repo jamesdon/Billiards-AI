@@ -31,6 +31,7 @@ names:
   0: ball
   1: person
   2: cue_stick
+  3: rack
 EOF
 ```
 
@@ -40,7 +41,7 @@ Use this to get a first usable detector quickly.
 
 1. Capture source video/images on your target table and camera setup.
 2. Extract candidate frames (or label still images directly).
-3. Label `ball` first; add `person` and `cue_stick` once baseline works.
+3. Label `ball` first; add `person`, `cue_stick`, and `rack` once baseline works.
 4. Split train/val by session (not random frame-level only) to avoid leakage.
 5. Train YOLO baseline.
 6. Export ONNX.
@@ -50,7 +51,7 @@ Use this to get a first usable detector quickly.
 Recommended starter volume:
 
 - **Ball-only baseline**: 300-800 labeled images
-- **Ball + person + cue_stick**: 800-2000 labeled images
+- **Ball + person + cue_stick + rack**: 1000-2500 labeled images
 - **Val split**: 15-20% (from different sessions/lighting when possible)
 
 ## Can I train by hitting balls on my pool table?
@@ -66,6 +67,8 @@ Capture real play sequences:
 - pocket approach and pocketing
 - player leaning/occluding balls
 - cue stick near cue ball and across table
+- between-rack setup moments where the triangle/rack is visible
+- concession/end-of-match situations where balls stop and rack appears before formal final shot
 
 Do multiple sessions:
 
@@ -101,6 +104,7 @@ Use consistent class naming and IDs:
 - `0: ball`
 - `1: person`
 - `2: cue_stick`
+- `3: rack`
 
 ## Public datasets you can leverage
 

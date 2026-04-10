@@ -12,7 +12,8 @@ cat > "/home/$USER/Billiards-AI/class_map.json" <<'EOF'
 {
   "0": "ball",
   "1": "person",
-  "2": "cue_stick"
+  "2": "cue_stick",
+  "3": "rack"
 }
 EOF
 ```
@@ -37,6 +38,7 @@ Expected labels in dataset should align with your class map:
 - `0: ball`
 - `1: person`
 - `2: cue_stick`
+- `3: rack` (triangle/diamond rack object, used for concession/end-of-rack fallback)
 
 ### 2b) Export the trained model to ONNX
 

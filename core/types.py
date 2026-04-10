@@ -112,6 +112,16 @@ class BallTrack:
         return max(self.class_probs.items(), key=lambda kv: kv[1])[0]
 
 
+@dataclass
+class RackTrack:
+    """Tracked rack state in pixel space."""
+
+    id: int
+    center_px: Tuple[float, float]
+    bbox_xyxy: Tuple[float, float, float, float]
+    last_seen_ts: float = 0.0
+
+
 @dataclass(frozen=True)
 class Ball:
     id: BallId
@@ -132,6 +142,7 @@ class EventType(str, Enum):
 
     PLAYER_SEEN = "player_seen"
     STICK_SEEN = "stick_seen"
+    RACK_DETECTED = "rack_detected"
     RAIL_HIT = "rail_hit"
     SHOT_SUMMARY = "shot_summary"
     GAME_OVER = "game_over"

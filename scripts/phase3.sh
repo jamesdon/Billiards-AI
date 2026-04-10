@@ -22,7 +22,8 @@ if [[ ! -f "$CLASS_MAP_PATH" ]] && [[ "$AUTO_WRITE_CLASS_MAP" == "1" ]]; then
 {
   "0": "ball",
   "1": "person",
-  "2": "cue_stick"
+  "2": "cue_stick",
+  "3": "rack"
 }
 EOF
 fi
