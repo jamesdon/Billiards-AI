@@ -50,6 +50,9 @@ Corner order for `--table-corners-px` is strictly:
 3. bottom-left
 4. bottom-right
 
+These points are **table playfield corners** (the cushion intersection corners), **not**
+the centers of pockets.
+
 This is still a baseline and should be visually validated before match use.
 
 ### Optional interactive corner picker (recommended)
@@ -82,7 +85,18 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
 If your local `edge.main` is also older and does not support `--auto-calib-out`,
 the helper now writes `calibration.json` directly without calling `edge.main`.
 
-Click order:
+Table size selection behavior in the helper:
+
+- If you pass `--table-size`, that value is used directly.
+- If you do not pass `--table-size`, the helper attempts to auto-detect from an
+  existing output calibration file (the `--out` path) by reading:
+  - `table_length_m` and `table_width_m`, or
+  - pocket geometry fallback.
+- If no prior calibration is available, it defaults to `9ft`.
+- The helper then presents a menu allowing you to accept the detected/default
+  value or choose `7ft`, `8ft`, `9ft`, or `snooker`.
+
+Click order (corners of playable table surface, not pocket centers):
 
 1. top-left
 2. top-right

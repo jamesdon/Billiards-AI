@@ -39,9 +39,11 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --camera csi \
   --csi-sensor-id 0 \
   --csi-flip-method 6 \
-  --table-size 9ft \
   --out "/home/$USER/Billiards-AI/calibration.json"
 ```
+
+When `--table-size` is omitted, the helper shows a table-size menu and defaults
+to the value detected from an existing `--out` calibration file (if present).
 
 If your local helper is an older script version, use:
 
@@ -70,6 +72,9 @@ The helper asks you to click corners in order:
 2. top-right
 3. bottom-left
 4. bottom-right
+
+These four points are the **table playing-surface corners** (cushion nose
+intersections), **not pocket centers**.
 
 This writes:
 

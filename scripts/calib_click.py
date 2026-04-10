@@ -19,6 +19,13 @@ except Exception:
     table_geometry_dict = None
     _HAS_EDGE_AUTOCAL = False
 
+TABLE_PRESETS: dict[str, tuple[float, float]] = {
+    "7ft": (1.981, 0.991),
+    "8ft": (2.235, 1.118),
+    "9ft": (2.84, 1.42),
+    "snooker": (3.569, 1.778),
+}
+
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
@@ -59,8 +66,9 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument(
         "--table-size",
         type=str,
-        default="9ft",
-        choices=["7ft", "8ft", "9ft", "snooker"],
+        default="auto",
+        choices=["auto", "7ft", "8ft", "9ft", "snooker"],
+        help="Table preset. Use 'auto' to show a menu with detected default.",
     )
     p.add_argument("--pocket-radius-m", type=float, default=0.07)
     p.add_argument(
@@ -116,13 +124,70 @@ def _capture_frame(args: argparse.Namespace):
 
 
 def _table_dims(table_size: str) -> Tuple[float, float]:
-    presets = {
-        "7ft": (1.981, 0.991),
-        "8ft": (2.235, 1.118),
-        "9ft": (2.84, 1.42),
-        "snooker": (3.569, 1.778),
-    }
-    return presets[table_size]
+    return TABLE_PRESETS[table_size]
+
+
+def _infer_dims_from_payload(payload: dict) -> tuple[float, float] | None:
+    length = payload.get("table_length_m")
+    width = payload.get("table_width_m")
+    if isinstance(length, (int, float)) and isinstance(width, (int, float)) and length > 0 and width > 0:
+        return float(length), float(width)
+    return None
+
+
+def _closest_preset(length_m: float, width_m: float) -> str:
+    best_name = "9ft"
+    best_score = float("inf")
+    for name, (preset_l, preset_w) in TABLE_PRESETS.items():
+        # Relative error is more stable across scales than absolute deltas.
+        score = abs((length_m - preset_l) / preset_l) + abs((width_m - preset_w) / preset_w)
+        if score < best_score:
+            best_name = name
+            best_score = score
+    return best_name
+
+
+def _detected_default_table_size(out_path: Path) -> str:
+    if not out_path.exists():
+        return "9ft"
+    try:
+        payload = json.loads(out_path.read_text(encoding="utf-8"))
+    except Exception:
+        return "9ft"
+    dims = _infer_dims_from_payload(payload)
+    if dims is None:
+        return "9ft"
+    return _closest_preset(dims[0], dims[1])
+
+
+def _choose_table_size(arg_table_size: str, out_path: Path) -> str:
+    if arg_table_size != "auto":
+        return arg_table_size
+
+    detected_default = _detected_default_table_size(out_path)
+    menu = ["7ft", "8ft", "9ft", "snooker"]
+    default_idx = menu.index(detected_default) + 1
+
+    if not sys.stdin.isatty():
+        print(f"Auto-selected table size: {detected_default} (non-interactive mode)")
+        return detected_default
+
+    print("\nSelect table size preset (default is detected from existing calibration):")
+    for idx, name in enumerate(menu, start=1):
+        marker = " (detected default)" if name == detected_default else ""
+        dims = TABLE_PRESETS[name]
+        print(f"  {idx}) {name} ({dims[0]:.3f}m x {dims[1]:.3f}m){marker}")
+    raw = input(f"Enter choice [1-{len(menu)}] (default {default_idx}): ").strip()
+    if not raw:
+        return detected_default
+    if raw.isdigit():
+        sel = int(raw)
+        if 1 <= sel <= len(menu):
+            return menu[sel - 1]
+    if raw in menu:
+        return raw
+    print(f"Invalid selection {raw!r}; using detected default {detected_default}.")
+    return detected_default
 
 
 def _estimate_homography(
@@ -197,6 +262,13 @@ def _manual_calibration_payload(
 
 def main() -> None:
     args = _parse_args()
+    out_path = Path(str(args.out)).expanduser()
+    selected_table_size = _choose_table_size(str(args.table_size), out_path)
+    print(
+        "Corner meaning: TL/TR/BL/BR are the four table cloth corners "
+        "(cushion intersections), not pocket centers."
+    )
+    print(f"Using table size preset: {selected_table_size}")
 
     if args.frame:
         img = cv2.imread(str(args.frame))
@@ -226,10 +298,20 @@ def main() -> None:
                 cv2.LINE_AA,
             )
         if len(points) < 4:
-            prompt = f"Click {labels[len(points)]} corner"
+            prompt = f"Click {labels[len(points)]} cloth corner (not pocket center)"
         else:
             prompt = "Press Enter to save, r to reset, q to quit"
         cv2.putText(view, prompt, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(
+            view,
+            "Order: TL=top-left, TR=top-right, BL=bottom-left, BR=bottom-right",
+            (20, 58),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
 
     def on_mouse(event, x, y, _flags, _userdata) -> None:
         if event != cv2.EVENT_LBUTTONDOWN:
@@ -260,8 +342,7 @@ def main() -> None:
 
     cv2.destroyAllWindows()
 
-    L, W = _table_dims(str(args.table_size))
-    out_path = Path(str(args.out)).expanduser()
+    L, W = _table_dims(selected_table_size)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     wrote_with_edge_helpers = False
     if _HAS_EDGE_AUTOCAL:
@@ -288,6 +369,7 @@ def main() -> None:
             json.dump(payload, f, indent=2)
     print(f"Wrote calibration: {out_path}")
     print("Corners (TL,TR,BL,BR):", json.dumps(points))
+    print(f"Table size preset: {selected_table_size}")
     if not wrote_with_edge_helpers:
         print("Saved using standalone calibration writer fallback.")
 
