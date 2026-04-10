@@ -42,9 +42,19 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --out "/home/$USER/Billiards-AI/calibration.json"
 ```
 
-When `--table-size` is omitted, the helper shows a **radio-button table-size list
-inside the calibration OpenCV window** and defaults to the value detected from an
-existing `--out` calibration file (if present). Click a radio option to change it.
+The helper now opens with auto-detected corner proposals and in-window controls:
+
+- **Corner points** are auto-proposed from the largest table-like contour, then
+  can be edited before save.
+- Left-click near a point to drag it.
+- `r` resets corners back to fresh auto-detection.
+- **Table size** uses an on-screen radio list.
+- **Units** use an on-screen radio toggle (`imperial` default, `metric` optional).
+- **Side pocket mapping** is integrated in the same editor:
+  - press `m` to toggle between outside-corner editing and side-pocket editing
+  - in side-pocket mode, set/drag exactly two points: `LS` (left side pocket),
+    `RS` (right side pocket)
+  - if no manual side-pocket points are set, defaults are used automatically
 
 Table size menu options include:
 
@@ -53,6 +63,11 @@ Table size menu options include:
 - `8ft`
 - `9ft`
 - `snooker`
+
+Unit toggle options:
+
+- `imperial` (default UI display)
+- `metric`
 
 If your local helper is an older script version, use:
 
@@ -85,6 +100,11 @@ The helper asks you to click corners in order:
 These four points are the **outside corners of the table playing surface**
 (outside cushion/corner intersections), **not pocket centers**.
 
+Side pocket controls:
+
+- `m`: toggle side pocket mode (`AUTO_SIDE_POCKETS` / `MANUAL_SIDE_POCKETS`)
+- In manual mode, click `LP` then `RP` (left/right side pocket centers)
+
 This writes:
 
 - `H`
@@ -92,6 +112,7 @@ This writes:
 - `kitchen_polygon_xy_m`
 - `break_area_polygon_xy_m`
 - standard `pockets`
+- optional `side_pocket_points_px` when manual side pocket mode is used
 
 ## 1) Validate pocket labels in calibration JSON
 

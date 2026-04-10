@@ -57,7 +57,7 @@ This is still a baseline and should be visually validated before match use.
 
 ### Optional interactive corner picker (recommended)
 
-Use the helper script to click corners from a live frame instead of typing pixels:
+Use the helper script to launch an interactive calibration window:
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -67,8 +67,7 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --camera csi \
   --csi-sensor-id 0 \
   --csi-flip-method 6 \
-  --out "/home/$USER/Billiards-AI/calibration.json" \
-  --table-size 6ft
+  --out "/home/$USER/Billiards-AI/calibration.json"
 ```
 
 If your local script is older and does not accept `--csi-flip-method`, use:
@@ -85,19 +84,20 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
 If your local `edge.main` is also older and does not support `--auto-calib-out`,
 the helper now writes `calibration.json` directly without calling `edge.main`.
 
-Table size selection behavior in the helper:
+In-window workflow (new default):
 
-- If you pass `--table-size`, that value is used directly.
-- If you do not pass `--table-size`, the helper attempts to auto-detect from an
-  existing output calibration file (the `--out` path) by reading:
-  - `table_length_m` and `table_width_m`, or
-  - pocket geometry fallback.
-- If no prior calibration is available, it defaults to `9ft`.
-- The table-size list is now overlaid directly in the OpenCV calibration window
-  as clickable radio buttons.
-- The detected/default value is preselected in that in-window list.
-- You can click one option (`6ft` bar box, `7ft`, `8ft`, `9ft`, `snooker`)
-  before or during corner selection; the selected option is used when saving.
+- The helper proposes table outside-corner points automatically from the current frame.
+- You can drag any point to refine it.
+- Edit modes:
+  - outside corners mode (`TL/TR/BL/BR`)
+  - side pockets mode (`LS/RS`)
+- Table-size is selected in-window via radio list:
+  - click radio circles or press keys `1..5`
+  - options: `6ft (bar box)`, `7ft`, `8ft`, `9ft`, `snooker`
+  - detected/default option is preselected from previous calibration file when available
+- Unit display toggle uses an in-window radio list:
+  - click radio circles or press `6` (`imperial`) / `7` (`metric`)
+  - default UI unit is `imperial`
 
 ### What TL/TR/BL/BR means
 
@@ -111,18 +111,15 @@ These points are the **outside corners of the table play area**
 
 They are **not** pocket centers.
 
-Click order (outside corners of playable table surface, not pocket centers):
-
-1. top-left
-2. top-right
-3. bottom-left
-4. bottom-right
-
 Controls:
 
-- `r`: reset points
+- drag points to adjust
+- `a`: reset to auto-detected corners
 - `q` or `Esc`: quit without saving
-- auto-saves when 4 points are collected
+- `Enter`: save calibration
+- `u`: toggle units (m/ft)
+- `p`: toggle side-pocket visibility
+- `m`: toggle side-pocket edit mode
 
 ### Jetson camera orientation (repeatable)
 
