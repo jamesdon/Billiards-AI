@@ -13,6 +13,7 @@ from core.types import Event, GameConfig, GameState, GameType, PlayerState
 
 from core.identity_store import IdentityStore
 from .calib.calib_store import Calibration
+from .calib.table_geometry import auto_calibration_from_corners, table_geometry_dict
 from .io.camera_opencv import OpenCVCamera, jetson_csi_gstreamer_pipeline, opencv_gstreamer_enabled
 from .overlay.draw import draw_overlay
 from .overlay.stream_mjpeg import MjpegServer
@@ -47,6 +48,31 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--width", type=int, default=None)
     ap.add_argument("--height", type=int, default=None)
     ap.add_argument("--calib", type=str, default=None, help="Calibration JSON with homography + pockets")
+    ap.add_argument(
+        "--auto-calib-out",
+        type=str,
+        default=None,
+        help="Write a generated calibration JSON from 4 corners and exit",
+    )
+    ap.add_argument(
+        "--table-size",
+        type=str,
+        default="9ft",
+        choices=["7ft", "8ft", "9ft", "snooker"],
+        help="Table size preset used by --auto-calib-out",
+    )
+    ap.add_argument(
+        "--table-corners-px",
+        type=str,
+        default=None,
+        help="Required with --auto-calib-out. Four corners TL,TR,BL,BR as 'x1,y1;x2,y2;x3,y3;x4,y4'",
+    )
+    ap.add_argument(
+        "--pocket-radius-m",
+        type=float,
+        default=0.07,
+        help="Pocket radius (meters) used by --auto-calib-out",
+    )
     ap.add_argument("--game", type=str, default="8ball", choices=[g.value for g in GameType])
     ap.add_argument("--mjpeg-port", type=int, default=8080)
     ap.add_argument("--players", type=str, default="Player A,Player B")
@@ -59,6 +85,35 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.auto_calib_out:
+        if not args.table_corners_px:
+            raise ValueError("--auto-calib-out requires --table-corners-px")
+        chunks = [c.strip() for c in str(args.table_corners_px).split(";") if c.strip()]
+        if len(chunks) != 4:
+            raise ValueError("--table-corners-px requires exactly 4 points TL,TR,BL,BR")
+        corners: list[tuple[float, float]] = []
+        for c in chunks:
+            parts = [p.strip() for p in c.split(",")]
+            if len(parts) != 2:
+                raise ValueError(f"Invalid corner format: {c!r}")
+            corners.append((float(parts[0]), float(parts[1])))
+        size_presets = {
+            "7ft": (1.981, 0.991),
+            "8ft": (2.235, 1.118),
+            "9ft": (2.84, 1.42),
+            "snooker": (3.569, 1.778),
+        }
+        table_length_m, table_width_m = size_presets[str(args.table_size)]
+        calib, geom = auto_calibration_from_corners(
+            image_points=corners,
+            table_length_m=table_length_m,
+            table_width_m=table_width_m,
+            pocket_radius_m=float(args.pocket_radius_m),
+        )
+        calib.save(str(args.auto_calib_out))
+        print(f"Wrote calibration: {args.auto_calib_out}")
+        print(json.dumps(table_geometry_dict(geom), indent=2))
+        return
     cam_src: int | str
     use_gstreamer = False
     cam_arg = str(args.camera).strip().lower()

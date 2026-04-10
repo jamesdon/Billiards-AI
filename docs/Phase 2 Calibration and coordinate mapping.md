@@ -4,6 +4,39 @@
 
 Validate calibration schema, pocket labels, and coordinate mapping assumptions.
 
+## What is automated vs manual today
+
+- **Automated derivation from calibration corners**:
+  - homography `H` (from provided image corners + table preset)
+  - table length/width in meters (from selected table preset)
+  - six standardized pocket centers/radii
+  - kitchen polygon (head-string quarter table length)
+  - break area polygon (head quarter of table)
+- **Still manual/assisted**:
+  - initial table corner selection in image pixel coordinates
+  - optional override of pocket radii and exact break-zone policy
+
+## 0) Generate calibration with table geometry automation
+
+Use corner clicks from a frame (order: top-left, top-right, bottom-left, bottom-right):
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python -m edge.main \
+  --init-calib "/home/$USER/Billiards-AI/calibration.json" \
+  --table-size 9ft \
+  --table-corners-px "120,90;1160,95;110,640;1170,645"
+```
+
+This writes:
+
+- `H`
+- `table_length_m`, `table_width_m`
+- `kitchen_polygon_xy_m`
+- `break_area_polygon_xy_m`
+- standard `pockets`
+
 ## 1) Validate pocket labels in calibration JSON
 
 Create/edit calibration file:
@@ -60,6 +93,7 @@ python -m edge.main --camera csi --csi-sensor-id 0 --calib "/home/$USER/Billiard
 
 - valid `calibration.json` loads successfully
 - invalid label is rejected
+- derived table geometry (kitchen + break area) is present when calibration includes corners
 
 ## Troubleshooting note from field run (Jetson Orin Nano)
 

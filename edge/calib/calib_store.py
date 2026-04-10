@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
@@ -21,6 +21,10 @@ class PocketDef:
 class Calibration:
     H: Homography
     pockets: List[PocketDef]
+    table_length_m: float = 2.84
+    table_width_m: float = 1.42
+    kitchen_polygon_xy_m: List[Tuple[float, float]] = field(default_factory=list)
+    break_area_polygon_xy_m: List[Tuple[float, float]] = field(default_factory=list)
 
     @staticmethod
     def load(path: str) -> "Calibration":

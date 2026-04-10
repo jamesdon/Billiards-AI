@@ -21,10 +21,36 @@ Compute homography \(H\) such that \(P \sim H p\).
 
 This is robust and simple on edge hardware.
 
-### 2) Automatic corner detection (optional)
+### 2) Automatic geometry derivation from corners (implemented)
 
-If table rails are visually distinct, detect rectangle via edges/lines and refine using RANSAC.
-This is optional; manual is the default for reliability.
+This repo includes a helper (`edge/calib/table_geometry.py`) that derives
+baseline table geometry from four image corners:
+
+- homography `H`
+- six standardized pockets
+- table length/width
+- kitchen polygon
+- break area polygon
+
+CLI workflow:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python -m edge.main \
+  --init-calib "/home/$USER/Billiards-AI/calibration.json" \
+  --table-size 9ft \
+  --table-corners-px "120,80;1160,80;120,640;1160,640"
+```
+
+Corner order for `--table-corners-px` is strictly:
+
+1. top-left
+2. top-right
+3. bottom-left
+4. bottom-right
+
+This is still a baseline and should be visually validated before match use.
 
 ## Table dimensions presets
 
@@ -32,6 +58,7 @@ Calibration stores:
 
 - table length/width in meters
 - pocket centers/radii (or polygons) in table coords
+- kitchen and break area polygons in table coords
 
 Presets can be created per table type (7ft/8ft/9ft, snooker).
 
@@ -43,6 +70,10 @@ Calibration is saved to JSON (see `edge/calib/calib_store.py`) containing:
 - `table_points`: four corners (meters)
 - `H`: 3x3 homography (float)
 - `pockets`: pocket definitions in table coords with standardized labels
+- `table_length_m`: inferred or configured table length
+- `table_width_m`: inferred or configured table width
+- `kitchen_polygon_xy_m`: polygon in table coordinates
+- `break_area_polygon_xy_m`: polygon in table coordinates
 
 ### Pocket labels (standard)
 
