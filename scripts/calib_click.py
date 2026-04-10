@@ -30,8 +30,22 @@ def _parse_args() -> argparse.Namespace:
     )
     p.add_argument("--usb-index", type=int, default=0)
     p.add_argument("--csi-sensor-id", type=int, default=0)
-    p.add_argument("--csi-framerate", type=int, default=30)
-    p.add_argument("--csi-flip-method", type=int, default=0)
+    p.add_argument(
+        "--csi-framerate",
+        "--fps",
+        dest="csi_framerate",
+        type=int,
+        default=30,
+        help="CSI framerate (legacy alias: --fps)",
+    )
+    p.add_argument(
+        "--csi-flip-method",
+        "--flip",
+        dest="csi_flip_method",
+        type=int,
+        default=0,
+        help="CSI nvvidconv flip-method (legacy alias: --flip)",
+    )
     p.add_argument("--width", type=int, default=1280)
     p.add_argument("--height", type=int, default=720)
     p.add_argument(

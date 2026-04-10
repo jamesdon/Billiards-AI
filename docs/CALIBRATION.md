@@ -68,6 +68,17 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --table-size 9ft
 ```
 
+If your local script is older and does not accept `--csi-flip-method`, use:
+
+```bash
+python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
+  --camera csi \
+  --csi-sensor-id 0 \
+  --flip 6 \
+  --out "/home/$USER/Billiards-AI/calibration.json" \
+  --table-size 9ft
+```
+
 Click order:
 
 1. top-left

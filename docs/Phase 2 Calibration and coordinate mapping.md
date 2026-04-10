@@ -43,6 +43,17 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --out "/home/$USER/Billiards-AI/calibration.json"
 ```
 
+If your local helper is an older script version, use:
+
+```bash
+python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
+  --camera csi \
+  --csi-sensor-id 0 \
+  --flip 6 \
+  --table-size 9ft \
+  --out "/home/$USER/Billiards-AI/calibration.json"
+```
+
 `--csi-flip-method` is passed directly to Jetson `nvvidconv flip-method`:
 
 - `0`: no rotation/flip
