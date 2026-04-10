@@ -32,6 +32,8 @@ TABLE_SIZE_ALIASES: dict[str, str] = {
     "bar_box_6ft": "6ft",
 }
 
+TABLE_MENU: list[str] = ["6ft", "7ft", "8ft", "9ft", "snooker"]
+
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
@@ -166,36 +168,14 @@ def _detected_default_table_size(out_path: Path) -> str:
     return _closest_preset(dims[0], dims[1])
 
 
-def _choose_table_size(arg_table_size: str, out_path: Path) -> str:
+def _initial_table_size(arg_table_size: str, out_path: Path) -> str:
     if arg_table_size != "auto":
         return TABLE_SIZE_ALIASES.get(arg_table_size, arg_table_size)
+    return _detected_default_table_size(out_path)
 
-    detected_default = _detected_default_table_size(out_path)
-    menu = ["6ft", "7ft", "8ft", "9ft", "snooker"]
-    default_idx = menu.index(detected_default) + 1
 
-    if not sys.stdin.isatty():
-        print(f"Auto-selected table size: {detected_default} (non-interactive mode)")
-        return detected_default
-
-    print("\nSelect table size preset (default is detected from existing calibration):")
-    for idx, name in enumerate(menu, start=1):
-        marker = " (detected default)" if name == detected_default else ""
-        dims = TABLE_PRESETS[name]
-        label = "6ft (bar box)" if name == "6ft" else name
-        print(f"  {idx}) {label} ({dims[0]:.3f}m x {dims[1]:.3f}m){marker}")
-    raw = input(f"Enter choice [1-{len(menu)}] (default {default_idx}): ").strip()
-    if not raw:
-        return detected_default
-    if raw.isdigit():
-        sel = int(raw)
-        if 1 <= sel <= len(menu):
-            return menu[sel - 1]
-    raw_alias = TABLE_SIZE_ALIASES.get(raw, raw)
-    if raw_alias in menu:
-        return raw_alias
-    print(f"Invalid selection {raw!r}; using detected default {detected_default}.")
-    return detected_default
+def _table_size_label(size_name: str) -> str:
+    return "6ft (bar box)" if size_name == "6ft" else size_name
 
 
 def _estimate_homography(
@@ -271,12 +251,13 @@ def _manual_calibration_payload(
 def main() -> None:
     args = _parse_args()
     out_path = Path(str(args.out)).expanduser()
-    selected_table_size = _choose_table_size(str(args.table_size), out_path)
+    detected_default_table_size = _detected_default_table_size(out_path)
+    selected_table_size = _initial_table_size(str(args.table_size), out_path)
     print(
         "Corner meaning: TL/TR/BL/BR are the four table cloth corners "
         "(cushion intersections), not pocket centers."
     )
-    print(f"Using table size preset: {selected_table_size}")
+    print(f"Initial table size preset: {selected_table_size}")
 
     if args.frame:
         img = cv2.imread(str(args.frame))
@@ -289,9 +270,14 @@ def main() -> None:
     points: List[Tuple[float, float]] = []
     labels = ["TL", "TR", "BL", "BR"]
     view = img.copy()
+    radio_left = 20
+    radio_top = 92
+    radio_spacing = 24
+    radio_radius = 8
+    radio_hit_radius = 12
 
     def redraw() -> None:
-        nonlocal view
+        nonlocal view, selected_table_size
         view = img.copy()
         for i, (x, y) in enumerate(points):
             cv2.circle(view, (int(x), int(y)), 6, (0, 255, 255), -1)
@@ -320,10 +306,57 @@ def main() -> None:
             1,
             cv2.LINE_AA,
         )
+        cv2.putText(
+            view,
+            "Table size (radio list): click circle or press 1-5",
+            (20, 82),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        for idx, name in enumerate(TABLE_MENU, start=1):
+            row_y = radio_top + (idx - 1) * radio_spacing
+            dims = TABLE_PRESETS[name]
+            selected = name == selected_table_size
+            cv2.circle(view, (radio_left, row_y), radio_radius, (255, 255, 255), 1)
+            if selected:
+                cv2.circle(view, (radio_left, row_y), radio_radius - 3, (0, 255, 255), -1)
+            label = _table_size_label(name)
+            marker = " (detected default)" if name == detected_default_table_size else ""
+            txt = f"{idx}. {label} ({dims[0]:.3f}m x {dims[1]:.3f}m){marker}"
+            cv2.putText(
+                view,
+                txt,
+                (radio_left + 16, row_y + 5),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (255, 255, 255),
+                1,
+                cv2.LINE_AA,
+            )
+        cv2.putText(
+            view,
+            f"Selected table size: {_table_size_label(selected_table_size)}",
+            (20, radio_top + len(TABLE_MENU) * radio_spacing + 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (0, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
 
     def on_mouse(event, x, y, _flags, _userdata) -> None:
+        nonlocal selected_table_size
         if event != cv2.EVENT_LBUTTONDOWN:
             return
+        for idx, name in enumerate(TABLE_MENU, start=1):
+            row_y = radio_top + (idx - 1) * radio_spacing
+            if abs(x - radio_left) <= radio_hit_radius and abs(y - row_y) <= radio_hit_radius:
+                selected_table_size = name
+                redraw()
+                return
         if len(points) >= 4:
             return
         points.append((float(x), float(y)))
@@ -343,6 +376,11 @@ def main() -> None:
         if key == ord("r"):
             points.clear()
             redraw()
+        if key in (ord("1"), ord("2"), ord("3"), ord("4"), ord("5")):
+            idx = int(chr(key)) - 1
+            if 0 <= idx < len(TABLE_MENU):
+                selected_table_size = TABLE_MENU[idx]
+                redraw()
         if key in (13, 10):
             if len(points) != 4:
                 continue

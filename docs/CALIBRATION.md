@@ -93,8 +93,11 @@ Table size selection behavior in the helper:
   - `table_length_m` and `table_width_m`, or
   - pocket geometry fallback.
 - If no prior calibration is available, it defaults to `9ft`.
-- The helper then presents a menu allowing you to accept the detected/default
-  value or choose `6ft` (bar box), `7ft`, `8ft`, `9ft`, or `snooker`.
+- The table-size list is now overlaid directly in the OpenCV calibration window
+  as clickable radio buttons.
+- The detected/default value is preselected in that in-window list.
+- You can click one option (`6ft` bar box, `7ft`, `8ft`, `9ft`, `snooker`)
+  before or during corner selection; the selected option is used when saving.
 
 ### What TL/TR/BL/BR means
 

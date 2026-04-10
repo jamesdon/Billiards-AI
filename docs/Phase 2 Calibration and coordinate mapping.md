@@ -42,8 +42,9 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
   --out "/home/$USER/Billiards-AI/calibration.json"
 ```
 
-When `--table-size` is omitted, the helper shows a table-size menu and defaults
-to the value detected from an existing `--out` calibration file (if present).
+When `--table-size` is omitted, the helper shows a **radio-button table-size list
+inside the calibration OpenCV window** and defaults to the value detected from an
+existing `--out` calibration file (if present). Click a radio option to change it.
 
 Table size menu options include:
 
