@@ -427,7 +427,7 @@ def main() -> None:
     units_title_gap = 18
     units_row_gap = 24
     view_title_gap = 18
-    view_section_h = 136
+    view_section_h = 206
     estimated_menu_w = 480
     estimated_menu_h = (
         menu_padding
@@ -461,101 +461,76 @@ def main() -> None:
     def _current_zoom() -> float:
         return float(zoom_levels[zoom_idx])
 
-    def _source_center_from_oriented(x_oriented: float, y_oriented: float) -> Tuple[float, float]:
-        x_src = float(w_img - 1) - x_oriented if flip_view_h else x_oriented
-        y_src = float(h_img - 1) - y_oriented if flip_view_v else y_oriented
-        return (
-            float(np.clip(x_src, 0.0, float(w_img - 1))),
-            float(np.clip(y_src, 0.0, float(h_img - 1))),
-        )
-
-    def _oriented_center_from_source(x_src: float, y_src: float) -> Tuple[float, float]:
-        x_oriented = float(w_img - 1) - x_src if flip_view_h else x_src
-        y_oriented = float(h_img - 1) - y_src if flip_view_v else y_src
-        return x_oriented, y_oriented
+    view_rotate_deg = 0.0
 
     def _clamp_pan_center() -> None:
         nonlocal pan_center_src_x, pan_center_src_y
-        zoom = _current_zoom()
-        view_w = float(w_img) / zoom
-        view_h = float(h_img) / zoom
-        cx_o, cy_o = _oriented_center_from_source(pan_center_src_x, pan_center_src_y)
-        if view_w >= float(w_img):
-            cx_o = 0.5 * float(w_img - 1)
-        else:
-            cx_o = float(np.clip(cx_o, 0.5 * view_w, float(w_img) - 0.5 * view_w))
-        if view_h >= float(h_img):
-            cy_o = 0.5 * float(h_img - 1)
-        else:
-            cy_o = float(np.clip(cy_o, 0.5 * view_h, float(h_img) - 0.5 * view_h))
-        pan_center_src_x, pan_center_src_y = _source_center_from_oriented(cx_o, cy_o)
+        pan_center_src_x = float(np.clip(pan_center_src_x, 0.0, float(w_img - 1)))
+        pan_center_src_y = float(np.clip(pan_center_src_y, 0.0, float(h_img - 1)))
 
-    def _viewport() -> Tuple[float, float, float, float]:
+    def _display_center() -> np.ndarray:
+        return np.array([0.5 * float(w_img - 1), 0.5 * float(h_img - 1)], dtype=np.float64)
+
+    def _view_linear() -> np.ndarray:
+        flip_m = np.array(
+            [
+                [-1.0 if flip_view_h else 1.0, 0.0],
+                [0.0, -1.0 if flip_view_v else 1.0],
+            ],
+            dtype=np.float64,
+        )
+        theta = float(np.deg2rad(view_rotate_deg))
+        c = float(np.cos(theta))
+        s = float(np.sin(theta))
+        rot_m = np.array([[c, -s], [s, c]], dtype=np.float64)
+        return _current_zoom() * (rot_m @ flip_m)
+
+    def _view_matrix() -> np.ndarray:
         _clamp_pan_center()
-        zoom = _current_zoom()
-        view_w = float(w_img) / zoom
-        view_h = float(h_img) / zoom
-        cx_o, cy_o = _oriented_center_from_source(pan_center_src_x, pan_center_src_y)
-        left = cx_o - 0.5 * view_w
-        top = cy_o - 0.5 * view_h
-        if view_w < float(w_img):
-            left = float(np.clip(left, 0.0, float(w_img) - view_w))
-        else:
-            left = 0.0
-        if view_h < float(h_img):
-            top = float(np.clip(top, 0.0, float(h_img) - view_h))
-        else:
-            top = 0.0
-        return left, top, view_w, view_h
+        linear = _view_linear()
+        src_center = np.array([pan_center_src_x, pan_center_src_y], dtype=np.float64)
+        offset = _display_center() - (linear @ src_center)
+        m = np.zeros((2, 3), dtype=np.float32)
+        m[:, :2] = linear.astype(np.float32)
+        m[:, 2] = offset.astype(np.float32)
+        return m
 
     def _source_to_display(x_src: float, y_src: float) -> Tuple[float, float]:
-        x_oriented = float(w_img - 1) - x_src if flip_view_h else x_src
-        y_oriented = float(h_img - 1) - y_src if flip_view_v else y_src
-        left, top, view_w, view_h = _viewport()
-        x_disp = (x_oriented - left) * float(w_img) / view_w
-        y_disp = (y_oriented - top) * float(h_img) / view_h
+        m = _view_matrix()
+        x_disp = float(m[0, 0] * x_src + m[0, 1] * y_src + m[0, 2])
+        y_disp = float(m[1, 0] * x_src + m[1, 1] * y_src + m[1, 2])
         return x_disp, y_disp
 
     def _display_to_source(x_disp: float, y_disp: float) -> Tuple[float, float]:
         x_disp = float(np.clip(x_disp, 0.0, float(w_img - 1)))
         y_disp = float(np.clip(y_disp, 0.0, float(h_img - 1)))
-        left, top, view_w, view_h = _viewport()
-        x_oriented = left + (x_disp * view_w / float(w_img))
-        y_oriented = top + (y_disp * view_h / float(h_img))
-        x_src = float(w_img - 1) - x_oriented if flip_view_h else x_oriented
-        y_src = float(h_img - 1) - y_oriented if flip_view_v else y_oriented
+        m = _view_matrix()
+        linear = m[:, :2].astype(np.float64)
+        offset = m[:, 2].astype(np.float64)
+        src_xy = np.linalg.inv(linear) @ (np.array([x_disp, y_disp], dtype=np.float64) - offset)
+        x_src = float(src_xy[0])
+        y_src = float(src_xy[1])
         return (
             float(np.clip(x_src, 0.0, float(w_img - 1))),
             float(np.clip(y_src, 0.0, float(h_img - 1))),
         )
 
     def _render_background() -> np.ndarray:
-        if flip_view_h and flip_view_v:
-            oriented = cv2.flip(img, -1)
-        elif flip_view_h:
-            oriented = cv2.flip(img, 1)
-        elif flip_view_v:
-            oriented = cv2.flip(img, 0)
-        else:
-            oriented = img
-        left, top, view_w, view_h = _viewport()
-        sx = float(w_img) / view_w
-        sy = float(h_img) / view_h
-        m = np.array([[sx, 0.0, -left * sx], [0.0, sy, -top * sy]], dtype=np.float32)
+        m = _view_matrix()
         return cv2.warpAffine(
-            oriented,
+            img,
             m,
             (w_img, h_img),
             flags=cv2.INTER_LINEAR,
             borderMode=cv2.BORDER_REPLICATE,
         )
 
-    def _nudge_pan(dx_oriented: float, dy_oriented: float) -> None:
+    def _nudge_pan_display(dx_disp: float, dy_disp: float) -> None:
         nonlocal pan_center_src_x, pan_center_src_y
-        dx_src = -dx_oriented if flip_view_h else dx_oriented
-        dy_src = -dy_oriented if flip_view_v else dy_oriented
-        pan_center_src_x += dx_src
-        pan_center_src_y += dy_src
+        linear = _view_linear()
+        delta_src = np.linalg.inv(linear) @ np.array([dx_disp, dy_disp], dtype=np.float64)
+        pan_center_src_x += float(delta_src[0])
+        pan_center_src_y += float(delta_src[1])
         _clamp_pan_center()
 
     def _zoom_step(delta: int, anchor_display_xy: Optional[Tuple[float, float]] = None) -> None:
@@ -564,16 +539,38 @@ def main() -> None:
         if new_idx == zoom_idx:
             return
         if anchor_display_xy is None:
-            anchor_display_xy = (0.5 * float(w_img - 1), 0.5 * float(h_img - 1))
-        anchor_src = _display_to_source(anchor_display_xy[0], anchor_display_xy[1])
+            anchor_display_xy = (float(_display_center()[0]), float(_display_center()[1]))
+        anchor_disp = np.array(anchor_display_xy, dtype=np.float64)
+        anchor_src = np.array(_display_to_source(anchor_disp[0], anchor_disp[1]), dtype=np.float64)
         zoom_idx = new_idx
-        pan_center_src_x, pan_center_src_y = anchor_src
+        linear = _view_linear()
+        pan_xy = anchor_src - (np.linalg.inv(linear) @ (anchor_disp - _display_center()))
+        pan_center_src_x = float(pan_xy[0])
+        pan_center_src_y = float(pan_xy[1])
+        _clamp_pan_center()
+
+    def _rotate_step(delta_deg: float, anchor_display_xy: Optional[Tuple[float, float]] = None) -> None:
+        nonlocal view_rotate_deg, pan_center_src_x, pan_center_src_y
+        if anchor_display_xy is None:
+            anchor_display_xy = (float(_display_center()[0]), float(_display_center()[1]))
+        anchor_disp = np.array(anchor_display_xy, dtype=np.float64)
+        anchor_src = np.array(_display_to_source(anchor_disp[0], anchor_disp[1]), dtype=np.float64)
+        view_rotate_deg = float(view_rotate_deg + delta_deg)
+        while view_rotate_deg <= -180.0:
+            view_rotate_deg += 360.0
+        while view_rotate_deg > 180.0:
+            view_rotate_deg -= 360.0
+        linear = _view_linear()
+        pan_xy = anchor_src - (np.linalg.inv(linear) @ (anchor_disp - _display_center()))
+        pan_center_src_x = float(pan_xy[0])
+        pan_center_src_y = float(pan_xy[1])
         _clamp_pan_center()
 
     def _reset_view() -> None:
-        nonlocal flip_view_h, flip_view_v, zoom_idx, pan_center_src_x, pan_center_src_y
+        nonlocal flip_view_h, flip_view_v, zoom_idx, pan_center_src_x, pan_center_src_y, view_rotate_deg
         flip_view_h = False
         flip_view_v = False
+        view_rotate_deg = 0.0
         zoom_idx = 0
         pan_center_src_x = 0.5 * float(w_img - 1)
         pan_center_src_y = 0.5 * float(h_img - 1)
@@ -649,7 +646,10 @@ def main() -> None:
             view_left + (2 * button_w) + 6,
             zoom_y + button_h // 2,
         )
-        pan_origin_y = zoom_y + 16
+        rot_y = zoom_y + 26
+        rot_minus_rect = (view_left, rot_y - button_h // 2, view_left + 58, rot_y + button_h // 2)
+        rot_plus_rect = (view_left + 64, rot_y - button_h // 2, view_left + 122, rot_y + button_h // 2)
+        pan_origin_y = rot_y + 18
         pan_up_rect = (view_left + 34, pan_origin_y, view_left + 34 + pan_size, pan_origin_y + pan_size)
         pan_left_rect = (
             view_left + 10,
@@ -669,12 +669,14 @@ def main() -> None:
             view_left + 34 + pan_size,
             pan_origin_y + 48 + pan_size,
         )
-        reset_rect = (view_left, pan_origin_y + 76, view_left + 138, pan_origin_y + 100)
+        reset_rect = (view_left, pan_origin_y + 78, view_left + 138, pan_origin_y + 102)
         return {
             "flip_h_center": flip_h_center,
             "flip_v_center": flip_v_center,
             "zoom_minus_rect": zoom_minus_rect,
             "zoom_plus_rect": zoom_plus_rect,
+            "rot_minus_rect": rot_minus_rect,
+            "rot_plus_rect": rot_plus_rect,
             "pan_up_rect": pan_up_rect,
             "pan_left_rect": pan_left_rect,
             "pan_right_rect": pan_right_rect,
@@ -796,7 +798,7 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            "View: h=flip-H | v=flip-V | +/- zoom | arrows or i/j/k/l pan | 0 reset view",
+            "View: h/v flip | +/- zoom | z/x rotate | arrows or i/j/k/l pan | 0 reset",
             (20, 78),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
@@ -956,6 +958,18 @@ def main() -> None:
             1,
             cv2.LINE_AA,
         )
+        _draw_button(view, controls["rot_minus_rect"], "Rot-")
+        _draw_button(view, controls["rot_plus_rect"], "Rot+")
+        cv2.putText(
+            view,
+            f"Angle: {view_rotate_deg:+.0f} deg",
+            (view_left + 132, controls["rot_plus_rect"][3] - 4),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.46,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
 
         _draw_button(view, controls["pan_up_rect"], "U")
         _draw_button(view, controls["pan_left_rect"], "L")
@@ -1006,6 +1020,10 @@ def main() -> None:
             return "zoom_out"
         if _point_in_rect(x, y, controls["zoom_plus_rect"]):
             return "zoom_in"
+        if _point_in_rect(x, y, controls["rot_minus_rect"]):
+            return "rot_left"
+        if _point_in_rect(x, y, controls["rot_plus_rect"]):
+            return "rot_right"
         if _point_in_rect(x, y, controls["pan_up_rect"]):
             return "pan_up"
         if _point_in_rect(x, y, controls["pan_left_rect"]):
@@ -1049,18 +1067,18 @@ def main() -> None:
                     _zoom_step(+1)
                 elif hit_view == "zoom_out":
                     _zoom_step(-1)
+                elif hit_view == "rot_left":
+                    _rotate_step(-5.0)
+                elif hit_view == "rot_right":
+                    _rotate_step(+5.0)
                 elif hit_view == "pan_up":
-                    _, _, view_w, view_h = _viewport()
-                    _nudge_pan(0.0, -0.10 * view_h)
+                    _nudge_pan_display(0.0, -0.10 * float(h_img))
                 elif hit_view == "pan_left":
-                    _, _, view_w, view_h = _viewport()
-                    _nudge_pan(-0.10 * view_w, 0.0)
+                    _nudge_pan_display(-0.10 * float(w_img), 0.0)
                 elif hit_view == "pan_right":
-                    _, _, view_w, view_h = _viewport()
-                    _nudge_pan(+0.10 * view_w, 0.0)
+                    _nudge_pan_display(+0.10 * float(w_img), 0.0)
                 elif hit_view == "pan_down":
-                    _, _, view_w, view_h = _viewport()
-                    _nudge_pan(0.0, +0.10 * view_h)
+                    _nudge_pan_display(0.0, +0.10 * float(h_img))
                 elif hit_view == "view_reset":
                     _reset_view()
                 redraw()
@@ -1139,21 +1157,23 @@ def main() -> None:
         if key in (ord("-"), ord("_"), ord("[")):
             _zoom_step(-1)
             redraw()
+        if key in (ord("z"), ord(",")):
+            _rotate_step(-5.0)
+            redraw()
+        if key in (ord("x"), ord(".")):
+            _rotate_step(+5.0)
+            redraw()
         if key in (81, ord("j")):  # left arrow or j
-            _, _, view_w, _ = _viewport()
-            _nudge_pan(-0.08 * view_w, 0.0)
+            _nudge_pan_display(-0.08 * float(w_img), 0.0)
             redraw()
         if key in (83, ord("l")):  # right arrow or l
-            _, _, view_w, _ = _viewport()
-            _nudge_pan(+0.08 * view_w, 0.0)
+            _nudge_pan_display(+0.08 * float(w_img), 0.0)
             redraw()
         if key in (82, ord("i")):  # up arrow or i
-            _, _, _, view_h = _viewport()
-            _nudge_pan(0.0, -0.08 * view_h)
+            _nudge_pan_display(0.0, -0.08 * float(h_img))
             redraw()
         if key in (84, ord("k")):  # down arrow or k
-            _, _, _, view_h = _viewport()
-            _nudge_pan(0.0, +0.08 * view_h)
+            _nudge_pan_display(0.0, +0.08 * float(h_img))
             redraw()
         if key in (13, 10):
             if len(corner_points) != 4:

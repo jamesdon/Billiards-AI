@@ -54,6 +54,7 @@ The helper now opens with auto-detected corner proposals and in-window controls:
 - **View controls** are available directly in the overlay:
   - Flip horizontal and flip vertical toggles (clickable radios).
   - Zoom in/out controls (clickable `+/-` buttons and keyboard).
+  - Rotate controls (`Rot-` / `Rot+` in overlay).
   - Pan controls (clickable directional buttons and keyboard arrows / `i j k l`).
   - Reset-view button to return to default framing.
   - These are display-only transforms for calibration UX; saved calibration
@@ -120,6 +121,8 @@ View controls (keyboard):
 - `v`: toggle vertical flip for the preview
 - `+` / `=` / `]`: zoom in
 - `-` / `_` / `[`: zoom out
+- `z` / `,`: rotate left (counter-clockwise)
+- `x` / `.`: rotate right (clockwise)
 - arrow keys or `i`/`j`/`k`/`l`: pan
 - `0`: reset view transforms
 

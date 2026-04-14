@@ -94,6 +94,7 @@ In-window workflow (new default):
 - View controls are now available directly in the panel:
   - flip horizontal / flip vertical (GUI toggles)
   - zoom in / zoom out
+  - rotate left / rotate right
   - pan up / left / right / down
   - reset view
   - these are view-only transforms for easier editing after camera moves; saved
@@ -135,6 +136,7 @@ Controls:
 - `h`: toggle horizontal view flip
 - `v`: toggle vertical view flip
 - `+` / `-`: zoom in / out
+- `z` / `x` (or `,` / `.`): rotate view left / right
 - arrow keys or `i/j/k/l`: pan up/left/down/right
 - `0`: reset view transform
 
