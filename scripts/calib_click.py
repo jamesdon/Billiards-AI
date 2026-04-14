@@ -640,16 +640,22 @@ def _refine_side_pocket_seed(
     rail_len = float(np.linalg.norm(rail_vec))
     if rail_len <= 1e-6:
         return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
-    search_radius = int(max(24.0, min(0.34 * rail_len, 0.26 * float(min(h, w)))))
+
+    rail_u = rail_vec.astype(np.float64) / rail_len
+    rail_n = np.array([-rail_u[1], rail_u[0]], dtype=np.float64)
+
+    search_radius = int(max(24.0, min(0.30 * rail_len, 0.24 * float(min(h, w)))))
     x0 = max(0, int(round(seed[0])) - search_radius)
     x1 = min(w, int(round(seed[0])) + search_radius + 1)
     y0 = max(0, int(round(seed[1])) - search_radius)
     y1 = min(h, int(round(seed[1])) + search_radius + 1)
     if x1 <= x0 or y1 <= y0:
         return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
+
     patch = gray[y0:y1, x0:x1]
     if patch.size == 0:
         return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
+
     patch_blur = cv2.GaussianBlur(patch, (5, 5), 0)
     patch_h, patch_w = patch_blur.shape[:2]
     seed_local = np.array([seed[0] - float(x0), seed[1] - float(y0)], dtype=np.float64)
@@ -658,46 +664,53 @@ def _refine_side_pocket_seed(
 
     dark_thresh = float(np.percentile(patch_blur, 28))
     dark_mask = (patch_blur <= dark_thresh).astype(np.uint8) * 255
+
     bh_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
     blackhat = cv2.morphologyEx(patch_blur, cv2.MORPH_BLACKHAT, bh_kernel)
     bh_thresh = float(np.percentile(blackhat, 82))
     bh_mask = (blackhat >= bh_thresh).astype(np.uint8) * 255
+
     pocket_mask = cv2.bitwise_and(dark_mask, bh_mask)
     if int(np.count_nonzero(pocket_mask)) < 28:
         pocket_mask = dark_mask
+
     pocket_mask = cv2.morphologyEx(pocket_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8), iterations=1)
     pocket_mask = cv2.morphologyEx(pocket_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8), iterations=1)
 
-    rail_u = rail_vec.astype(np.float64) / rail_len
-    rail_n = np.array([-rail_u[1], rail_u[0]], dtype=np.float64)
     contours, _ = cv2.findContours(pocket_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    best_score = -float("inf")
+    best_score = -float('inf')
     best_local_xy: Optional[np.ndarray] = None
     patch_area = float(max(1, patch_h * patch_w))
     patch_diag = float(max(1.0, np.hypot(patch_w, patch_h)))
+
     for contour in contours:
         area = float(cv2.contourArea(contour))
         if area < 24.0:
             continue
         m = cv2.moments(contour)
-        if float(m["m00"]) <= 1e-6:
+        if float(m['m00']) <= 1e-6:
             continue
-        cx = float(m["m10"] / m["m00"])
-        cy = float(m["m01"] / m["m00"])
+
+        cx = float(m['m10'] / m['m00'])
+        cy = float(m['m01'] / m['m00'])
         x_b, y_b, w_b, h_b = cv2.boundingRect(contour)
         aspect = float(w_b) / float(max(1, h_b))
         if not (0.22 <= aspect <= 4.5):
             continue
+
         peri = float(cv2.arcLength(contour, True))
         circularity = 0.0 if peri <= 1e-6 else float((4.0 * np.pi * area) / (peri * peri))
+
         contour_mask = np.zeros((patch_h, patch_w), dtype=np.uint8)
         cv2.drawContours(contour_mask, [contour], -1, 255, thickness=-1)
         mean_intensity = float(cv2.mean(patch_blur, mask=contour_mask)[0])
         darkness = 1.0 - (mean_intensity / 255.0)
+
         delta_local = np.array([cx, cy], dtype=np.float64) - seed_local
         dist_seed = float(np.linalg.norm(delta_local)) / patch_diag
         dist_along = abs(float(np.dot(delta_local, rail_u))) / float(max(1.0, search_radius))
         dist_across = abs(float(np.dot(delta_local, rail_n))) / float(max(1.0, search_radius))
+
         area_term = min(1.0, area / (0.12 * patch_area))
         shape_term = max(0.0, 1.0 - abs(circularity - 0.5))
         score = (
@@ -716,6 +729,7 @@ def _refine_side_pocket_seed(
         mask = dark_mask > 0
         if int(np.count_nonzero(mask)) < 24:
             return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
+
         ys, xs = np.where(mask)
         px = patch_blur[ys, xs].astype(np.float64)
         delta_x = xs.astype(np.float64) - float(seed_local[0])
@@ -730,7 +744,6 @@ def _refine_side_pocket_seed(
 
     cx = float(best_local_xy[0]) + float(x0)
     cy = float(best_local_xy[1]) + float(y0)
-
     delta = np.array([cx - seed[0], cy - seed[1]], dtype=np.float64)
     along = float(np.clip(np.dot(delta, rail_u), -0.22 * rail_len, 0.22 * rail_len))
     across = float(np.clip(np.dot(delta, rail_n), -0.14 * rail_len, 0.14 * rail_len))
@@ -744,18 +757,19 @@ def _estimate_side_pockets_from_corners(
 ) -> List[Tuple[float, float]]:
     if len(corners) != 4:
         return []
+
     h, w = frame.shape[:2]
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(corners))]
+
     left_mid = 0.5 * (tl + bl)
     right_mid = 0.5 * (tr + br)
     left_seed = _refine_side_pocket_seed(gray, (float(left_mid[0]), float(left_mid[1])), bl - tl)
     right_seed = _refine_side_pocket_seed(gray, (float(right_mid[0]), float(right_mid[1])), br - tr)
+
     left_seed = _clip_point_to_image(float(left_seed[0]), float(left_seed[1]), w, h)
     right_seed = _clip_point_to_image(float(right_seed[0]), float(right_seed[1]), w, h)
     return [left_seed, right_seed]
-
-
 def _order_points_tl_tr_bl_br(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
     pts = np.array(points, dtype=np.float64)
     if pts.shape[0] < 4:
