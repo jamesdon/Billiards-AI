@@ -161,13 +161,12 @@ def _open_capture_for_source(
 
 
 def _read_frame_from_capture(cap: cv2.VideoCapture) -> np.ndarray:
+    # Drain a few buffered frames so redraw uses a current frame, not stale data.
     frame: Optional[np.ndarray] = None
-    for _ in range(5):
-        cap.grab()
+    for _ in range(4):
         ok, candidate = cap.read()
         if ok and candidate is not None:
             frame = candidate
-            break
     if frame is None:
         raise RuntimeError("Failed to capture frame from camera.")
     return frame
@@ -910,6 +909,7 @@ def main() -> None:
     row_spacing = 24
     radio_radius = 8
     radio_hit_radius = 12
+    max_camera_rows = 4
 
     menu_margin = 12
     menu_padding = 12
@@ -929,11 +929,11 @@ def main() -> None:
         + len(UNIT_MENU) * row_spacing
         + menu_gap
         + camera_title_gap
-        + max(1, len(camera_menu)) * row_spacing
+        + max(1, min(max_camera_rows, len(camera_menu))) * row_spacing
         + menu_gap
         + view_title_gap
         + view_section_h
-        + 12
+        + 32
     )
     safe_w = max(240, w_img - 2 * menu_margin)
     safe_h = max(240, h_img - 2 * menu_margin)
@@ -959,11 +959,11 @@ def main() -> None:
         + len(UNIT_MENU) * row_spacing
         + menu_gap
         + camera_title_gap
-        + max(1, len(camera_menu)) * row_spacing
+        + max(1, min(max_camera_rows, len(camera_menu))) * row_spacing
         + menu_gap
         + view_title_gap
         + view_section_h
-        + 12
+        + 32
     )
 
     zoom_levels = [
@@ -1134,43 +1134,49 @@ def main() -> None:
         panel_w = min(estimated_menu_w, safe_w)
         panel_h = min(estimated_menu_h, safe_h)
         default_left = max(menu_margin, w_img - panel_w - menu_margin)
-        default_top = max(menu_margin, h_img - panel_h - menu_margin)
+        default_top = menu_margin
         if len(corner_points) < 4:
             left = default_left
-            top = default_top
         else:
             anchors = [
-                (menu_margin, menu_margin),
-                (w_img - panel_w - menu_margin, menu_margin),
-                (menu_margin, h_img - panel_h - menu_margin),
-                (w_img - panel_w - menu_margin, h_img - panel_h - menu_margin),
-                ((w_img - panel_w) // 2, (h_img - panel_h) // 2),
+                menu_margin,
+                w_img - panel_w - menu_margin,
+                (w_img - panel_w) // 2,
             ]
             corners_disp = [_source_to_display(float(cx), float(cy)) for cx, cy in corner_points]
-            best_anchor = (default_left, default_top)
+            best_left = default_left
             best_dist = -1.0
-            for ax, ay in anchors:
-                left = int(np.clip(ax, menu_margin, max(menu_margin, w_img - panel_w - menu_margin)))
-                top = int(np.clip(ay, menu_margin, max(menu_margin, h_img - panel_h - menu_margin)))
-                right = left + panel_w
-                bottom = top + panel_h
+            for ax in anchors:
+                cand_left = int(np.clip(ax, menu_margin, max(menu_margin, w_img - panel_w - menu_margin)))
+                cand_top = menu_margin
+                right = cand_left + panel_w
+                bottom = cand_top + panel_h
                 d = min(
-                    _distance_sq_point_to_rect(float(cx), float(cy), float(left), float(top), float(right), float(bottom))
+                    _distance_sq_point_to_rect(float(cx), float(cy), float(cand_left), float(cand_top), float(right), float(bottom))
                     for cx, cy in corners_disp
                 )
                 if d > best_dist:
                     best_dist = d
-                    best_anchor = (left, top)
-            left, top = best_anchor
+                    best_left = cand_left
+            left = best_left
+        # Keep controls high in-frame to avoid bottom clipping.
+        top = default_top
 
         table_left = left + menu_padding
         table_top = top + menu_padding + table_title_gap
         units_left = table_left
         units_top = table_top + len(TABLE_MENU) * row_spacing + menu_gap + units_title_gap
         camera_left = table_left
+        camera_rows = max(1, min(max_camera_rows, len(camera_menu)))
         camera_top = units_top + len(UNIT_MENU) * row_spacing + menu_gap + camera_title_gap
         view_left = table_left
-        view_top = camera_top + max(1, len(camera_menu)) * row_spacing + menu_gap + view_title_gap
+        view_top = camera_top + camera_rows * row_spacing + menu_gap + view_title_gap
+
+        # Guarantee that the panel border encloses all controls and labels.
+        min_needed_h = (view_top - top) + int(max(140, view_section_h)) + menu_padding
+        panel_h = int(min(safe_h, max(panel_h, min_needed_h)))
+        # If panel grew, clamp top so the full box remains visible.
+        top = int(np.clip(top, menu_margin, max(menu_margin, h_img - panel_h - menu_margin)))
         return {
             "panel_left": left,
             "panel_top": top,
@@ -1303,6 +1309,15 @@ def main() -> None:
     def _camera_label(entry: Dict[str, Any]) -> str:
         return str(entry.get("label", entry.get("id", "camera")))
 
+    def _visible_camera_entries() -> List[Tuple[int, Dict[str, Any]]]:
+        if not camera_menu:
+            return []
+        if len(camera_menu) <= max_camera_rows:
+            return [(idx, camera_menu[idx]) for idx in range(len(camera_menu))]
+        start = max(0, min(selected_camera_idx - (max_camera_rows // 2), len(camera_menu) - max_camera_rows))
+        end = min(len(camera_menu), start + max_camera_rows)
+        return [(idx, camera_menu[idx]) for idx in range(start, end)]
+
     def _switch_to_camera(idx: int) -> None:
         nonlocal img, selected_camera_idx, corner_points, side_pocket_points, camera_status, live_capture
         if not (0 <= idx < len(camera_menu)):
@@ -1362,14 +1377,32 @@ def main() -> None:
             except Exception as exc:
                 camera_status = f"Camera reconnect failed: {exc}"
                 return False
-        try:
-            frame = _read_frame_from_capture(live_capture)
-        except Exception:
+        frame: Optional[np.ndarray] = None
+        for _attempt in range(2):
             try:
-                live_capture.release()
+                frame = _read_frame_from_capture(live_capture)
+                break
             except Exception:
-                pass
-            live_capture = None
+                try:
+                    live_capture.release()
+                except Exception:
+                    pass
+                live_capture = None
+                try:
+                    live_capture = _open_capture_for_source(
+                        camera=cam,
+                        usb_index=usb_idx,
+                        csi_sensor_id=csi_id,
+                        width=int(args.width),
+                        height=int(args.height),
+                        framerate=int(args.csi_framerate),
+                        flip_method=int(args.csi_flip_method),
+                    )
+                except Exception as exc:
+                    camera_status = f"Camera reconnect failed: {exc}"
+                    return False
+        if frame is None:
+            camera_status = f"Live frame read failed: {cam_label}"
             return False
         if frame.shape[:2] != (h_img, w_img):
             frame = cv2.resize(frame, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
@@ -1504,27 +1537,39 @@ def main() -> None:
             1,
             cv2.LINE_AA,
         )
-        if camera_menu:
-            for idx, entry in enumerate(camera_menu, start=1):
-                row_y = camera_top + (idx - 1) * row_spacing
+        visible_cameras = _visible_camera_entries()
+        if visible_cameras:
+            for draw_row, (idx, entry) in enumerate(visible_cameras, start=1):
+                row_y = camera_top + (draw_row - 1) * row_spacing
                 _draw_radio(
                     view,
                     camera_left,
                     row_y,
-                    selected=(idx - 1 == selected_camera_idx),
-                    label=f"Cam {idx}. {_camera_label(entry)}",
+                    selected=(idx == selected_camera_idx),
+                    label=f"Cam {idx + 1}. {_camera_label(entry)}",
                     selected_color=(255, 180, 0),
                 )
             cv2.putText(
                 view,
                 f"Current camera: {_camera_label(camera_menu[selected_camera_idx])}",
-                (camera_left, camera_top + len(camera_menu) * row_spacing + 14),
+                (camera_left, camera_top + len(visible_cameras) * row_spacing + 14),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.52,
                 (255, 220, 120),
                 1,
                 cv2.LINE_AA,
             )
+            if len(camera_menu) > len(visible_cameras):
+                cv2.putText(
+                    view,
+                    f"Showing {visible_cameras[0][0] + 1}-{visible_cameras[-1][0] + 1} of {len(camera_menu)} (c=next)",
+                    (camera_left, camera_top + len(visible_cameras) * row_spacing + 34),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.45,
+                    (180, 180, 180),
+                    1,
+                    cv2.LINE_AA,
+                )
         else:
             cv2.putText(
                 view,
@@ -1683,10 +1728,10 @@ def main() -> None:
         layout = _menu_layout()
         camera_left = layout["camera_left"]
         camera_top = layout["camera_top"]
-        for idx, _entry in enumerate(camera_menu, start=1):
-            row_y = camera_top + (idx - 1) * row_spacing
+        for draw_row, (idx, _entry) in enumerate(_visible_camera_entries(), start=1):
+            row_y = camera_top + (draw_row - 1) * row_spacing
             if abs(x - camera_left) <= radio_hit_radius and abs(y - row_y) <= radio_hit_radius:
-                return idx - 1
+                return idx
         return None
 
     def _hit_view_control(x: int, y: int) -> Optional[str]:
@@ -1809,10 +1854,10 @@ def main() -> None:
     redraw()
 
     while True:
-        if _refresh_live_frame():
-            redraw()
+        _refresh_live_frame()
+        redraw()
         cv2.imshow(win, view)
-        key = cv2.waitKey(20) & 0xFF
+        key = cv2.waitKey(1) & 0xFF
         if key in (ord("q"), 27):
             if live_capture is not None:
                 live_capture.release()
