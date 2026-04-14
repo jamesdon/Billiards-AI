@@ -68,8 +68,8 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
 The helper now opens with auto-detected corner proposals and in-window controls:
 
 - **Corner points** are auto-proposed from a table-like quadrilateral fit and
-  then refined with local corner-feature snapping for better first-pass
-  placement on real camera images.
+  then refined by edge-line intersection fitting and local corner-feature
+  snapping for better first-pass placement on real camera images.
 - Left-click near a point to drag it.
 - `r` resets corners back to fresh auto-detection.
 - The in-window menu panel is automatically placed in a low-conflict region
@@ -79,6 +79,7 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   - Zoom in/out controls (clickable `+/-` buttons and keyboard).
   - Rotate controls (`Rot-` / `Rot+` in overlay).
   - Pan controls (clickable directional buttons and keyboard arrows / `i j k l`).
+  - Fine/coarse step toggle for view adjustments (`g` key or in-panel toggle).
   - Reset-view button to return to default framing.
   - These are display-only transforms for calibration UX; saved calibration
     points remain in source image coordinates.
@@ -95,6 +96,8 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   - press `m` to toggle between outside-corner editing and side-pocket editing
   - in side-pocket mode, set/drag exactly two points: `LS` (left side pocket),
     `RS` (right side pocket)
+  - side-pocket seeds are now auto-initialized from dark-rail analysis near
+    mid-rails for significantly better first placement
   - if no manual side-pocket points are set, defaults are used automatically
 
 Table size menu options include:
@@ -154,6 +157,7 @@ View controls (keyboard):
 - `z` / `,`: rotate left (counter-clockwise)
 - `x` / `.`: rotate right (clockwise)
 - arrow keys or `i`/`j`/`k`/`l`: pan
+- `g`: toggle fine/coarse adjustment step size
 - `0`: reset view transforms
 
 Camera controls (keyboard):

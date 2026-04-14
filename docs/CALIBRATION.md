@@ -97,8 +97,8 @@ the helper now writes `calibration.json` directly without calling `edge.main`.
 In-window workflow (new default):
 
 - The helper proposes table outside-corner points automatically from the current frame.
-  - It now combines contour/rectangle fitting with local corner-feature refinement for
-    tighter initial TL/TR/BL/BR placement.
+  - It combines contour/rectangle fitting, adaptive edge thresholds, and Hough-line
+    side fitting with corner-feature refinement for tighter initial TL/TR/BL/BR placement.
 - You can drag any point to refine it.
 - The table-size/units panel is automatically placed in a low-conflict area of the
   frame (away from corner points) so corner dragging remains clickable.
@@ -107,6 +107,7 @@ In-window workflow (new default):
   - zoom in / zoom out
   - rotate left / rotate right
   - pan up / left / right / down
+  - fine/coarse step toggle for zoom/rotate/pan increment size
   - reset view
   - these are view-only transforms for easier editing after camera moves; saved
     calibration points remain in source image coordinates.
@@ -118,6 +119,8 @@ In-window workflow (new default):
 - Edit modes:
   - outside corners mode (`TL/TR/BL/BR`)
   - side pockets mode (`LS/RS`)
+  - side-pocket seeds are auto-proposed from table side midpoints and then locally
+    refined toward dark pocket openings; drag to finalize.
 - Table-size is selected in-window via radio list:
   - click radio circles or press keys `1..5`
   - options: `6ft (bar box)`, `7ft`, `8ft`, `9ft`, `snooker`
@@ -154,6 +157,7 @@ Controls:
 - `+` / `-`: zoom in / out
 - `z` / `x` (or `,` / `.`): rotate view left / right
 - arrow keys or `i/j/k/l`: pan up/left/down/right
+- `g`: toggle view control step size (`fine`/`coarse`)
 - `c`: switch to next detected camera source
 - `0`: reset view transform
 
