@@ -5,7 +5,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -181,47 +181,136 @@ def _estimate_homography(
     return h
 
 
+def _default_corners(h: int, w: int) -> List[Tuple[float, float]]:
+    margin_x = 0.12 * w
+    margin_y = 0.12 * h
+    return [
+        (margin_x, margin_y),
+        (w - margin_x, margin_y),
+        (margin_x, h - margin_y),
+        (w - margin_x, h - margin_y),
+    ]
+
+
+def _distance_sq_point_to_rect(px: float, py: float, left: float, top: float, right: float, bottom: float) -> float:
+    dx = 0.0
+    if px < left:
+        dx = left - px
+    elif px > right:
+        dx = px - right
+    dy = 0.0
+    if py < top:
+        dy = top - py
+    elif py > bottom:
+        dy = py - bottom
+    return dx * dx + dy * dy
+
+
+def _refine_corner_seeds(gray: np.ndarray, seeds: Sequence[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    h, w = gray.shape[:2]
+    seed_arr = np.array(seeds, dtype=np.float64)
+    if seed_arr.shape != (4, 2):
+        return [(float(x), float(y)) for x, y in seed_arr]
+
+    features = cv2.goodFeaturesToTrack(
+        gray,
+        maxCorners=600,
+        qualityLevel=0.01,
+        minDistance=8,
+        blockSize=7,
+        useHarrisDetector=False,
+    )
+    feature_pts = np.empty((0, 2), dtype=np.float64)
+    if features is not None:
+        feature_pts = features.reshape(-1, 2).astype(np.float64)
+
+    search_radius_sq = float(max(28.0, 0.12 * min(h, w)) ** 2)
+    aligned: List[np.ndarray] = []
+    for sx, sy in seed_arr:
+        best = np.array([sx, sy], dtype=np.float64)
+        if feature_pts.shape[0] > 0:
+            d = np.sum((feature_pts - np.array([sx, sy], dtype=np.float64)) ** 2, axis=1)
+            idx = int(np.argmin(d))
+            if float(d[idx]) <= search_radius_sq:
+                best = feature_pts[idx]
+        aligned.append(best)
+
+    aligned_arr = np.array(aligned, dtype=np.float32).reshape(-1, 1, 2)
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.01)
+    try:
+        cv2.cornerSubPix(gray, aligned_arr, (9, 9), (-1, -1), criteria)
+    except cv2.error:
+        pass
+
+    refined = aligned_arr.reshape(-1, 2).astype(np.float64)
+    refined[:, 0] = np.clip(refined[:, 0], 0.0, float(w - 1))
+    refined[:, 1] = np.clip(refined[:, 1], 0.0, float(h - 1))
+
+    min_pair_dist_sq = float("inf")
+    for i in range(4):
+        for j in range(i + 1, 4):
+            d = float(np.sum((refined[i] - refined[j]) ** 2))
+            min_pair_dist_sq = min(min_pair_dist_sq, d)
+    if min_pair_dist_sq < 25.0:
+        return [(float(x), float(y)) for x, y in seed_arr]
+
+    return [(float(x), float(y)) for x, y in refined]
+
+
 def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
     h, w = frame.shape[:2]
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    edges = cv2.Canny(blur, 40, 120)
+    edges = cv2.Canny(blur, 35, 120)
     edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8), iterations=2)
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
-        margin_x = 0.12 * w
-        margin_y = 0.12 * h
-        return [
-            (margin_x, margin_y),
-            (w - margin_x, margin_y),
-            (margin_x, h - margin_y),
-            (w - margin_x, h - margin_y),
-        ]
-    largest = max(contours, key=cv2.contourArea)
-    eps = 0.02 * cv2.arcLength(largest, True)
-    approx = cv2.approxPolyDP(largest, eps, True)
-    pts = approx.reshape(-1, 2).astype(np.float64)
-    if len(pts) < 4:
-        x, y, bw, bh = cv2.boundingRect(largest)
-        pts = np.array([[x, y], [x + bw, y], [x, y + bh], [x + bw, y + bh]], dtype=np.float64)
-    if len(pts) > 4:
-        hull = cv2.convexHull(pts.astype(np.float32)).reshape(-1, 2).astype(np.float64)
-        if len(hull) >= 4:
-            best = None
-            best_area = -1.0
-            n = len(hull)
-            for i in range(n):
-                for j in range(i + 1, n):
-                    for k in range(j + 1, n):
-                        for l in range(k + 1, n):
-                            quad = np.array([hull[i], hull[j], hull[k], hull[l]], dtype=np.float64)
-                            area = abs(cv2.contourArea(quad.astype(np.float32)))
-                            if area > best_area:
-                                best_area = area
-                                best = quad
-            if best is not None:
-                pts = best
-    return _order_points_tl_tr_bl_br(pts.tolist())
+        return _default_corners(h, w)
+
+    min_area = 0.12 * float(w * h)
+    best_quad: Optional[np.ndarray] = None
+    best_quad_area = -1.0
+
+    for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:12]:
+        area = float(cv2.contourArea(contour))
+        if area < min_area:
+            continue
+        hull = cv2.convexHull(contour).reshape(-1, 2).astype(np.float64)
+        if hull.shape[0] < 4:
+            continue
+
+        rect = cv2.minAreaRect(contour)
+        box = cv2.boxPoints(rect).astype(np.float64)
+        box = np.array(_order_points_tl_tr_bl_br(box.tolist()), dtype=np.float64)
+        snapped = []
+        for bx, by in box:
+            d = np.sum((hull - np.array([bx, by], dtype=np.float64)) ** 2, axis=1)
+            snapped.append(hull[int(np.argmin(d))])
+        snapped = np.array(_order_points_tl_tr_bl_br(np.array(snapped, dtype=np.float64).tolist()), dtype=np.float64)
+        snapped_area = abs(float(cv2.contourArea(snapped.astype(np.float32))))
+        if snapped_area > best_quad_area:
+            best_quad_area = snapped_area
+            best_quad = snapped
+
+        eps = 0.012 * cv2.arcLength(hull.astype(np.float32), True)
+        approx = cv2.approxPolyDP(hull.astype(np.float32), eps, True).reshape(-1, 2).astype(np.float64)
+        if approx.shape[0] == 4:
+            approx_ordered = np.array(_order_points_tl_tr_bl_br(approx.tolist()), dtype=np.float64)
+            approx_area = abs(float(cv2.contourArea(approx_ordered.astype(np.float32))))
+            if approx_area > best_quad_area:
+                best_quad_area = approx_area
+                best_quad = approx_ordered
+
+    if best_quad is None or best_quad_area <= 1.0:
+        return _default_corners(h, w)
+
+    refined = _refine_corner_seeds(gray, best_quad.tolist())
+    refined_ordered = _order_points_tl_tr_bl_br(refined)
+    refined_area = abs(float(cv2.contourArea(np.array(refined_ordered, dtype=np.float32))))
+    if refined_area < 0.4 * best_quad_area:
+        return [(float(x), float(y)) for x, y in best_quad]
+    return refined_ordered
 
 
 def _order_points_tl_tr_bl_br(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
@@ -312,14 +401,7 @@ def main() -> None:
         corner_points: List[Tuple[float, float]] = _estimate_outside_corners(img)
     except Exception as exc:
         h, w = img.shape[:2]
-        margin_x = 0.12 * w
-        margin_y = 0.12 * h
-        corner_points = [
-            (margin_x, margin_y),
-            (w - margin_x, margin_y),
-            (margin_x, h - margin_y),
-            (w - margin_x, h - margin_y),
-        ]
+        corner_points = _default_corners(h, w)
         auto_corner_status = f"AUTO corner detect failed ({exc}); using fallback corners."
     print("Auto corners (TL,TR,BL,BR):", json.dumps(corner_points))
     side_pocket_points: List[Tuple[float, float]] = []
@@ -328,13 +410,79 @@ def main() -> None:
     mode = "corners"  # corners or side_pockets
     view = img.copy()
 
-    table_left = 20
-    table_top = 92
+    h_img, w_img = img.shape[:2]
+    header_h = 162
+    menu_margin = 20
+    menu_padding = 14
+    menu_gap = 16
+    table_title_gap = 18
+    table_row_gap = 24
+    units_title_gap = 18
+    units_row_gap = 24
+    estimated_menu_w = 440
+    estimated_menu_h = (
+        menu_padding
+        + table_title_gap
+        + len(TABLE_MENU) * table_row_gap
+        + menu_gap
+        + units_title_gap
+        + len(UNIT_MENU) * units_row_gap
+        + 44
+    )
+
     row_spacing = 24
     radio_radius = 8
     radio_hit_radius = 12
-    units_left = 20
-    units_top = table_top + len(TABLE_MENU) * row_spacing + 40
+
+    def _menu_layout() -> Dict[str, int]:
+        safe_w = max(200, w_img - 2 * menu_margin)
+        safe_h = max(200, h_img - header_h - menu_margin)
+        panel_w = min(estimated_menu_w, safe_w)
+        panel_h = min(estimated_menu_h, safe_h)
+        default_left = max(menu_margin, w_img - panel_w - menu_margin)
+        default_top = max(header_h, h_img - panel_h - menu_margin)
+        if len(corner_points) < 4:
+            left = default_left
+            top = default_top
+        else:
+            anchors = [
+                (menu_margin, header_h),
+                (w_img - panel_w - menu_margin, header_h),
+                (menu_margin, h_img - panel_h - menu_margin),
+                (w_img - panel_w - menu_margin, h_img - panel_h - menu_margin),
+                ((w_img - panel_w) // 2, max(header_h, (h_img - panel_h) // 2)),
+            ]
+            corners = np.array(corner_points, dtype=np.float64)
+            best_anchor = (default_left, default_top)
+            best_dist = -1.0
+            for ax, ay in anchors:
+                left = int(np.clip(ax, menu_margin, max(menu_margin, w_img - panel_w - menu_margin)))
+                top = int(np.clip(ay, header_h, max(header_h, h_img - panel_h - menu_margin)))
+                right = left + panel_w
+                bottom = top + panel_h
+                d = min(
+                    _distance_sq_point_to_rect(float(cx), float(cy), float(left), float(top), float(right), float(bottom))
+                    for cx, cy in corners
+                )
+                if d > best_dist:
+                    best_dist = d
+                    best_anchor = (left, top)
+            left, top = best_anchor
+
+        table_left = left + menu_padding
+        table_top = top + menu_padding + table_title_gap
+        units_left = table_left
+        units_top = table_top + len(TABLE_MENU) * row_spacing + menu_gap + units_title_gap
+        return {
+            "panel_left": left,
+            "panel_top": top,
+            "panel_w": panel_w,
+            "panel_h": panel_h,
+            "table_left": table_left,
+            "table_top": table_top,
+            "units_left": units_left,
+            "units_top": units_top,
+        }
 
     def _active_labels() -> List[str]:
         return CORNER_LABELS if mode == "corners" else SIDE_POCKET_LABELS
@@ -418,6 +566,8 @@ def main() -> None:
                 cv2.LINE_AA,
             )
 
+        layout = _menu_layout()
+
         cv2.putText(
             view,
             "Outside-corner mode: drag TL/TR/BL/BR (outside table corners).",
@@ -469,8 +619,40 @@ def main() -> None:
             cv2.LINE_AA,
         )
 
+        panel_left = layout["panel_left"]
+        panel_top = layout["panel_top"]
+        panel_w = layout["panel_w"]
+        panel_h = layout["panel_h"]
+        table_left = layout["table_left"]
+        table_top = layout["table_top"]
+        units_left = layout["units_left"]
+        units_top = layout["units_top"]
+        cv2.rectangle(
+            view,
+            (panel_left, panel_top),
+            (panel_left + panel_w, panel_top + panel_h),
+            (36, 36, 36),
+            -1,
+        )
+        cv2.rectangle(
+            view,
+            (panel_left, panel_top),
+            (panel_left + panel_w, panel_top + panel_h),
+            (150, 150, 150),
+            1,
+        )
+        cv2.putText(
+            view,
+            "Table size",
+            (table_left, table_top - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
         for idx, name in enumerate(TABLE_MENU, start=1):
-            row_y = table_top + 24 + (idx - 1) * row_spacing
+            row_y = table_top + (idx - 1) * row_spacing
             dims = TABLE_PRESETS_M[name]
             marker = " (detected default)" if name == detected_default_table_size else ""
             _draw_radio(
@@ -483,7 +665,7 @@ def main() -> None:
         cv2.putText(
             view,
             f"Selected table size: {_table_size_label(selected_table_size)}",
-            (20, table_top + len(TABLE_MENU) * row_spacing + 20),
+            (table_left, table_top + len(TABLE_MENU) * row_spacing + 16),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
             (0, 255, 255),
@@ -491,6 +673,16 @@ def main() -> None:
             cv2.LINE_AA,
         )
 
+        cv2.putText(
+            view,
+            "Units",
+            (units_left, units_top - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
         for idx, unit_name in enumerate(UNIT_MENU, start=1):
             row_y = units_top + (idx - 1) * row_spacing
             _draw_radio(
@@ -503,13 +695,19 @@ def main() -> None:
             )
 
     def _hit_table_option(x: int, y: int) -> Optional[str]:
+        layout = _menu_layout()
+        table_left = layout["table_left"]
+        table_top = layout["table_top"]
         for idx, name in enumerate(TABLE_MENU, start=1):
-            row_y = table_top + 24 + (idx - 1) * row_spacing
+            row_y = table_top + (idx - 1) * row_spacing
             if abs(x - table_left) <= radio_hit_radius and abs(y - row_y) <= radio_hit_radius:
                 return name
         return None
 
     def _hit_units_option(x: int, y: int) -> Optional[str]:
+        layout = _menu_layout()
+        units_left = layout["units_left"]
+        units_top = layout["units_top"]
         for idx, name in enumerate(UNIT_MENU, start=1):
             row_y = units_top + (idx - 1) * row_spacing
             if abs(x - units_left) <= radio_hit_radius and abs(y - row_y) <= radio_hit_radius:
@@ -519,6 +717,11 @@ def main() -> None:
     def on_mouse(event, x, y, _flags, _userdata) -> None:
         nonlocal selected_table_size, selected_units, active_point_idx, dragging
         if event == cv2.EVENT_LBUTTONDOWN:
+            idx = _find_nearest_point(float(x), float(y))
+            if idx is not None:
+                active_point_idx = idx
+                dragging = True
+                return
             hit_table = _hit_table_option(x, y)
             if hit_table is not None:
                 selected_table_size = hit_table
@@ -528,11 +731,6 @@ def main() -> None:
             if hit_units is not None:
                 selected_units = hit_units
                 redraw()
-                return
-            idx = _find_nearest_point(float(x), float(y))
-            if idx is not None:
-                active_point_idx = idx
-                dragging = True
                 return
             pts = _active_points()
             labels = _active_labels()

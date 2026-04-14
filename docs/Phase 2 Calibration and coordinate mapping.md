@@ -44,10 +44,13 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
 
 The helper now opens with auto-detected corner proposals and in-window controls:
 
-- **Corner points** are auto-proposed from the largest table-like contour, then
-  can be edited before save.
+- **Corner points** are auto-proposed from a table-like quadrilateral fit and
+  then refined with local corner-feature snapping for better first-pass
+  placement on real camera images.
 - Left-click near a point to drag it.
 - `r` resets corners back to fresh auto-detection.
+- The in-window menu panel is automatically placed in a low-conflict region
+  away from the detected corners so corner dragging stays accessible.
 - **Table size** uses an on-screen radio list only (no CLI table-size selection).
 - **Units** use an on-screen radio toggle (`imperial` default, `metric` optional).
 - **Side pocket mapping** is integrated in the same editor:

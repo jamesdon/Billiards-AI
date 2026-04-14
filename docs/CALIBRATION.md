@@ -86,7 +86,11 @@ the helper now writes `calibration.json` directly without calling `edge.main`.
 In-window workflow (new default):
 
 - The helper proposes table outside-corner points automatically from the current frame.
+  - It now combines contour/rectangle fitting with local corner-feature refinement for
+    tighter initial TL/TR/BL/BR placement.
 - You can drag any point to refine it.
+- The table-size/units panel is automatically placed in a low-conflict area of the
+  frame (away from corner points) so corner dragging remains clickable.
 - Edit modes:
   - outside corners mode (`TL/TR/BL/BR`)
   - side pockets mode (`LS/RS`)
