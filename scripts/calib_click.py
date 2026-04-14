@@ -640,7 +640,7 @@ def _refine_side_pocket_seed(
     rail_len = float(np.linalg.norm(rail_vec))
     if rail_len <= 1e-6:
         return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
-    search_radius = int(max(24.0, min(0.30 * rail_len, 0.24 * float(min(h, w)))))
+    search_radius = int(max(24.0, min(0.34 * rail_len, 0.26 * float(min(h, w)))))
     x0 = max(0, int(round(seed[0])) - search_radius)
     x1 = min(w, int(round(seed[0])) + search_radius + 1)
     y0 = max(0, int(round(seed[1])) - search_radius)
@@ -668,6 +668,8 @@ def _refine_side_pocket_seed(
     pocket_mask = cv2.morphologyEx(pocket_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8), iterations=1)
     pocket_mask = cv2.morphologyEx(pocket_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8), iterations=1)
 
+    rail_u = rail_vec.astype(np.float64) / rail_len
+    rail_n = np.array([-rail_u[1], rail_u[0]], dtype=np.float64)
     contours, _ = cv2.findContours(pocket_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     best_score = -float("inf")
     best_local_xy: Optional[np.ndarray] = None
@@ -692,21 +694,36 @@ def _refine_side_pocket_seed(
         cv2.drawContours(contour_mask, [contour], -1, 255, thickness=-1)
         mean_intensity = float(cv2.mean(patch_blur, mask=contour_mask)[0])
         darkness = 1.0 - (mean_intensity / 255.0)
-        dist_seed = float(np.linalg.norm(np.array([cx, cy], dtype=np.float64) - seed_local)) / patch_diag
+        delta_local = np.array([cx, cy], dtype=np.float64) - seed_local
+        dist_seed = float(np.linalg.norm(delta_local)) / patch_diag
+        dist_along = abs(float(np.dot(delta_local, rail_u))) / float(max(1.0, search_radius))
+        dist_across = abs(float(np.dot(delta_local, rail_n))) / float(max(1.0, search_radius))
         area_term = min(1.0, area / (0.12 * patch_area))
         shape_term = max(0.0, 1.0 - abs(circularity - 0.5))
-        score = (2.7 * darkness) + (1.2 * area_term) + (0.6 * shape_term) - (1.5 * dist_seed)
+        score = (
+            (2.8 * darkness)
+            + (1.0 * area_term)
+            + (0.5 * shape_term)
+            - (1.2 * dist_seed)
+            - (1.6 * dist_across)
+            - (0.4 * dist_along)
+        )
         if score > best_score:
             best_score = score
             best_local_xy = np.array([cx, cy], dtype=np.float64)
 
-    if best_local_xy is None:
+    if best_local_xy is None or best_score < 0.95:
         mask = dark_mask > 0
         if int(np.count_nonzero(mask)) < 24:
             return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
         ys, xs = np.where(mask)
         px = patch_blur[ys, xs].astype(np.float64)
-        weights = (dark_thresh - px) + 1.0
+        delta_x = xs.astype(np.float64) - float(seed_local[0])
+        delta_y = ys.astype(np.float64) - float(seed_local[1])
+        dist2 = (delta_x * delta_x) + (delta_y * delta_y)
+        sigma2 = float(max(16.0, (0.38 * float(search_radius)) ** 2))
+        distance_weight = np.exp(-dist2 / (2.0 * sigma2))
+        weights = ((dark_thresh - px) + 1.0) * distance_weight
         cx = float(np.average(xs.astype(np.float64), weights=weights))
         cy = float(np.average(ys.astype(np.float64), weights=weights))
         best_local_xy = np.array([cx, cy], dtype=np.float64)
@@ -714,8 +731,6 @@ def _refine_side_pocket_seed(
     cx = float(best_local_xy[0]) + float(x0)
     cy = float(best_local_xy[1]) + float(y0)
 
-    rail_u = rail_vec.astype(np.float64) / rail_len
-    rail_n = np.array([-rail_u[1], rail_u[0]], dtype=np.float64)
     delta = np.array([cx - seed[0], cy - seed[1]], dtype=np.float64)
     along = float(np.clip(np.dot(delta, rail_u), -0.22 * rail_len, 0.22 * rail_len))
     across = float(np.clip(np.dot(delta, rail_n), -0.14 * rail_len, 0.14 * rail_len))
