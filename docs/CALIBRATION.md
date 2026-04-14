@@ -91,6 +91,13 @@ In-window workflow (new default):
 - You can drag any point to refine it.
 - The table-size/units panel is automatically placed in a low-conflict area of the
   frame (away from corner points) so corner dragging remains clickable.
+- View controls are now available directly in the panel:
+  - flip horizontal / flip vertical (GUI toggles)
+  - zoom in / zoom out
+  - pan up / left / right / down
+  - reset view
+  - these are view-only transforms for easier editing after camera moves; saved
+    calibration points remain in source image coordinates.
 - Edit modes:
   - outside corners mode (`TL/TR/BL/BR`)
   - side pockets mode (`LS/RS`)
@@ -125,6 +132,11 @@ Controls:
 - `t`: toggle units (imperial/metric)
 - `6`: select imperial units, `7`: select metric units
 - `m`: toggle side-pocket edit mode
+- `h`: toggle horizontal view flip
+- `v`: toggle vertical view flip
+- `+` / `-`: zoom in / out
+- arrow keys or `i/j/k/l`: pan up/left/down/right
+- `0`: reset view transform
 
 ### Jetson camera orientation (repeatable)
 

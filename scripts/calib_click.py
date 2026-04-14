@@ -411,7 +411,14 @@ def main() -> None:
     view = img.copy()
 
     h_img, w_img = img.shape[:2]
-    header_h = 162
+    flip_view_h = False
+    flip_view_v = False
+    zoom_levels = [1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0]
+    zoom_idx = 0
+    pan_center_src_x = 0.5 * float(w_img - 1)
+    pan_center_src_y = 0.5 * float(h_img - 1)
+
+    header_h = 178
     menu_margin = 20
     menu_padding = 14
     menu_gap = 16
@@ -419,7 +426,9 @@ def main() -> None:
     table_row_gap = 24
     units_title_gap = 18
     units_row_gap = 24
-    estimated_menu_w = 440
+    view_title_gap = 18
+    view_section_h = 136
+    estimated_menu_w = 480
     estimated_menu_h = (
         menu_padding
         + table_title_gap
@@ -427,12 +436,148 @@ def main() -> None:
         + menu_gap
         + units_title_gap
         + len(UNIT_MENU) * units_row_gap
-        + 44
+        + menu_gap
+        + view_title_gap
+        + view_section_h
     )
 
     row_spacing = 24
     radio_radius = 8
     radio_hit_radius = 12
+
+    def _active_labels() -> List[str]:
+        return CORNER_LABELS if mode == "corners" else SIDE_POCKET_LABELS
+
+    def _active_points() -> List[Tuple[float, float]]:
+        return corner_points if mode == "corners" else side_pocket_points
+
+    def _set_active_points(points: List[Tuple[float, float]]) -> None:
+        nonlocal corner_points, side_pocket_points
+        if mode == "corners":
+            corner_points = points
+        else:
+            side_pocket_points = points
+
+    def _current_zoom() -> float:
+        return float(zoom_levels[zoom_idx])
+
+    def _source_center_from_oriented(x_oriented: float, y_oriented: float) -> Tuple[float, float]:
+        x_src = float(w_img - 1) - x_oriented if flip_view_h else x_oriented
+        y_src = float(h_img - 1) - y_oriented if flip_view_v else y_oriented
+        return (
+            float(np.clip(x_src, 0.0, float(w_img - 1))),
+            float(np.clip(y_src, 0.0, float(h_img - 1))),
+        )
+
+    def _oriented_center_from_source(x_src: float, y_src: float) -> Tuple[float, float]:
+        x_oriented = float(w_img - 1) - x_src if flip_view_h else x_src
+        y_oriented = float(h_img - 1) - y_src if flip_view_v else y_src
+        return x_oriented, y_oriented
+
+    def _clamp_pan_center() -> None:
+        nonlocal pan_center_src_x, pan_center_src_y
+        zoom = _current_zoom()
+        view_w = float(w_img) / zoom
+        view_h = float(h_img) / zoom
+        cx_o, cy_o = _oriented_center_from_source(pan_center_src_x, pan_center_src_y)
+        if view_w >= float(w_img):
+            cx_o = 0.5 * float(w_img - 1)
+        else:
+            cx_o = float(np.clip(cx_o, 0.5 * view_w, float(w_img) - 0.5 * view_w))
+        if view_h >= float(h_img):
+            cy_o = 0.5 * float(h_img - 1)
+        else:
+            cy_o = float(np.clip(cy_o, 0.5 * view_h, float(h_img) - 0.5 * view_h))
+        pan_center_src_x, pan_center_src_y = _source_center_from_oriented(cx_o, cy_o)
+
+    def _viewport() -> Tuple[float, float, float, float]:
+        _clamp_pan_center()
+        zoom = _current_zoom()
+        view_w = float(w_img) / zoom
+        view_h = float(h_img) / zoom
+        cx_o, cy_o = _oriented_center_from_source(pan_center_src_x, pan_center_src_y)
+        left = cx_o - 0.5 * view_w
+        top = cy_o - 0.5 * view_h
+        if view_w < float(w_img):
+            left = float(np.clip(left, 0.0, float(w_img) - view_w))
+        else:
+            left = 0.0
+        if view_h < float(h_img):
+            top = float(np.clip(top, 0.0, float(h_img) - view_h))
+        else:
+            top = 0.0
+        return left, top, view_w, view_h
+
+    def _source_to_display(x_src: float, y_src: float) -> Tuple[float, float]:
+        x_oriented = float(w_img - 1) - x_src if flip_view_h else x_src
+        y_oriented = float(h_img - 1) - y_src if flip_view_v else y_src
+        left, top, view_w, view_h = _viewport()
+        x_disp = (x_oriented - left) * float(w_img) / view_w
+        y_disp = (y_oriented - top) * float(h_img) / view_h
+        return x_disp, y_disp
+
+    def _display_to_source(x_disp: float, y_disp: float) -> Tuple[float, float]:
+        x_disp = float(np.clip(x_disp, 0.0, float(w_img - 1)))
+        y_disp = float(np.clip(y_disp, 0.0, float(h_img - 1)))
+        left, top, view_w, view_h = _viewport()
+        x_oriented = left + (x_disp * view_w / float(w_img))
+        y_oriented = top + (y_disp * view_h / float(h_img))
+        x_src = float(w_img - 1) - x_oriented if flip_view_h else x_oriented
+        y_src = float(h_img - 1) - y_oriented if flip_view_v else y_oriented
+        return (
+            float(np.clip(x_src, 0.0, float(w_img - 1))),
+            float(np.clip(y_src, 0.0, float(h_img - 1))),
+        )
+
+    def _render_background() -> np.ndarray:
+        if flip_view_h and flip_view_v:
+            oriented = cv2.flip(img, -1)
+        elif flip_view_h:
+            oriented = cv2.flip(img, 1)
+        elif flip_view_v:
+            oriented = cv2.flip(img, 0)
+        else:
+            oriented = img
+        left, top, view_w, view_h = _viewport()
+        sx = float(w_img) / view_w
+        sy = float(h_img) / view_h
+        m = np.array([[sx, 0.0, -left * sx], [0.0, sy, -top * sy]], dtype=np.float32)
+        return cv2.warpAffine(
+            oriented,
+            m,
+            (w_img, h_img),
+            flags=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_REPLICATE,
+        )
+
+    def _nudge_pan(dx_oriented: float, dy_oriented: float) -> None:
+        nonlocal pan_center_src_x, pan_center_src_y
+        dx_src = -dx_oriented if flip_view_h else dx_oriented
+        dy_src = -dy_oriented if flip_view_v else dy_oriented
+        pan_center_src_x += dx_src
+        pan_center_src_y += dy_src
+        _clamp_pan_center()
+
+    def _zoom_step(delta: int, anchor_display_xy: Optional[Tuple[float, float]] = None) -> None:
+        nonlocal zoom_idx, pan_center_src_x, pan_center_src_y
+        new_idx = int(np.clip(zoom_idx + delta, 0, len(zoom_levels) - 1))
+        if new_idx == zoom_idx:
+            return
+        if anchor_display_xy is None:
+            anchor_display_xy = (0.5 * float(w_img - 1), 0.5 * float(h_img - 1))
+        anchor_src = _display_to_source(anchor_display_xy[0], anchor_display_xy[1])
+        zoom_idx = new_idx
+        pan_center_src_x, pan_center_src_y = anchor_src
+        _clamp_pan_center()
+
+    def _reset_view() -> None:
+        nonlocal flip_view_h, flip_view_v, zoom_idx, pan_center_src_x, pan_center_src_y
+        flip_view_h = False
+        flip_view_v = False
+        zoom_idx = 0
+        pan_center_src_x = 0.5 * float(w_img - 1)
+        pan_center_src_y = 0.5 * float(h_img - 1)
+        _clamp_pan_center()
 
     def _menu_layout() -> Dict[str, int]:
         safe_w = max(200, w_img - 2 * menu_margin)
@@ -452,7 +597,7 @@ def main() -> None:
                 (w_img - panel_w - menu_margin, h_img - panel_h - menu_margin),
                 ((w_img - panel_w) // 2, max(header_h, (h_img - panel_h) // 2)),
             ]
-            corners = np.array(corner_points, dtype=np.float64)
+            corners_disp = [_source_to_display(float(cx), float(cy)) for cx, cy in corner_points]
             best_anchor = (default_left, default_top)
             best_dist = -1.0
             for ax, ay in anchors:
@@ -462,7 +607,7 @@ def main() -> None:
                 bottom = top + panel_h
                 d = min(
                     _distance_sq_point_to_rect(float(cx), float(cy), float(left), float(top), float(right), float(bottom))
-                    for cx, cy in corners
+                    for cx, cy in corners_disp
                 )
                 if d > best_dist:
                     best_dist = d
@@ -473,6 +618,8 @@ def main() -> None:
         table_top = top + menu_padding + table_title_gap
         units_left = table_left
         units_top = table_top + len(TABLE_MENU) * row_spacing + menu_gap + units_title_gap
+        view_left = table_left
+        view_top = units_top + len(UNIT_MENU) * row_spacing + menu_gap + view_title_gap
         return {
             "panel_left": left,
             "panel_top": top,
@@ -482,35 +629,74 @@ def main() -> None:
             "table_top": table_top,
             "units_left": units_left,
             "units_top": units_top,
+            "view_left": view_left,
+            "view_top": view_top,
         }
 
-    def _active_labels() -> List[str]:
-        return CORNER_LABELS if mode == "corners" else SIDE_POCKET_LABELS
+    def _view_control_layout(layout: Dict[str, int]) -> Dict[str, Tuple[int, int, int, int] | Tuple[int, int]]:
+        view_left = int(layout["view_left"])
+        view_top = int(layout["view_top"])
+        button_w = 28
+        button_h = 20
+        pan_size = 20
+        flip_h_center = (view_left, view_top)
+        flip_v_center = (view_left, view_top + row_spacing)
+        zoom_y = view_top + (2 * row_spacing) + 8
+        zoom_minus_rect = (view_left, zoom_y - button_h // 2, view_left + button_w, zoom_y + button_h // 2)
+        zoom_plus_rect = (
+            view_left + button_w + 6,
+            zoom_y - button_h // 2,
+            view_left + (2 * button_w) + 6,
+            zoom_y + button_h // 2,
+        )
+        pan_origin_y = zoom_y + 16
+        pan_up_rect = (view_left + 34, pan_origin_y, view_left + 34 + pan_size, pan_origin_y + pan_size)
+        pan_left_rect = (
+            view_left + 10,
+            pan_origin_y + 24,
+            view_left + 10 + pan_size,
+            pan_origin_y + 24 + pan_size,
+        )
+        pan_right_rect = (
+            view_left + 58,
+            pan_origin_y + 24,
+            view_left + 58 + pan_size,
+            pan_origin_y + 24 + pan_size,
+        )
+        pan_down_rect = (
+            view_left + 34,
+            pan_origin_y + 48,
+            view_left + 34 + pan_size,
+            pan_origin_y + 48 + pan_size,
+        )
+        reset_rect = (view_left, pan_origin_y + 76, view_left + 138, pan_origin_y + 100)
+        return {
+            "flip_h_center": flip_h_center,
+            "flip_v_center": flip_v_center,
+            "zoom_minus_rect": zoom_minus_rect,
+            "zoom_plus_rect": zoom_plus_rect,
+            "pan_up_rect": pan_up_rect,
+            "pan_left_rect": pan_left_rect,
+            "pan_right_rect": pan_right_rect,
+            "pan_down_rect": pan_down_rect,
+            "reset_rect": reset_rect,
+        }
 
-    def _active_points() -> List[Tuple[float, float]]:
-        return corner_points if mode == "corners" else side_pocket_points
-
-    def _set_active_points(points: List[Tuple[float, float]]) -> None:
-        nonlocal corner_points, side_pocket_points
-        if mode == "corners":
-            corner_points = points
-        else:
-            side_pocket_points = points
-
-    def _find_nearest_point(x: float, y: float) -> Optional[int]:
+    def _find_nearest_point(x_disp: float, y_disp: float) -> Optional[int]:
         pts = _active_points()
         if not pts:
             return None
         best_i = None
         best_d = float("inf")
-        for i, (px, py) in enumerate(pts):
-            d = (px - x) ** 2 + (py - y) ** 2
+        for i, (sx, sy) in enumerate(pts):
+            px, py = _source_to_display(float(sx), float(sy))
+            d = (px - x_disp) ** 2 + (py - y_disp) ** 2
             if d < best_d:
                 best_d = d
                 best_i = i
         if best_i is None:
             return None
-        return best_i if best_d <= (20.0**2) else None
+        return best_i if best_d <= (22.0**2) else None
 
     def _draw_radio(
         canvas: np.ndarray,
@@ -534,14 +720,35 @@ def main() -> None:
             cv2.LINE_AA,
         )
 
+    def _draw_button(canvas: np.ndarray, rect: Tuple[int, int, int, int], label: str) -> None:
+        x1, y1, x2, y2 = rect
+        cv2.rectangle(canvas, (x1, y1), (x2, y2), (180, 180, 180), 1)
+        cv2.putText(
+            canvas,
+            label,
+            (x1 + 7, y2 - 6),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+
+    def _point_in_rect(x: int, y: int, rect: Tuple[int, int, int, int]) -> bool:
+        x1, y1, x2, y2 = rect
+        return x1 <= x <= x2 and y1 <= y <= y2
+
     def redraw() -> None:
         nonlocal view
-        view = img.copy()
+        view = _render_background()
+        layout = _menu_layout()
 
         if len(corner_points) == 4:
-            poly = np.array([(int(x), int(y)) for x, y in corner_points], dtype=np.int32).reshape((-1, 1, 2))
+            poly_pts = [(_source_to_display(float(x), float(y))) for x, y in corner_points]
+            poly = np.array([(int(px), int(py)) for px, py in poly_pts], dtype=np.int32).reshape((-1, 1, 2))
             cv2.polylines(view, [poly], isClosed=True, color=(0, 200, 255), thickness=1, lineType=cv2.LINE_AA)
-        for i, (x, y) in enumerate(corner_points):
+        for i, (x_src, y_src) in enumerate(corner_points):
+            x, y = _source_to_display(float(x_src), float(y_src))
             cv2.circle(view, (int(x), int(y)), 8, (0, 255, 255), -1)
             cv2.putText(
                 view,
@@ -553,7 +760,8 @@ def main() -> None:
                 2,
                 cv2.LINE_AA,
             )
-        for i, (x, y) in enumerate(side_pocket_points):
+        for i, (x_src, y_src) in enumerate(side_pocket_points):
+            x, y = _source_to_display(float(x_src), float(y_src))
             cv2.circle(view, (int(x), int(y)), 6, (255, 200, 0), -1)
             cv2.putText(
                 view,
@@ -565,8 +773,6 @@ def main() -> None:
                 2,
                 cv2.LINE_AA,
             )
-
-        layout = _menu_layout()
 
         cv2.putText(
             view,
@@ -590,8 +796,18 @@ def main() -> None:
         )
         cv2.putText(
             view,
+            "View: h=flip-H | v=flip-V | +/- zoom | arrows or i/j/k/l pan | 0 reset view",
+            (20, 78),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            view,
             "Units: click radio or press t / 6 / 7 | u=undo point in current mode",
-            (20, 76),
+            (20, 102),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (255, 255, 255),
@@ -601,7 +817,7 @@ def main() -> None:
         cv2.putText(
             view,
             auto_corner_status,
-            (20, 120),
+            (20, 126),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (180, 255, 180),
@@ -611,7 +827,7 @@ def main() -> None:
         cv2.putText(
             view,
             f"Current edit mode: {'outside corners' if mode == 'corners' else 'side pockets'}",
-            (20, 142),
+            (20, 150),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
             (0, 255, 255) if mode == "corners" else (255, 200, 0),
@@ -627,6 +843,9 @@ def main() -> None:
         table_top = layout["table_top"]
         units_left = layout["units_left"]
         units_top = layout["units_top"]
+        view_left = layout["view_left"]
+        view_top = layout["view_top"]
+
         cv2.rectangle(
             view,
             (panel_left, panel_top),
@@ -641,6 +860,7 @@ def main() -> None:
             (150, 150, 150),
             1,
         )
+
         cv2.putText(
             view,
             "Table size",
@@ -694,6 +914,65 @@ def main() -> None:
                 selected_color=(0, 200, 255),
             )
 
+        controls = _view_control_layout(layout)
+        cv2.putText(
+            view,
+            "View",
+            (view_left, view_top - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        flip_h_center = controls["flip_h_center"]
+        flip_v_center = controls["flip_v_center"]
+        _draw_radio(
+            view,
+            int(flip_h_center[0]),
+            int(flip_h_center[1]),
+            selected=flip_view_h,
+            label="Flip horizontal",
+            selected_color=(255, 180, 0),
+        )
+        _draw_radio(
+            view,
+            int(flip_v_center[0]),
+            int(flip_v_center[1]),
+            selected=flip_view_v,
+            label="Flip vertical",
+            selected_color=(255, 180, 0),
+        )
+
+        _draw_button(view, controls["zoom_minus_rect"], "-")
+        _draw_button(view, controls["zoom_plus_rect"], "+")
+        cv2.putText(
+            view,
+            f"Zoom: {_current_zoom():.2f}x",
+            (view_left + 76, int(flip_v_center[1]) + row_spacing + 12),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.52,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+
+        _draw_button(view, controls["pan_up_rect"], "U")
+        _draw_button(view, controls["pan_left_rect"], "L")
+        _draw_button(view, controls["pan_right_rect"], "R")
+        _draw_button(view, controls["pan_down_rect"], "D")
+        cv2.putText(
+            view,
+            "Pan",
+            (view_left + 92, controls["pan_down_rect"][3] - 2),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.48,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        _draw_button(view, controls["reset_rect"], "Reset view")
+
     def _hit_table_option(x: int, y: int) -> Optional[str]:
         layout = _menu_layout()
         table_left = layout["table_left"]
@@ -714,14 +993,40 @@ def main() -> None:
                 return name
         return None
 
+    def _hit_view_control(x: int, y: int) -> Optional[str]:
+        layout = _menu_layout()
+        controls = _view_control_layout(layout)
+        flip_h_center = controls["flip_h_center"]
+        flip_v_center = controls["flip_v_center"]
+        if abs(x - int(flip_h_center[0])) <= radio_hit_radius and abs(y - int(flip_h_center[1])) <= radio_hit_radius:
+            return "flip_h"
+        if abs(x - int(flip_v_center[0])) <= radio_hit_radius and abs(y - int(flip_v_center[1])) <= radio_hit_radius:
+            return "flip_v"
+        if _point_in_rect(x, y, controls["zoom_minus_rect"]):
+            return "zoom_out"
+        if _point_in_rect(x, y, controls["zoom_plus_rect"]):
+            return "zoom_in"
+        if _point_in_rect(x, y, controls["pan_up_rect"]):
+            return "pan_up"
+        if _point_in_rect(x, y, controls["pan_left_rect"]):
+            return "pan_left"
+        if _point_in_rect(x, y, controls["pan_right_rect"]):
+            return "pan_right"
+        if _point_in_rect(x, y, controls["pan_down_rect"]):
+            return "pan_down"
+        if _point_in_rect(x, y, controls["reset_rect"]):
+            return "view_reset"
+        return None
+
     def on_mouse(event, x, y, _flags, _userdata) -> None:
-        nonlocal selected_table_size, selected_units, active_point_idx, dragging
+        nonlocal selected_table_size, selected_units, active_point_idx, dragging, flip_view_h, flip_view_v
         if event == cv2.EVENT_LBUTTONDOWN:
             idx = _find_nearest_point(float(x), float(y))
             if idx is not None:
                 active_point_idx = idx
                 dragging = True
                 return
+
             hit_table = _hit_table_option(x, y)
             if hit_table is not None:
                 selected_table_size = hit_table
@@ -732,16 +1037,47 @@ def main() -> None:
                 selected_units = hit_units
                 redraw()
                 return
+            hit_view = _hit_view_control(x, y)
+            if hit_view is not None:
+                if hit_view == "flip_h":
+                    flip_view_h = not flip_view_h
+                    _clamp_pan_center()
+                elif hit_view == "flip_v":
+                    flip_view_v = not flip_view_v
+                    _clamp_pan_center()
+                elif hit_view == "zoom_in":
+                    _zoom_step(+1)
+                elif hit_view == "zoom_out":
+                    _zoom_step(-1)
+                elif hit_view == "pan_up":
+                    _, _, view_w, view_h = _viewport()
+                    _nudge_pan(0.0, -0.10 * view_h)
+                elif hit_view == "pan_left":
+                    _, _, view_w, view_h = _viewport()
+                    _nudge_pan(-0.10 * view_w, 0.0)
+                elif hit_view == "pan_right":
+                    _, _, view_w, view_h = _viewport()
+                    _nudge_pan(+0.10 * view_w, 0.0)
+                elif hit_view == "pan_down":
+                    _, _, view_w, view_h = _viewport()
+                    _nudge_pan(0.0, +0.10 * view_h)
+                elif hit_view == "view_reset":
+                    _reset_view()
+                redraw()
+                return
+
             pts = _active_points()
             labels = _active_labels()
             if len(pts) < len(labels):
-                pts.append((float(x), float(y)))
+                src_x, src_y = _display_to_source(float(x), float(y))
+                pts.append((src_x, src_y))
                 _set_active_points(pts)
                 redraw()
         elif event == cv2.EVENT_MOUSEMOVE and dragging and active_point_idx is not None:
             pts = _active_points()
             if 0 <= active_point_idx < len(pts):
-                pts[active_point_idx] = (float(x), float(y))
+                src_x, src_y = _display_to_source(float(x), float(y))
+                pts[active_point_idx] = (src_x, src_y)
                 _set_active_points(pts)
                 redraw()
         elif event == cv2.EVENT_LBUTTONUP:
@@ -786,6 +1122,39 @@ def main() -> None:
             if 0 <= idx < len(UNIT_MENU):
                 selected_units = UNIT_MENU[idx]
                 redraw()
+        if key in (ord("h"),):
+            flip_view_h = not flip_view_h
+            _clamp_pan_center()
+            redraw()
+        if key in (ord("v"),):
+            flip_view_v = not flip_view_v
+            _clamp_pan_center()
+            redraw()
+        if key in (ord("0"),):
+            _reset_view()
+            redraw()
+        if key in (ord("+"), ord("="), ord("]")):
+            _zoom_step(+1)
+            redraw()
+        if key in (ord("-"), ord("_"), ord("[")):
+            _zoom_step(-1)
+            redraw()
+        if key in (81, ord("j")):  # left arrow or j
+            _, _, view_w, _ = _viewport()
+            _nudge_pan(-0.08 * view_w, 0.0)
+            redraw()
+        if key in (83, ord("l")):  # right arrow or l
+            _, _, view_w, _ = _viewport()
+            _nudge_pan(+0.08 * view_w, 0.0)
+            redraw()
+        if key in (82, ord("i")):  # up arrow or i
+            _, _, _, view_h = _viewport()
+            _nudge_pan(0.0, -0.08 * view_h)
+            redraw()
+        if key in (84, ord("k")):  # down arrow or k
+            _, _, _, view_h = _viewport()
+            _nudge_pan(0.0, +0.08 * view_h)
+            redraw()
         if key in (13, 10):
             if len(corner_points) != 4:
                 print("Need exactly 4 outside corner points before saving.")

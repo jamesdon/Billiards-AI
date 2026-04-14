@@ -51,6 +51,13 @@ The helper now opens with auto-detected corner proposals and in-window controls:
 - `r` resets corners back to fresh auto-detection.
 - The in-window menu panel is automatically placed in a low-conflict region
   away from the detected corners so corner dragging stays accessible.
+- **View controls** are available directly in the overlay:
+  - Flip horizontal and flip vertical toggles (clickable radios).
+  - Zoom in/out controls (clickable `+/-` buttons and keyboard).
+  - Pan controls (clickable directional buttons and keyboard arrows / `i j k l`).
+  - Reset-view button to return to default framing.
+  - These are display-only transforms for calibration UX; saved calibration
+    points remain in source image coordinates.
 - **Table size** uses an on-screen radio list only (no CLI table-size selection).
 - **Units** use an on-screen radio toggle (`imperial` default, `metric` optional).
 - **Side pocket mapping** is integrated in the same editor:
@@ -106,6 +113,15 @@ Side pocket controls:
 
 - `m`: toggle side pocket mode (`outside corners` / `side pockets`)
 - In side-pocket mode, set/drag exactly two points: `LS` then `RS`
+
+View controls (keyboard):
+
+- `h`: toggle horizontal flip for the preview
+- `v`: toggle vertical flip for the preview
+- `+` / `=` / `]`: zoom in
+- `-` / `_` / `[`: zoom out
+- arrow keys or `i`/`j`/`k`/`l`: pan
+- `0`: reset view transforms
 
 This writes:
 
