@@ -72,7 +72,7 @@ def _csi_pipeline(sensor_id: int, width: int, height: int, framerate: int, flip_
         f"format=(string)NV12, framerate=(fraction){framerate}/1 ! "
         f"nvvidconv flip-method={flip_method} ! "
         f"video/x-raw, width=(int){width}, height=(int){height}, format=(string)BGRx ! "
-        "videoconvert ! video/x-raw, format=(string)BGR ! appsink drop=true max-buffers=1"
+        "videoconvert ! video/x-raw, format=(string)BGR ! appsink drop=true max-buffers=1 sync=false"
     )
 
 
@@ -150,7 +150,7 @@ def _open_capture_for_source(
         framerate=framerate,
         flip_method=flip_method,
     )
-    cap = cv2.VideoCapture(source, cv2.CAP_GSTREAMER if use_gst else 0)
+    cap = cv2.VideoCapture(source, cv2.CAP_GSTREAMER if use_gst else cv2.CAP_V4L2)
     if not use_gst and isinstance(source, int):
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, float(width))
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, float(height))
@@ -161,12 +161,17 @@ def _open_capture_for_source(
 
 
 def _read_frame_from_capture(cap: cv2.VideoCapture) -> np.ndarray:
-    # Drain a few buffered frames so redraw uses a current frame, not stale data.
+    # Drain buffered frames so redraw uses a current frame instead of stale data.
     frame: Optional[np.ndarray] = None
-    for _ in range(4):
+    for _ in range(6):
+        if not cap.grab():
+            break
+    for _ in range(3):
         ok, candidate = cap.read()
         if ok and candidate is not None:
             frame = candidate
+    if frame is None:
+        ok, frame = cap.read()
     if frame is None:
         raise RuntimeError("Failed to capture frame from camera.")
     return frame
@@ -774,7 +779,91 @@ def _estimate_side_pockets_from_corners(
 
     left_seed = _clip_point_to_image(float(left_seed[0]), float(left_seed[1]), w, h)
     right_seed = _clip_point_to_image(float(right_seed[0]), float(right_seed[1]), w, h)
-    return [left_seed, right_seed]
+    return _normalize_side_pockets_to_rails([left_seed, right_seed], corners, frame.shape[:2])
+
+
+def _distance_point_to_segment(px: float, py: float, ax: float, ay: float, bx: float, by: float) -> float:
+    abx = float(bx - ax)
+    aby = float(by - ay)
+    apx = float(px - ax)
+    apy = float(py - ay)
+    denom = float((abx * abx) + (aby * aby))
+    if denom <= 1e-9:
+        return float(np.hypot(apx, apy))
+    t = float(np.clip(((apx * abx) + (apy * aby)) / denom, 0.0, 1.0))
+    qx = float(ax + (t * abx))
+    qy = float(ay + (t * aby))
+    return float(np.hypot(px - qx, py - qy))
+
+
+def _normalize_side_pockets_to_rails(
+    side_points: Sequence[Tuple[float, float]],
+    corners: Sequence[Tuple[float, float]],
+    shape_hw: Tuple[int, int],
+) -> List[Tuple[float, float]]:
+    if len(side_points) != 2 or len(corners) != 4:
+        return list(side_points)
+    h, w = int(shape_hw[0]), int(shape_hw[1])
+    tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(corners))]
+    left_mid = 0.5 * (tl + bl)
+    right_mid = 0.5 * (tr + br)
+
+    def _cost(point_xy: Tuple[float, float], rail_a: np.ndarray, rail_b: np.ndarray, rail_mid: np.ndarray) -> float:
+        px, py = float(point_xy[0]), float(point_xy[1])
+        d_rail = _distance_point_to_segment(px, py, float(rail_a[0]), float(rail_a[1]), float(rail_b[0]), float(rail_b[1]))
+        d_mid = float(np.hypot(px - float(rail_mid[0]), py - float(rail_mid[1])))
+        return d_rail + (0.35 * d_mid)
+
+    p0 = (float(side_points[0][0]), float(side_points[0][1]))
+    p1 = (float(side_points[1][0]), float(side_points[1][1]))
+
+    cost_keep = _cost(p0, tl, bl, left_mid) + _cost(p1, tr, br, right_mid)
+    cost_swap = _cost(p1, tl, bl, left_mid) + _cost(p0, tr, br, right_mid)
+
+    if cost_swap < cost_keep:
+        left_pt, right_pt = p1, p0
+    else:
+        left_pt, right_pt = p0, p1
+
+    left_pt = _clip_point_to_image(float(left_pt[0]), float(left_pt[1]), w, h)
+    right_pt = _clip_point_to_image(float(right_pt[0]), float(right_pt[1]), w, h)
+    return [left_pt, right_pt]
+
+
+def _project_t_on_segment(point_xy: Tuple[float, float], seg_a: np.ndarray, seg_b: np.ndarray) -> float:
+    p = np.array([float(point_xy[0]), float(point_xy[1])], dtype=np.float64)
+    a = seg_a.astype(np.float64)
+    b = seg_b.astype(np.float64)
+    ab = b - a
+    denom = float(np.dot(ab, ab))
+    if denom <= 1e-9:
+        return 0.5
+    t = float(np.dot(p - a, ab) / denom)
+    return float(np.clip(t, 0.0, 1.0))
+
+
+def _remap_side_pockets_between_corners(
+    frame: np.ndarray,
+    old_side_points: Sequence[Tuple[float, float]],
+    old_corners: Sequence[Tuple[float, float]],
+    new_corners: Sequence[Tuple[float, float]],
+) -> List[Tuple[float, float]]:
+    if len(old_side_points) != 2 or len(old_corners) != 4 or len(new_corners) != 4:
+        return _estimate_side_pockets_from_corners(frame, new_corners)
+    old_tl, old_tr, old_bl, old_br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(old_corners))]
+    new_tl, new_tr, new_bl, new_br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(new_corners))]
+
+    old_norm = _normalize_side_pockets_to_rails(old_side_points, old_corners, frame.shape[:2])
+    t_left = _project_t_on_segment(old_norm[0], old_tl, old_bl)
+    t_right = _project_t_on_segment(old_norm[1], old_tr, old_br)
+
+    seed_left = new_tl + (t_left * (new_bl - new_tl))
+    seed_right = new_tr + (t_right * (new_br - new_tr))
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    left_refined = _refine_side_pocket_seed(gray, (float(seed_left[0]), float(seed_left[1])), new_bl - new_tl)
+    right_refined = _refine_side_pocket_seed(gray, (float(seed_right[0]), float(seed_right[1])), new_br - new_tr)
+    return _normalize_side_pockets_to_rails([left_refined, right_refined], new_corners, frame.shape[:2])
+
 def _order_points_tl_tr_bl_br(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
     pts = np.array(points, dtype=np.float64)
     if pts.shape[0] < 4:
@@ -918,10 +1007,12 @@ def main() -> None:
     units_title_gap = 16
     camera_title_gap = 16
     view_title_gap = 16
-    view_section_h = 228
+    view_section_h = 284
     estimated_menu_w = 520
+    panel_drag_handle_h = 24
     estimated_menu_h = (
-        menu_padding
+        panel_drag_handle_h
+        + menu_padding
         + table_title_gap
         + len(TABLE_MENU) * row_spacing
         + menu_gap
@@ -946,12 +1037,16 @@ def main() -> None:
         units_title_gap = max(12, int(round(units_title_gap * ui_scale)))
         camera_title_gap = max(12, int(round(camera_title_gap * ui_scale)))
         view_title_gap = max(12, int(round(view_title_gap * ui_scale)))
-        view_section_h = max(170, int(round(view_section_h * ui_scale)))
+        view_section_h = max(180, int(round(view_section_h * ui_scale)))
         radio_radius = max(6, int(round(radio_radius * ui_scale)))
         radio_hit_radius = max(10, int(round(radio_hit_radius * ui_scale)))
         estimated_menu_w = max(360, int(round(estimated_menu_w * ui_scale)))
+        panel_drag_handle_h = max(20, int(round(panel_drag_handle_h * ui_scale)))
+    else:
+        panel_drag_handle_h = max(20, panel_drag_handle_h)
     estimated_menu_h = (
-        menu_padding
+        panel_drag_handle_h
+        + menu_padding
         + table_title_gap
         + len(TABLE_MENU) * row_spacing
         + menu_gap
@@ -965,6 +1060,12 @@ def main() -> None:
         + view_section_h
         + 32
     )
+
+    panel_left_override: Optional[int] = None
+    panel_top_override: Optional[int] = None
+    panel_dragging = False
+    panel_drag_offset_x = 0
+    panel_drag_offset_y = 0
 
     zoom_levels = [
         1.00,
@@ -1002,13 +1103,18 @@ def main() -> None:
         nonlocal corner_points, side_pocket_points
         if mode == "corners":
             corner_points = points
+            if len(corner_points) == 4 and len(side_pocket_points) == 2:
+                side_pocket_points = _normalize_side_pockets_to_rails(side_pocket_points, corner_points, (h_img, w_img))
         else:
             side_pocket_points = points
+            if len(corner_points) == 4 and len(side_pocket_points) == 2:
+                side_pocket_points = _normalize_side_pockets_to_rails(side_pocket_points, corner_points, (h_img, w_img))
 
     def _current_zoom() -> float:
         return float(zoom_levels[zoom_idx])
 
-    view_rotate_deg = 0.0
+    # Default to +90 when the incoming frame is portrait.
+    view_rotate_deg = 90.0 if h_img > w_img else 0.0
 
     def _current_view_step() -> Dict[str, float]:
         if view_step_mode == "coarse":
@@ -1128,42 +1234,55 @@ def main() -> None:
         pan_center_src_y = 0.5 * float(h_img - 1)
         _clamp_pan_center()
 
-    def _menu_layout() -> Dict[str, int]:
+    def _menu_layout() -> Dict[str, Any]:
         safe_w = max(200, w_img - 2 * menu_margin)
         safe_h = max(200, h_img - 2 * menu_margin)
         panel_w = min(estimated_menu_w, safe_w)
         panel_h = min(estimated_menu_h, safe_h)
         default_left = max(menu_margin, w_img - panel_w - menu_margin)
         default_top = menu_margin
-        if len(corner_points) < 4:
-            left = default_left
+        if panel_left_override is not None and panel_top_override is not None:
+            left = int(panel_left_override)
+            top = int(panel_top_override)
         else:
-            anchors = [
-                menu_margin,
-                w_img - panel_w - menu_margin,
-                (w_img - panel_w) // 2,
-            ]
-            corners_disp = [_source_to_display(float(cx), float(cy)) for cx, cy in corner_points]
-            best_left = default_left
-            best_dist = -1.0
-            for ax in anchors:
-                cand_left = int(np.clip(ax, menu_margin, max(menu_margin, w_img - panel_w - menu_margin)))
-                cand_top = menu_margin
-                right = cand_left + panel_w
-                bottom = cand_top + panel_h
-                d = min(
-                    _distance_sq_point_to_rect(float(cx), float(cy), float(cand_left), float(cand_top), float(right), float(bottom))
-                    for cx, cy in corners_disp
-                )
-                if d > best_dist:
-                    best_dist = d
-                    best_left = cand_left
-            left = best_left
-        # Keep controls high in-frame to avoid bottom clipping.
-        top = default_top
+            if len(corner_points) < 4:
+                left = default_left
+            else:
+                anchors = [
+                    menu_margin,
+                    w_img - panel_w - menu_margin,
+                    (w_img - panel_w) // 2,
+                ]
+                corners_disp = [_source_to_display(float(cx), float(cy)) for cx, cy in corner_points]
+                best_left = default_left
+                best_dist = -1.0
+                for ax in anchors:
+                    cand_left = int(np.clip(ax, menu_margin, max(menu_margin, w_img - panel_w - menu_margin)))
+                    cand_top = default_top
+                    right = cand_left + panel_w
+                    bottom = cand_top + panel_h
+                    d = min(
+                        _distance_sq_point_to_rect(
+                            float(cx),
+                            float(cy),
+                            float(cand_left),
+                            float(cand_top),
+                            float(right),
+                            float(bottom),
+                        )
+                        for cx, cy in corners_disp
+                    )
+                    if d > best_dist:
+                        best_dist = d
+                        best_left = cand_left
+                left = best_left
+            top = default_top
 
+        left = int(np.clip(left, menu_margin, max(menu_margin, w_img - panel_w - menu_margin)))
+        top = int(np.clip(top, menu_margin, max(menu_margin, h_img - panel_h - menu_margin)))
+        content_top = top + panel_drag_handle_h
         table_left = left + menu_padding
-        table_top = top + menu_padding + table_title_gap
+        table_top = content_top + menu_padding + table_title_gap
         units_left = table_left
         units_top = table_top + len(TABLE_MENU) * row_spacing + menu_gap + units_title_gap
         camera_left = table_left
@@ -1173,15 +1292,16 @@ def main() -> None:
         view_top = camera_top + camera_rows * row_spacing + menu_gap + view_title_gap
 
         # Guarantee that the panel border encloses all controls and labels.
-        min_needed_h = (view_top - top) + int(max(140, view_section_h)) + menu_padding
+        min_needed_h = (view_top - top) + int(max(160, view_section_h)) + menu_padding + 24
         panel_h = int(min(safe_h, max(panel_h, min_needed_h)))
-        # If panel grew, clamp top so the full box remains visible.
         top = int(np.clip(top, menu_margin, max(menu_margin, h_img - panel_h - menu_margin)))
+        drag_handle_rect = (left, top, left + panel_w, top + panel_drag_handle_h)
         return {
             "panel_left": left,
             "panel_top": top,
             "panel_w": panel_w,
             "panel_h": panel_h,
+            "drag_handle_rect": drag_handle_rect,
             "table_left": table_left,
             "table_top": table_top,
             "units_left": units_left,
@@ -1192,7 +1312,7 @@ def main() -> None:
             "view_top": view_top,
         }
 
-    def _view_control_layout(layout: Dict[str, int]) -> Dict[str, Tuple[int, int, int, int] | Tuple[int, int]]:
+    def _view_control_layout(layout: Dict[str, Any]) -> Dict[str, Tuple[int, int, int, int] | Tuple[int, int]]:
         view_left = int(layout["view_left"])
         view_top = int(layout["view_top"])
         button_w = max(24, int(round(28 * ui_scale)))
@@ -1211,7 +1331,10 @@ def main() -> None:
         rot_y = zoom_y + 26
         rot_minus_rect = (view_left, rot_y - button_h // 2, view_left + 58, rot_y + button_h // 2)
         rot_plus_rect = (view_left + 64, rot_y - button_h // 2, view_left + 122, rot_y + button_h // 2)
-        pan_origin_y = rot_y + 18
+        rot90_y = rot_y + 24
+        rotate_90_ccw_rect = (view_left, rot90_y - button_h // 2, view_left + 58, rot90_y + button_h // 2)
+        rotate_90_cw_rect = (view_left + 64, rot90_y - button_h // 2, view_left + 122, rot90_y + button_h // 2)
+        pan_origin_y = rot90_y + 18
         pan_up_rect = (view_left + 34, pan_origin_y, view_left + 34 + pan_size, pan_origin_y + pan_size)
         pan_left_rect = (
             view_left + 10,
@@ -1241,6 +1364,8 @@ def main() -> None:
             "zoom_plus_rect": zoom_plus_rect,
             "rot_minus_rect": rot_minus_rect,
             "rot_plus_rect": rot_plus_rect,
+            "rotate_90_ccw_rect": rotate_90_ccw_rect,
+            "rotate_90_cw_rect": rotate_90_cw_rect,
             "pan_up_rect": pan_up_rect,
             "pan_left_rect": pan_left_rect,
             "pan_right_rect": pan_right_rect,
@@ -1323,6 +1448,8 @@ def main() -> None:
         if not (0 <= idx < len(camera_menu)):
             return
         entry = camera_menu[idx]
+        old_corners = list(corner_points)
+        old_side_pockets = list(side_pocket_points)
         try:
             new_cap = _open_capture_for_source(
                 camera=str(entry["camera"]),
@@ -1342,8 +1469,18 @@ def main() -> None:
             img = new_img
             selected_camera_idx = idx
             corner_points = _estimate_outside_corners(img)
-            side_pocket_points = []
-            camera_status = f"Active camera: {_camera_label(entry)}"
+            side_pockets_kept = False
+            if len(old_corners) == 4 and len(old_side_pockets) == 2 and len(corner_points) == 4:
+                side_pocket_points = _remap_side_pockets_between_corners(img, old_side_pockets, old_corners, corner_points)
+                side_pockets_kept = len(side_pocket_points) == 2
+            if not side_pockets_kept:
+                side_pocket_points = _estimate_side_pockets_from_corners(img, corner_points)
+            if len(side_pocket_points) == 2 and len(corner_points) == 4:
+                side_pocket_points = _normalize_side_pockets_to_rails(side_pocket_points, corner_points, (h_img, w_img))
+            if side_pockets_kept:
+                camera_status = f"Active camera: {_camera_label(entry)} | side pockets kept."
+            else:
+                camera_status = f"Active camera: {_camera_label(entry)} | side pockets reseeded."
         except Exception as exc:
             camera_status = f"Camera switch failed: {exc}"
 
@@ -1450,6 +1587,7 @@ def main() -> None:
         panel_top = layout["panel_top"]
         panel_w = layout["panel_w"]
         panel_h = layout["panel_h"]
+        drag_handle_rect = layout["drag_handle_rect"]
         table_left = layout["table_left"]
         table_top = layout["table_top"]
         units_left = layout["units_left"]
@@ -1472,6 +1610,19 @@ def main() -> None:
             (panel_left + panel_w, panel_top + panel_h),
             (150, 150, 150),
             1,
+        )
+        hx1, hy1, hx2, hy2 = drag_handle_rect
+        cv2.rectangle(view, (hx1, hy1), (hx2, hy2), (55, 55, 55), -1)
+        cv2.line(view, (hx1, hy2), (hx2, hy2), (120, 120, 120), 1)
+        cv2.putText(
+            view,
+            "Drag tools panel",
+            (hx1 + 8, hy2 - 7),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (230, 230, 230),
+            1,
+            cv2.LINE_AA,
         )
 
         cv2.putText(
@@ -1626,10 +1777,12 @@ def main() -> None:
         )
         _draw_button(view, controls["rot_minus_rect"], "Rot-")
         _draw_button(view, controls["rot_plus_rect"], "Rot+")
+        _draw_button(view, controls["rotate_90_ccw_rect"], "-90")
+        _draw_button(view, controls["rotate_90_cw_rect"], "+90")
         cv2.putText(
             view,
             f"Angle: {view_rotate_deg:+.0f} deg",
-            (view_left + 132, controls["rot_plus_rect"][3] - 4),
+            (view_left + 132, controls["rotate_90_cw_rect"][3] - 4),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.46,
             (255, 255, 255),
@@ -1751,6 +1904,10 @@ def main() -> None:
             return "rot_left"
         if _point_in_rect(x, y, controls["rot_plus_rect"]):
             return "rot_right"
+        if _point_in_rect(x, y, controls["rotate_90_ccw_rect"]):
+            return "rot_90_ccw"
+        if _point_in_rect(x, y, controls["rotate_90_cw_rect"]):
+            return "rot_90_cw"
         if _point_in_rect(x, y, controls["pan_up_rect"]):
             return "pan_up"
         if _point_in_rect(x, y, controls["pan_left_rect"]):
@@ -1769,9 +1926,23 @@ def main() -> None:
             return "view_reset"
         return None
 
+    def _hit_panel_drag_handle(x: int, y: int) -> bool:
+        layout = _menu_layout()
+        return _point_in_rect(x, y, layout["drag_handle_rect"])
+
     def on_mouse(event, x, y, _flags, _userdata) -> None:
-        nonlocal selected_table_size, selected_units, selected_camera_idx, active_point_idx, dragging, flip_view_h, flip_view_v, view_step_mode
+        nonlocal selected_table_size, selected_units, selected_camera_idx, active_point_idx, dragging
+        nonlocal flip_view_h, flip_view_v, view_step_mode
+        nonlocal panel_dragging, panel_drag_offset_x, panel_drag_offset_y
+        nonlocal panel_left_override, panel_top_override, side_pocket_points
         if event == cv2.EVENT_LBUTTONDOWN:
+            if _hit_panel_drag_handle(x, y):
+                layout = _menu_layout()
+                x1, y1, _x2, _y2 = layout["drag_handle_rect"]
+                panel_dragging = True
+                panel_drag_offset_x = int(x - x1)
+                panel_drag_offset_y = int(y - y1)
+                return
             idx = _find_nearest_point(float(x), float(y))
             if idx is not None:
                 active_point_idx = idx
@@ -1814,6 +1985,10 @@ def main() -> None:
                     _rotate_step(-rotate_delta)
                 elif hit_view == "rot_right":
                     _rotate_step(+rotate_delta)
+                elif hit_view == "rot_90_ccw":
+                    _rotate_step(-90.0)
+                elif hit_view == "rot_90_cw":
+                    _rotate_step(+90.0)
                 elif hit_view == "pan_up":
                     _nudge_pan_display(0.0, -pan_dy)
                 elif hit_view == "pan_left":
@@ -1838,14 +2013,28 @@ def main() -> None:
                 pts.append((src_x, src_y))
                 _set_active_points(pts)
                 redraw()
-        elif event == cv2.EVENT_MOUSEMOVE and dragging and active_point_idx is not None:
-            pts = _active_points()
-            if 0 <= active_point_idx < len(pts):
-                src_x, src_y = _display_to_source(float(x), float(y))
-                pts[active_point_idx] = (src_x, src_y)
-                _set_active_points(pts)
+        elif event == cv2.EVENT_MOUSEMOVE:
+            if panel_dragging:
+                layout = _menu_layout()
+                panel_w = int(layout["panel_w"])
+                panel_h = int(layout["panel_h"])
+                min_left = int(menu_margin)
+                max_left = int(max(menu_margin, w_img - panel_w - menu_margin))
+                min_top = int(menu_margin)
+                max_top = int(max(menu_margin, h_img - panel_h - menu_margin))
+                panel_left_override = int(np.clip(x - panel_drag_offset_x, min_left, max_left))
+                panel_top_override = int(np.clip(y - panel_drag_offset_y, min_top, max_top))
                 redraw()
+                return
+            if dragging and active_point_idx is not None:
+                pts = _active_points()
+                if 0 <= active_point_idx < len(pts):
+                    src_x, src_y = _display_to_source(float(x), float(y))
+                    pts[active_point_idx] = (src_x, src_y)
+                    _set_active_points(pts)
+                    redraw()
         elif event == cv2.EVENT_LBUTTONUP:
+            panel_dragging = False
             dragging = False
             active_point_idx = None
 
@@ -1927,6 +2116,12 @@ def main() -> None:
             redraw()
         if key in (ord("x"), ord(".")):
             _rotate_step(+rotate_delta)
+            redraw()
+        if key in (ord("o"),):
+            _rotate_step(-90.0)
+            redraw()
+        if key in (ord("p"),):
+            _rotate_step(+90.0)
             redraw()
         if key in (81, ord("j")):  # left arrow or j
             _nudge_pan_display(-pan_dx, 0.0)
