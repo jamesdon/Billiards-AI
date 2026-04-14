@@ -326,6 +326,168 @@ def _distance_sq_point_to_rect(px: float, py: float, left: float, top: float, ri
     return dx * dx + dy * dy
 
 
+def _line_from_points(p1: Tuple[float, float], p2: Tuple[float, float]) -> Optional[np.ndarray]:
+    x1, y1 = float(p1[0]), float(p1[1])
+    x2, y2 = float(p2[0]), float(p2[1])
+    dx = x2 - x1
+    dy = y2 - y1
+    if (dx * dx + dy * dy) <= 1e-8:
+        return None
+    a = y1 - y2
+    b = x2 - x1
+    c = (x1 * y2) - (x2 * y1)
+    n = float(np.hypot(a, b))
+    if n <= 1e-8:
+        return None
+    return np.array([a / n, b / n, c / n], dtype=np.float64)
+
+
+def _fit_line_from_points(points: Sequence[Tuple[float, float]]) -> Optional[np.ndarray]:
+    if len(points) < 2:
+        return None
+    pts = np.array(points, dtype=np.float32).reshape(-1, 1, 2)
+    try:
+        vx, vy, x0, y0 = cv2.fitLine(pts, cv2.DIST_L2, 0, 0.01, 0.01)
+    except cv2.error:
+        return None
+    vx_f = float(vx)
+    vy_f = float(vy)
+    x0_f = float(x0)
+    y0_f = float(y0)
+    a = vy_f
+    b = -vx_f
+    c = -((a * x0_f) + (b * y0_f))
+    n = float(np.hypot(a, b))
+    if n <= 1e-8:
+        return None
+    return np.array([a / n, b / n, c / n], dtype=np.float64)
+
+
+def _line_intersection(line_a: np.ndarray, line_b: np.ndarray) -> Optional[Tuple[float, float]]:
+    a1, b1, c1 = (float(line_a[0]), float(line_a[1]), float(line_a[2]))
+    a2, b2, c2 = (float(line_b[0]), float(line_b[1]), float(line_b[2]))
+    det = (a1 * b2) - (a2 * b1)
+    if abs(det) <= 1e-8:
+        return None
+    x = ((b1 * c2) - (b2 * c1)) / det
+    y = ((c1 * a2) - (c2 * a1)) / det
+    return float(x), float(y)
+
+
+def _clip_point_to_image(x: float, y: float, w: int, h: int) -> Tuple[float, float]:
+    return (
+        float(np.clip(float(x), 0.0, float(w - 1))),
+        float(np.clip(float(y), 0.0, float(h - 1))),
+    )
+
+
+def _refine_quad_with_hough(gray: np.ndarray, seed_quad: Sequence[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    h, w = gray.shape[:2]
+    if len(seed_quad) != 4:
+        return [(float(x), float(y)) for x, y in seed_quad]
+    ordered_seed = _order_points_tl_tr_bl_br([(float(x), float(y)) for x, y in seed_quad])
+    tl = np.array(ordered_seed[0], dtype=np.float64)
+    tr = np.array(ordered_seed[1], dtype=np.float64)
+    bl = np.array(ordered_seed[2], dtype=np.float64)
+    br = np.array(ordered_seed[3], dtype=np.float64)
+    side_pairs = [(tl, tr), (tr, br), (bl, br), (tl, bl)]  # top, right, bottom, left
+    side_dirs: List[np.ndarray] = []
+    side_lines: List[np.ndarray] = []
+    for a, b in side_pairs:
+        line = _line_from_points((float(a[0]), float(a[1])), (float(b[0]), float(b[1])))
+        if line is None:
+            return ordered_seed
+        side_lines.append(line)
+        v = b - a
+        n = float(np.linalg.norm(v))
+        if n <= 1e-8:
+            return ordered_seed
+        side_dirs.append(v / n)
+
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    med = float(np.median(blur))
+    lo = int(max(18.0, 0.60 * med))
+    hi = int(min(240.0, max(lo + 10.0, 1.35 * med)))
+    edges = cv2.Canny(blur, lo, hi)
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8), iterations=1)
+    min_line_length = max(36, int(0.14 * min(h, w)))
+    lines_p = cv2.HoughLinesP(
+        edges,
+        1.0,
+        np.pi / 180.0,
+        threshold=max(40, int(0.08 * min(h, w))),
+        minLineLength=min_line_length,
+        maxLineGap=22,
+    )
+    if lines_p is None:
+        return ordered_seed
+
+    side_points: List[List[Tuple[float, float]]] = [[], [], [], []]
+    dist_band = max(22.0, 0.12 * float(min(h, w)))
+    align_threshold = float(np.cos(np.deg2rad(24.0)))
+
+    for seg in lines_p.reshape(-1, 4):
+        p1 = np.array([float(seg[0]), float(seg[1])], dtype=np.float64)
+        p2 = np.array([float(seg[2]), float(seg[3])], dtype=np.float64)
+        seg_v = p2 - p1
+        seg_len = float(np.linalg.norm(seg_v))
+        if seg_len < float(min_line_length):
+            continue
+        seg_dir = seg_v / seg_len
+        mid = 0.5 * (p1 + p2)
+
+        best_side_idx = -1
+        best_score = -1e9
+        for side_idx in range(4):
+            align = abs(float(np.dot(seg_dir, side_dirs[side_idx])))
+            if align < align_threshold:
+                continue
+            distance = abs(
+                float(
+                    (side_lines[side_idx][0] * mid[0])
+                    + (side_lines[side_idx][1] * mid[1])
+                    + side_lines[side_idx][2]
+                )
+            )
+            if distance > dist_band:
+                continue
+            score = (1.8 * align) + (0.8 * (seg_len / float(min(h, w)))) - (distance / dist_band)
+            if score > best_score:
+                best_score = score
+                best_side_idx = side_idx
+        if best_side_idx >= 0:
+            side_points[best_side_idx].append((float(p1[0]), float(p1[1])))
+            side_points[best_side_idx].append((float(p2[0]), float(p2[1])))
+
+    refined_lines: List[np.ndarray] = []
+    for side_idx in range(4):
+        if len(side_points[side_idx]) >= 6:
+            fitted = _fit_line_from_points(side_points[side_idx])
+            refined_lines.append(fitted if fitted is not None else side_lines[side_idx])
+        else:
+            refined_lines.append(side_lines[side_idx])
+
+    tl_i = _line_intersection(refined_lines[0], refined_lines[3])
+    tr_i = _line_intersection(refined_lines[0], refined_lines[1])
+    bl_i = _line_intersection(refined_lines[2], refined_lines[3])
+    br_i = _line_intersection(refined_lines[2], refined_lines[1])
+    if not (tl_i and tr_i and bl_i and br_i):
+        return ordered_seed
+
+    refined_quad = [
+        _clip_point_to_image(float(tl_i[0]), float(tl_i[1]), w, h),
+        _clip_point_to_image(float(tr_i[0]), float(tr_i[1]), w, h),
+        _clip_point_to_image(float(bl_i[0]), float(bl_i[1]), w, h),
+        _clip_point_to_image(float(br_i[0]), float(br_i[1]), w, h),
+    ]
+    refined_ordered = _order_points_tl_tr_bl_br(refined_quad)
+    refined_area = abs(float(cv2.contourArea(np.array(refined_ordered, dtype=np.float32))))
+    seed_area = abs(float(cv2.contourArea(np.array(ordered_seed, dtype=np.float32))))
+    if refined_area < max(0.05 * float(w * h), 0.35 * seed_area):
+        return ordered_seed
+    return refined_ordered
+
+
 def _refine_corner_seeds(gray: np.ndarray, seeds: Sequence[Tuple[float, float]]) -> List[Tuple[float, float]]:
     h, w = gray.shape[:2]
     seed_arr = np.array(seeds, dtype=np.float64)
@@ -380,15 +542,19 @@ def _refine_corner_seeds(gray: np.ndarray, seeds: Sequence[Tuple[float, float]])
 def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
     h, w = frame.shape[:2]
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    edges = cv2.Canny(blur, 35, 120)
+    gray_eq = cv2.equalizeHist(gray)
+    blur = cv2.GaussianBlur(gray_eq, (5, 5), 0)
+    med = float(np.median(blur))
+    lo = int(max(18.0, 0.60 * med))
+    hi = int(min(240.0, max(lo + 10.0, 1.35 * med)))
+    edges = cv2.Canny(blur, lo, hi)
     edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
     edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8), iterations=2)
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return _default_corners(h, w)
 
-    min_area = 0.12 * float(w * h)
+    min_area = 0.08 * float(w * h)
     best_quad: Optional[np.ndarray] = None
     best_quad_area = -1.0
 
@@ -425,12 +591,73 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
     if best_quad is None or best_quad_area <= 1.0:
         return _default_corners(h, w)
 
-    refined = _refine_corner_seeds(gray, best_quad.tolist())
+    hough_refined = _refine_quad_with_hough(gray, best_quad.tolist())
+    refined = _refine_corner_seeds(gray, hough_refined)
     refined_ordered = _order_points_tl_tr_bl_br(refined)
     refined_area = abs(float(cv2.contourArea(np.array(refined_ordered, dtype=np.float32))))
+    hough_area = abs(float(cv2.contourArea(np.array(hough_refined, dtype=np.float32))))
     if refined_area < 0.4 * best_quad_area:
+        if hough_area >= 0.4 * best_quad_area:
+            return hough_refined
         return [(float(x), float(y)) for x, y in best_quad]
     return refined_ordered
+
+
+def _refine_side_pocket_seed(
+    gray: np.ndarray,
+    seed_xy: Tuple[float, float],
+    rail_vec: np.ndarray,
+) -> Tuple[float, float]:
+    h, w = gray.shape[:2]
+    seed = np.array([float(seed_xy[0]), float(seed_xy[1])], dtype=np.float64)
+    rail_len = float(np.linalg.norm(rail_vec))
+    if rail_len <= 1e-6:
+        return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
+    search_radius = int(max(18.0, min(0.22 * rail_len, 0.18 * float(min(h, w)))))
+    x0 = max(0, int(round(seed[0])) - search_radius)
+    x1 = min(w, int(round(seed[0])) + search_radius + 1)
+    y0 = max(0, int(round(seed[1])) - search_radius)
+    y1 = min(h, int(round(seed[1])) + search_radius + 1)
+    if x1 <= x0 or y1 <= y0:
+        return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
+    patch = cv2.GaussianBlur(gray[y0:y1, x0:x1], (5, 5), 0)
+    if patch.size == 0:
+        return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
+    dark_thresh = float(np.percentile(patch, 22))
+    mask = patch <= dark_thresh
+    if int(np.count_nonzero(mask)) < 24:
+        return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
+    ys, xs = np.where(mask)
+    px = patch[ys, xs].astype(np.float64)
+    weights = (dark_thresh - px) + 1.0
+    cx = float(np.average(xs.astype(np.float64), weights=weights)) + float(x0)
+    cy = float(np.average(ys.astype(np.float64), weights=weights)) + float(y0)
+
+    rail_u = rail_vec.astype(np.float64) / rail_len
+    rail_n = np.array([-rail_u[1], rail_u[0]], dtype=np.float64)
+    delta = np.array([cx - seed[0], cy - seed[1]], dtype=np.float64)
+    along = float(np.clip(np.dot(delta, rail_u), -0.15 * rail_len, 0.15 * rail_len))
+    across = float(np.clip(np.dot(delta, rail_n), -0.08 * rail_len, 0.08 * rail_len))
+    refined = seed + (along * rail_u) + (across * rail_n)
+    return _clip_point_to_image(float(refined[0]), float(refined[1]), w, h)
+
+
+def _estimate_side_pockets_from_corners(
+    frame: np.ndarray,
+    corners: Sequence[Tuple[float, float]],
+) -> List[Tuple[float, float]]:
+    if len(corners) != 4:
+        return []
+    h, w = frame.shape[:2]
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(corners))]
+    left_mid = 0.5 * (tl + bl)
+    right_mid = 0.5 * (tr + br)
+    left_seed = _refine_side_pocket_seed(gray, (float(left_mid[0]), float(left_mid[1])), bl - tl)
+    right_seed = _refine_side_pocket_seed(gray, (float(right_mid[0]), float(right_mid[1])), br - tr)
+    left_seed = _clip_point_to_image(float(left_seed[0]), float(left_seed[1]), w, h)
+    right_seed = _clip_point_to_image(float(right_seed[0]), float(right_seed[1]), w, h)
+    return [left_seed, right_seed]
 
 
 def _order_points_tl_tr_bl_br(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
@@ -548,7 +775,9 @@ def main() -> None:
         corner_points = _default_corners(h, w)
         auto_corner_status = f"AUTO corner detect failed ({exc}); using fallback corners."
     print("Auto corners (TL,TR,BL,BR):", json.dumps(corner_points))
-    side_pocket_points: List[Tuple[float, float]] = []
+    side_pocket_points: List[Tuple[float, float]] = _estimate_side_pockets_from_corners(img, corner_points)
+    if len(side_pocket_points) == 2:
+        auto_corner_status = "AUTO corners loaded from frame contour + AUTO side-pocket seeds."
     active_point_idx: Optional[int] = None
     dragging = False
     mode = "corners"  # corners or side_pockets
@@ -557,12 +786,34 @@ def main() -> None:
     h_img, w_img = img.shape[:2]
     flip_view_h = False
     flip_view_v = False
-    zoom_levels = [1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0]
+    view_step_mode = "fine"
+    zoom_levels = [
+        1.00,
+        1.03,
+        1.06,
+        1.10,
+        1.15,
+        1.20,
+        1.26,
+        1.33,
+        1.41,
+        1.50,
+        1.60,
+        1.75,
+        1.90,
+        2.10,
+        2.30,
+        2.55,
+        2.85,
+        3.20,
+        3.60,
+        4.00,
+    ]
     zoom_idx = 0
     pan_center_src_x = 0.5 * float(w_img - 1)
     pan_center_src_y = 0.5 * float(h_img - 1)
 
-    header_h = 198
+    header_h = 222
     menu_margin = 20
     menu_padding = 14
     menu_gap = 16
@@ -573,7 +824,7 @@ def main() -> None:
     camera_title_gap = 18
     camera_row_gap = 24
     view_title_gap = 18
-    view_section_h = 206
+    view_section_h = 252
     estimated_menu_w = 520
     estimated_menu_h = (
         menu_padding
@@ -611,6 +862,11 @@ def main() -> None:
         return float(zoom_levels[zoom_idx])
 
     view_rotate_deg = 0.0
+
+    def _current_view_step() -> Dict[str, float]:
+        if view_step_mode == "coarse":
+            return {"zoom_delta": 3.0, "rotate_deg": 4.0, "pan_frac_x": 0.08, "pan_frac_y": 0.08}
+        return {"zoom_delta": 1.0, "rotate_deg": 1.0, "pan_frac_x": 0.025, "pan_frac_y": 0.025}
 
     def _clamp_pan_center() -> None:
         nonlocal pan_center_src_x, pan_center_src_y
@@ -822,7 +1078,8 @@ def main() -> None:
             view_left + 34 + pan_size,
             pan_origin_y + 48 + pan_size,
         )
-        reset_rect = (view_left, pan_origin_y + 78, view_left + 138, pan_origin_y + 102)
+        step_toggle_rect = (view_left, pan_origin_y + 78, view_left + 138, pan_origin_y + 102)
+        reset_rect = (view_left, pan_origin_y + 108, view_left + 138, pan_origin_y + 132)
         return {
             "flip_h_center": flip_h_center,
             "flip_v_center": flip_v_center,
@@ -834,6 +1091,7 @@ def main() -> None:
             "pan_left_rect": pan_left_rect,
             "pan_right_rect": pan_right_rect,
             "pan_down_rect": pan_down_rect,
+            "step_toggle_rect": step_toggle_rect,
             "reset_rect": reset_rect,
         }
 
@@ -979,7 +1237,7 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            "View: h/v flip | +/- zoom | z/x rotate | arrows or i/j/k/l pan | 0 reset",
+            "View: h/v flip | +/- zoom | z/x rotate | arrows or i/j/k/l pan | g fine/coarse | 0 reset",
             (20, 78),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
@@ -1221,6 +1479,18 @@ def main() -> None:
             1,
             cv2.LINE_AA,
         )
+        step = _current_view_step()
+        _draw_button(view, controls["step_toggle_rect"], f"Step: {view_step_mode.title()} (g)")
+        cv2.putText(
+            view,
+            f"Rot step: {step['rotate_deg']:.1f} deg | Pan step: {100.0 * step['pan_frac_x']:.1f}%",
+            (view_left + 146, controls["step_toggle_rect"][3] - 4),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.44,
+            (220, 220, 220),
+            1,
+            cv2.LINE_AA,
+        )
         _draw_button(view, controls["reset_rect"], "Reset view")
 
     def _hit_table_option(x: int, y: int) -> Optional[str]:
@@ -1280,12 +1550,14 @@ def main() -> None:
             return "pan_right"
         if _point_in_rect(x, y, controls["pan_down_rect"]):
             return "pan_down"
+        if _point_in_rect(x, y, controls["step_toggle_rect"]):
+            return "step_mode_toggle"
         if _point_in_rect(x, y, controls["reset_rect"]):
             return "view_reset"
         return None
 
     def on_mouse(event, x, y, _flags, _userdata) -> None:
-        nonlocal selected_table_size, selected_units, selected_camera_idx, active_point_idx, dragging, flip_view_h, flip_view_v
+        nonlocal selected_table_size, selected_units, selected_camera_idx, active_point_idx, dragging, flip_view_h, flip_view_v, view_step_mode
         if event == cv2.EVENT_LBUTTONDOWN:
             idx = _find_nearest_point(float(x), float(y))
             if idx is not None:
@@ -1310,6 +1582,11 @@ def main() -> None:
                 return
             hit_view = _hit_view_control(x, y)
             if hit_view is not None:
+                step = _current_view_step()
+                zoom_delta = int(round(step["zoom_delta"]))
+                rotate_delta = float(step["rotate_deg"])
+                pan_dx = float(step["pan_frac_x"]) * float(w_img)
+                pan_dy = float(step["pan_frac_y"]) * float(h_img)
                 if hit_view == "flip_h":
                     flip_view_h = not flip_view_h
                     _clamp_pan_center()
@@ -1317,21 +1594,23 @@ def main() -> None:
                     flip_view_v = not flip_view_v
                     _clamp_pan_center()
                 elif hit_view == "zoom_in":
-                    _zoom_step(+1)
+                    _zoom_step(+zoom_delta)
                 elif hit_view == "zoom_out":
-                    _zoom_step(-1)
+                    _zoom_step(-zoom_delta)
                 elif hit_view == "rot_left":
-                    _rotate_step(-5.0)
+                    _rotate_step(-rotate_delta)
                 elif hit_view == "rot_right":
-                    _rotate_step(+5.0)
+                    _rotate_step(+rotate_delta)
                 elif hit_view == "pan_up":
-                    _nudge_pan_display(0.0, -0.10 * float(h_img))
+                    _nudge_pan_display(0.0, -pan_dy)
                 elif hit_view == "pan_left":
-                    _nudge_pan_display(-0.10 * float(w_img), 0.0)
+                    _nudge_pan_display(-pan_dx, 0.0)
                 elif hit_view == "pan_right":
-                    _nudge_pan_display(+0.10 * float(w_img), 0.0)
+                    _nudge_pan_display(+pan_dx, 0.0)
                 elif hit_view == "pan_down":
-                    _nudge_pan_display(0.0, +0.10 * float(h_img))
+                    _nudge_pan_display(0.0, +pan_dy)
+                elif hit_view == "step_mode_toggle":
+                    view_step_mode = "coarse" if view_step_mode == "fine" else "fine"
                 elif hit_view == "view_reset":
                     _reset_view()
                 redraw()
@@ -1368,8 +1647,11 @@ def main() -> None:
             raise SystemExit(1)
         if key in (ord("r"), ord("a")):
             corner_points = _estimate_outside_corners(img)
-            side_pocket_points = []
-            auto_corner_status = "AUTO corners reloaded from frame contour."
+            side_pocket_points = _estimate_side_pockets_from_corners(img, corner_points)
+            if len(side_pocket_points) == 2:
+                auto_corner_status = "AUTO corners reloaded + AUTO side-pocket seeds refreshed."
+            else:
+                auto_corner_status = "AUTO corners reloaded from frame contour."
             redraw()
         if key in (ord("m"),):
             mode = "side_pockets" if mode == "corners" else "corners"
@@ -1396,6 +1678,14 @@ def main() -> None:
         if key in (ord("c"),) and camera_menu:
             _switch_to_camera((selected_camera_idx + 1) % len(camera_menu))
             redraw()
+        if key in (ord("g"),):
+            view_step_mode = "coarse" if view_step_mode == "fine" else "fine"
+            redraw()
+        step = _current_view_step()
+        zoom_delta = int(round(step["zoom_delta"]))
+        rotate_delta = float(step["rotate_deg"])
+        pan_dx = float(step["pan_frac_x"]) * float(w_img)
+        pan_dy = float(step["pan_frac_y"]) * float(h_img)
         if key in (ord("h"),):
             flip_view_h = not flip_view_h
             _clamp_pan_center()
@@ -1408,28 +1698,28 @@ def main() -> None:
             _reset_view()
             redraw()
         if key in (ord("+"), ord("="), ord("]")):
-            _zoom_step(+1)
+            _zoom_step(+zoom_delta)
             redraw()
         if key in (ord("-"), ord("_"), ord("[")):
-            _zoom_step(-1)
+            _zoom_step(-zoom_delta)
             redraw()
         if key in (ord("z"), ord(",")):
-            _rotate_step(-5.0)
+            _rotate_step(-rotate_delta)
             redraw()
         if key in (ord("x"), ord(".")):
-            _rotate_step(+5.0)
+            _rotate_step(+rotate_delta)
             redraw()
         if key in (81, ord("j")):  # left arrow or j
-            _nudge_pan_display(-0.08 * float(w_img), 0.0)
+            _nudge_pan_display(-pan_dx, 0.0)
             redraw()
         if key in (83, ord("l")):  # right arrow or l
-            _nudge_pan_display(+0.08 * float(w_img), 0.0)
+            _nudge_pan_display(+pan_dx, 0.0)
             redraw()
         if key in (82, ord("i")):  # up arrow or i
-            _nudge_pan_display(0.0, -0.08 * float(h_img))
+            _nudge_pan_display(0.0, -pan_dy)
             redraw()
         if key in (84, ord("k")):  # down arrow or k
-            _nudge_pan_display(0.0, +0.08 * float(h_img))
+            _nudge_pan_display(0.0, +pan_dy)
             redraw()
         if key in (13, 10):
             if len(corner_points) != 4:
