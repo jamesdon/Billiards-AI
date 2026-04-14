@@ -116,6 +116,8 @@ In-window workflow (new default):
   - click camera radio to switch live preview/input
   - `c` cycles to the next detected camera
   - switching camera resets auto-corner proposal for the new frame
+  - preview is now continuously refreshed from the active camera stream while
+    editing (live background); point coordinates remain in source image space
 - Edit modes:
   - outside corners mode (`TL/TR/BL/BR`)
   - side pockets mode (`LS/RS`)

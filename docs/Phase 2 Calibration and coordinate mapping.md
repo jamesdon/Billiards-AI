@@ -90,6 +90,8 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   - Press `c` to cycle to the next detected camera.
   - On switch, the helper reloads a fresh frame and re-estimates outside corners
     for that camera.
+  - During editing, camera preview is now continuously refreshed from a live
+    capture stream so pan/zoom/rotate adjustments match current table state.
 - **Table size** uses an on-screen radio list only (no CLI table-size selection).
 - **Units** use an on-screen radio toggle (`imperial` default, `metric` optional).
 - **Side pocket mapping** is integrated in the same editor:

@@ -99,7 +99,7 @@ Billiards-AI/
     phase7.sh                       Stats event injection checks
     phase8.sh                       Backend persistence checks (SQLite + optional Dynamo)
     phase9.sh                       End-to-end runtime launcher
-    calib_click.py                  Interactive TL/TR/BL/BR corner picker with stronger corner/side-pocket auto-seeding, fine/coarse view controls, camera radios (CSI/USB), writes calibration.json
+    calib_click.py                  Interactive live TL/TR/BL/BR corner picker with stronger corner/side-pocket auto-seeding, fine/coarse view controls, camera radios (CSI/USB), writes calibration.json
     start_calibration.sh            One-command local calibration launcher (env + guardrails + GUI)
     jetson_csi_setup.sh             Jetson camera stack triage (Argus + gst + app smoke)
     docker_jetson_build.sh          Build Jetson runtime image

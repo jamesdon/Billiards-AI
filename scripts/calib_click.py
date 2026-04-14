@@ -117,6 +117,30 @@ def _capture_frame_for_source(
     framerate: int,
     flip_method: int,
 ) -> np.ndarray:
+    cap = _open_capture_for_source(
+        camera=camera,
+        usb_index=usb_index,
+        csi_sensor_id=csi_sensor_id,
+        width=width,
+        height=height,
+        framerate=framerate,
+        flip_method=flip_method,
+    )
+    try:
+        return _read_frame_from_capture(cap)
+    finally:
+        cap.release()
+
+
+def _open_capture_for_source(
+    camera: str,
+    usb_index: int,
+    csi_sensor_id: int,
+    width: int,
+    height: int,
+    framerate: int,
+    flip_method: int,
+) -> cv2.VideoCapture:
     source, use_gst = _resolve_capture_source(
         camera=camera,
         usb_index=usb_index,
@@ -133,8 +157,11 @@ def _capture_frame_for_source(
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     if not cap.isOpened():
         raise RuntimeError(f"Failed to open camera source={source!r}")
+    return cap
+
+
+def _read_frame_from_capture(cap: cv2.VideoCapture) -> np.ndarray:
     ok, frame = cap.read()
-    cap.release()
     if not ok or frame is None:
         raise RuntimeError("Failed to capture frame from camera.")
     return frame
@@ -727,6 +754,7 @@ def main() -> None:
     camera_menu: List[Dict[str, Any]] = []
     selected_camera_idx = 0
     camera_status = ""
+    live_capture: Optional[cv2.VideoCapture] = None
     print(
         "Corner meaning: TL/TR/BL/BR are the four outside corners of the table "
         "(cushion intersection corners), not pocket centers."
@@ -752,7 +780,7 @@ def main() -> None:
                     selected_camera_idx = i
                     break
             selected = camera_menu[selected_camera_idx]
-            img = _capture_frame_for_source(
+            live_capture = _open_capture_for_source(
                 camera=str(selected["camera"]),
                 usb_index=int(selected["usb_index"]),
                 csi_sensor_id=int(selected["csi_sensor_id"]),
@@ -761,9 +789,19 @@ def main() -> None:
                 framerate=int(args.csi_framerate),
                 flip_method=int(args.csi_flip_method),
             )
+            img = _read_frame_from_capture(live_capture)
             camera_status = f"Active camera: {selected['label']}"
         else:
-            img = _capture_frame(args)
+            live_capture = _open_capture_for_source(
+                camera=str(args.camera),
+                usb_index=int(args.usb_index),
+                csi_sensor_id=int(args.csi_sensor_id),
+                width=int(args.width),
+                height=int(args.height),
+                framerate=int(args.csi_framerate),
+                flip_method=int(args.csi_flip_method),
+            )
+            img = _read_frame_from_capture(live_capture)
             camera_status = "No alternate cameras detected; using CLI camera source."
 
     win = "calib-click"
@@ -1155,12 +1193,12 @@ def main() -> None:
         return str(entry.get("label", entry.get("id", "camera")))
 
     def _switch_to_camera(idx: int) -> None:
-        nonlocal img, selected_camera_idx, corner_points, side_pocket_points, camera_status
+        nonlocal img, selected_camera_idx, corner_points, side_pocket_points, camera_status, live_capture
         if not (0 <= idx < len(camera_menu)):
             return
         entry = camera_menu[idx]
         try:
-            new_img = _capture_frame_for_source(
+            new_cap = _open_capture_for_source(
                 camera=str(entry["camera"]),
                 usb_index=int(entry["usb_index"]),
                 csi_sensor_id=int(entry["csi_sensor_id"]),
@@ -1169,8 +1207,12 @@ def main() -> None:
                 framerate=int(args.csi_framerate),
                 flip_method=int(args.csi_flip_method),
             )
+            new_img = _read_frame_from_capture(new_cap)
             if new_img.shape[:2] != (h_img, w_img):
                 new_img = cv2.resize(new_img, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
+            if live_capture is not None:
+                live_capture.release()
+            live_capture = new_cap
             img = new_img
             selected_camera_idx = idx
             corner_points = _estimate_outside_corners(img)
@@ -1639,9 +1681,18 @@ def main() -> None:
     redraw()
 
     while True:
+        if live_capture is not None:
+            ok, frame = live_capture.read()
+            if ok and frame is not None:
+                if frame.shape[:2] != (h_img, w_img):
+                    frame = cv2.resize(frame, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
+                img = frame
+                redraw()
         cv2.imshow(win, view)
         key = cv2.waitKey(20) & 0xFF
         if key in (ord("q"), 27):
+            if live_capture is not None:
+                live_capture.release()
             cv2.destroyAllWindows()
             print("Cancelled.", file=sys.stderr)
             raise SystemExit(1)
@@ -1731,6 +1782,8 @@ def main() -> None:
             break
 
     cv2.destroyAllWindows()
+    if live_capture is not None:
+        live_capture.release()
 
     table_length_m, table_width_m = _table_dims_m(selected_table_size)
     out_path.parent.mkdir(parents=True, exist_ok=True)
