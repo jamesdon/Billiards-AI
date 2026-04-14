@@ -82,6 +82,13 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   - Reset-view button to return to default framing.
   - These are display-only transforms for calibration UX; saved calibration
     points remain in source image coordinates.
+- **Camera source controls** are available directly in the overlay:
+  - At startup, the helper probes available CSI sensors and USB indices and
+    lists detected sources as camera radio options.
+  - Click a camera radio to switch source immediately.
+  - Press `c` to cycle to the next detected camera.
+  - On switch, the helper reloads a fresh frame and re-estimates outside corners
+    for that camera.
 - **Table size** uses an on-screen radio list only (no CLI table-size selection).
 - **Units** use an on-screen radio toggle (`imperial` default, `metric` optional).
 - **Side pocket mapping** is integrated in the same editor:
@@ -148,6 +155,10 @@ View controls (keyboard):
 - `x` / `.`: rotate right (clockwise)
 - arrow keys or `i`/`j`/`k`/`l`: pan
 - `0`: reset view transforms
+
+Camera controls (keyboard):
+
+- `c`: cycle to the next detected camera source
 
 This writes:
 

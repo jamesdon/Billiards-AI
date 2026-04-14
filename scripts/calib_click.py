@@ -5,7 +5,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -76,29 +76,61 @@ def _csi_pipeline(sensor_id: int, width: int, height: int, framerate: int, flip_
     )
 
 
-def _capture_frame(args: argparse.Namespace) -> np.ndarray:
-    cam = str(args.camera).strip().lower()
+def _resolve_capture_source(
+    camera: str,
+    usb_index: int,
+    csi_sensor_id: int,
+    width: int,
+    height: int,
+    framerate: int,
+    flip_method: int,
+) -> tuple[int | str, bool]:
+    cam = str(camera).strip().lower()
     use_gst = False
     source: int | str
     if cam == "csi":
         source = _csi_pipeline(
-            sensor_id=int(args.csi_sensor_id),
-            width=int(args.width),
-            height=int(args.height),
-            framerate=int(args.csi_framerate),
-            flip_method=int(args.csi_flip_method),
+            sensor_id=int(csi_sensor_id),
+            width=int(width),
+            height=int(height),
+            framerate=int(framerate),
+            flip_method=int(flip_method),
         )
         use_gst = True
     elif cam == "usb":
-        source = int(args.usb_index)
+        source = int(usb_index)
     elif cam.isdigit():
         source = int(cam)
     else:
-        source = str(args.camera)
+        source = str(camera)
         if "!" in source or "nvarguscamerasrc" in source:
             use_gst = True
+    return source, use_gst
 
+
+def _capture_frame_for_source(
+    camera: str,
+    usb_index: int,
+    csi_sensor_id: int,
+    width: int,
+    height: int,
+    framerate: int,
+    flip_method: int,
+) -> np.ndarray:
+    source, use_gst = _resolve_capture_source(
+        camera=camera,
+        usb_index=usb_index,
+        csi_sensor_id=csi_sensor_id,
+        width=width,
+        height=height,
+        framerate=framerate,
+        flip_method=flip_method,
+    )
     cap = cv2.VideoCapture(source, cv2.CAP_GSTREAMER if use_gst else 0)
+    if not use_gst and isinstance(source, int):
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, float(width))
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, float(height))
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     if not cap.isOpened():
         raise RuntimeError(f"Failed to open camera source={source!r}")
     ok, frame = cap.read()
@@ -106,6 +138,94 @@ def _capture_frame(args: argparse.Namespace) -> np.ndarray:
     if not ok or frame is None:
         raise RuntimeError("Failed to capture frame from camera.")
     return frame
+
+
+def _capture_frame(args: argparse.Namespace) -> np.ndarray:
+    return _capture_frame_for_source(
+        camera=str(args.camera),
+        usb_index=int(args.usb_index),
+        csi_sensor_id=int(args.csi_sensor_id),
+        width=int(args.width),
+        height=int(args.height),
+        framerate=int(args.csi_framerate),
+        flip_method=int(args.csi_flip_method),
+    )
+
+
+def _camera_option_id(camera: str, usb_index: int, csi_sensor_id: int) -> str:
+    cam = str(camera).strip().lower()
+    if cam == "csi":
+        return f"csi:{int(csi_sensor_id)}"
+    if cam == "usb":
+        return f"usb:{int(usb_index)}"
+    if cam.isdigit():
+        return f"usb:{int(cam)}"
+    return f"custom:{str(camera).strip()}"
+
+
+def _detect_available_cameras(args: argparse.Namespace) -> List[Dict[str, Any]]:
+    cameras: List[Dict[str, Any]] = []
+    seen_ids: set[str] = set()
+
+    def _add_camera(entry: Dict[str, Any]) -> None:
+        cam_id = str(entry["id"])
+        if cam_id in seen_ids:
+            return
+        seen_ids.add(cam_id)
+        cameras.append(entry)
+
+    def _probe(camera: str, usb_index: int, csi_sensor_id: int, label: str) -> None:
+        try:
+            _capture_frame_for_source(
+                camera=camera,
+                usb_index=usb_index,
+                csi_sensor_id=csi_sensor_id,
+                width=int(args.width),
+                height=int(args.height),
+                framerate=int(args.csi_framerate),
+                flip_method=int(args.csi_flip_method),
+            )
+        except Exception:
+            return
+        _add_camera(
+            {
+                "id": _camera_option_id(camera, usb_index=usb_index, csi_sensor_id=csi_sensor_id),
+                "label": label,
+                "camera": camera,
+                "usb_index": usb_index,
+                "csi_sensor_id": csi_sensor_id,
+                "probed": True,
+            }
+        )
+
+    for sensor_id in range(4):
+        _probe("csi", usb_index=0, csi_sensor_id=sensor_id, label=f"CSI sensor {sensor_id}")
+    for usb_index in range(8):
+        _probe("usb", usb_index=usb_index, csi_sensor_id=0, label=f"USB camera {usb_index}")
+
+    cli_camera = str(args.camera).strip()
+    cli_id = _camera_option_id(cli_camera, usb_index=int(args.usb_index), csi_sensor_id=int(args.csi_sensor_id))
+    _add_camera(
+        {
+            "id": cli_id,
+            "label": f"CLI source ({cli_camera})",
+            "camera": cli_camera,
+            "usb_index": int(args.usb_index),
+            "csi_sensor_id": int(args.csi_sensor_id),
+            "probed": False,
+        }
+    )
+    return cameras
+
+
+def _camera_option_id(camera: str, usb_index: int, csi_sensor_id: int) -> str:
+    cam = str(camera).strip()
+    cam_l = cam.lower()
+    if cam_l == "csi":
+        return f"csi:{int(csi_sensor_id)}"
+    if cam_l == "usb":
+        return f"usb:{int(usb_index)}"
+    return cam
 
 
 def _table_dims_m(table_size: str) -> Tuple[float, float]:
@@ -377,6 +497,9 @@ def main() -> None:
     detected_default_table_size = _detected_default_table_size(out_path)
     selected_table_size = _detected_default_table_size(out_path)
     selected_units = str(args.units)
+    camera_menu: List[Dict[str, Any]] = []
+    selected_camera_idx = 0
+    camera_status = ""
     print(
         "Corner meaning: TL/TR/BL/BR are the four outside corners of the table "
         "(cushion intersection corners), not pocket centers."
@@ -392,8 +515,29 @@ def main() -> None:
         img = cv2.imread(str(args.frame))
         if img is None:
             raise RuntimeError(f"Failed to read frame image: {args.frame}")
+        camera_status = "Frame mode: camera switching disabled."
     else:
-        img = _capture_frame(args)
+        camera_menu = _detect_available_cameras(args)
+        if camera_menu:
+            preferred_id = f"{str(args.camera)}:{int(args.csi_sensor_id) if str(args.camera).lower() == 'csi' else int(args.usb_index)}"
+            for i, entry in enumerate(camera_menu):
+                if str(entry.get("id", "")) == preferred_id:
+                    selected_camera_idx = i
+                    break
+            selected = camera_menu[selected_camera_idx]
+            img = _capture_frame_for_source(
+                camera=str(selected["camera"]),
+                usb_index=int(selected["usb_index"]),
+                csi_sensor_id=int(selected["csi_sensor_id"]),
+                width=int(args.width),
+                height=int(args.height),
+                framerate=int(args.csi_framerate),
+                flip_method=int(args.csi_flip_method),
+            )
+            camera_status = f"Active camera: {selected['label']}"
+        else:
+            img = _capture_frame(args)
+            camera_status = "No alternate cameras detected; using CLI camera source."
 
     win = "calib-click"
     auto_corner_status = "AUTO corners loaded from frame contour."
@@ -418,7 +562,7 @@ def main() -> None:
     pan_center_src_x = 0.5 * float(w_img - 1)
     pan_center_src_y = 0.5 * float(h_img - 1)
 
-    header_h = 178
+    header_h = 198
     menu_margin = 20
     menu_padding = 14
     menu_gap = 16
@@ -426,9 +570,11 @@ def main() -> None:
     table_row_gap = 24
     units_title_gap = 18
     units_row_gap = 24
+    camera_title_gap = 18
+    camera_row_gap = 24
     view_title_gap = 18
     view_section_h = 206
-    estimated_menu_w = 480
+    estimated_menu_w = 520
     estimated_menu_h = (
         menu_padding
         + table_title_gap
@@ -436,6 +582,9 @@ def main() -> None:
         + menu_gap
         + units_title_gap
         + len(UNIT_MENU) * units_row_gap
+        + menu_gap
+        + camera_title_gap
+        + max(1, len(camera_menu)) * camera_row_gap
         + menu_gap
         + view_title_gap
         + view_section_h
@@ -615,8 +764,10 @@ def main() -> None:
         table_top = top + menu_padding + table_title_gap
         units_left = table_left
         units_top = table_top + len(TABLE_MENU) * row_spacing + menu_gap + units_title_gap
+        camera_left = table_left
+        camera_top = units_top + len(UNIT_MENU) * row_spacing + menu_gap + camera_title_gap
         view_left = table_left
-        view_top = units_top + len(UNIT_MENU) * row_spacing + menu_gap + view_title_gap
+        view_top = camera_top + max(1, len(camera_menu)) * row_spacing + menu_gap + view_title_gap
         return {
             "panel_left": left,
             "panel_top": top,
@@ -626,6 +777,8 @@ def main() -> None:
             "table_top": table_top,
             "units_left": units_left,
             "units_top": units_top,
+            "camera_left": camera_left,
+            "camera_top": camera_top,
             "view_left": view_left,
             "view_top": view_top,
         }
@@ -740,6 +893,34 @@ def main() -> None:
         x1, y1, x2, y2 = rect
         return x1 <= x <= x2 and y1 <= y <= y2
 
+    def _camera_label(entry: Dict[str, Any]) -> str:
+        return str(entry.get("label", entry.get("id", "camera")))
+
+    def _switch_to_camera(idx: int) -> None:
+        nonlocal img, selected_camera_idx, corner_points, side_pocket_points, camera_status
+        if not (0 <= idx < len(camera_menu)):
+            return
+        entry = camera_menu[idx]
+        try:
+            new_img = _capture_frame_for_source(
+                camera=str(entry["camera"]),
+                usb_index=int(entry["usb_index"]),
+                csi_sensor_id=int(entry["csi_sensor_id"]),
+                width=int(args.width),
+                height=int(args.height),
+                framerate=int(args.csi_framerate),
+                flip_method=int(args.csi_flip_method),
+            )
+            if new_img.shape[:2] != (h_img, w_img):
+                new_img = cv2.resize(new_img, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
+            img = new_img
+            selected_camera_idx = idx
+            corner_points = _estimate_outside_corners(img)
+            side_pocket_points = []
+            camera_status = f"Active camera: {_camera_label(entry)}"
+        except Exception as exc:
+            camera_status = f"Camera switch failed: {exc}"
+
     def redraw() -> None:
         nonlocal view
         view = _render_background()
@@ -808,7 +989,7 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            "Units: click radio or press t / 6 / 7 | u=undo point in current mode",
+            "Units: click radio or press t / 6 / 7 | Camera: click radio or c=next | u=undo",
             (20, 102),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
@@ -828,8 +1009,18 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            f"Current edit mode: {'outside corners' if mode == 'corners' else 'side pockets'}",
+            camera_status,
             (20, 150),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (180, 220, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            view,
+            f"Current edit mode: {'outside corners' if mode == 'corners' else 'side pockets'}",
+            (20, 174),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
             (0, 255, 255) if mode == "corners" else (255, 200, 0),
@@ -845,6 +1036,8 @@ def main() -> None:
         table_top = layout["table_top"]
         units_left = layout["units_left"]
         units_top = layout["units_top"]
+        camera_left = layout["camera_left"]
+        camera_top = layout["camera_top"]
         view_left = layout["view_left"]
         view_top = layout["view_top"]
 
@@ -914,6 +1107,49 @@ def main() -> None:
                 selected=(unit_name == selected_units),
                 label=f"Units {idx}. {unit_name}",
                 selected_color=(0, 200, 255),
+            )
+
+        cv2.putText(
+            view,
+            "Camera sources",
+            (camera_left, camera_top - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        if camera_menu:
+            for idx, entry in enumerate(camera_menu, start=1):
+                row_y = camera_top + (idx - 1) * row_spacing
+                _draw_radio(
+                    view,
+                    camera_left,
+                    row_y,
+                    selected=(idx - 1 == selected_camera_idx),
+                    label=f"Cam {idx}. {_camera_label(entry)}",
+                    selected_color=(255, 180, 0),
+                )
+            cv2.putText(
+                view,
+                f"Current camera: {_camera_label(camera_menu[selected_camera_idx])}",
+                (camera_left, camera_top + len(camera_menu) * row_spacing + 14),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.52,
+                (255, 220, 120),
+                1,
+                cv2.LINE_AA,
+            )
+        else:
+            cv2.putText(
+                view,
+                "No alternate cameras detected",
+                (camera_left, camera_top + 8),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (180, 180, 180),
+                1,
+                cv2.LINE_AA,
             )
 
         controls = _view_control_layout(layout)
@@ -1007,6 +1243,18 @@ def main() -> None:
                 return name
         return None
 
+    def _hit_camera_option(x: int, y: int) -> Optional[int]:
+        if not camera_menu:
+            return None
+        layout = _menu_layout()
+        camera_left = layout["camera_left"]
+        camera_top = layout["camera_top"]
+        for idx, _entry in enumerate(camera_menu, start=1):
+            row_y = camera_top + (idx - 1) * row_spacing
+            if abs(x - camera_left) <= radio_hit_radius and abs(y - row_y) <= radio_hit_radius:
+                return idx - 1
+        return None
+
     def _hit_view_control(x: int, y: int) -> Optional[str]:
         layout = _menu_layout()
         controls = _view_control_layout(layout)
@@ -1037,7 +1285,7 @@ def main() -> None:
         return None
 
     def on_mouse(event, x, y, _flags, _userdata) -> None:
-        nonlocal selected_table_size, selected_units, active_point_idx, dragging, flip_view_h, flip_view_v
+        nonlocal selected_table_size, selected_units, selected_camera_idx, active_point_idx, dragging, flip_view_h, flip_view_v
         if event == cv2.EVENT_LBUTTONDOWN:
             idx = _find_nearest_point(float(x), float(y))
             if idx is not None:
@@ -1053,6 +1301,11 @@ def main() -> None:
             hit_units = _hit_units_option(x, y)
             if hit_units is not None:
                 selected_units = hit_units
+                redraw()
+                return
+            hit_camera = _hit_camera_option(x, y)
+            if hit_camera is not None:
+                _switch_to_camera(hit_camera)
                 redraw()
                 return
             hit_view = _hit_view_control(x, y)
@@ -1140,6 +1393,9 @@ def main() -> None:
             if 0 <= idx < len(UNIT_MENU):
                 selected_units = UNIT_MENU[idx]
                 redraw()
+        if key in (ord("c"),) and camera_menu:
+            _switch_to_camera((selected_camera_idx + 1) % len(camera_menu))
+            redraw()
         if key in (ord("h"),):
             flip_view_h = not flip_view_h
             _clamp_pan_center()

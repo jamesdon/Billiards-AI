@@ -110,6 +110,11 @@ In-window workflow (new default):
   - reset view
   - these are view-only transforms for easier editing after camera moves; saved
     calibration points remain in source image coordinates.
+- Camera source controls are available in the same overlay:
+  - auto-detected CSI/USB camera list at startup
+  - click camera radio to switch live preview/input
+  - `c` cycles to the next detected camera
+  - switching camera resets auto-corner proposal for the new frame
 - Edit modes:
   - outside corners mode (`TL/TR/BL/BR`)
   - side pockets mode (`LS/RS`)
@@ -149,6 +154,7 @@ Controls:
 - `+` / `-`: zoom in / out
 - `z` / `x` (or `,` / `.`): rotate view left / right
 - arrow keys or `i/j/k/l`: pan up/left/down/right
+- `c`: switch to next detected camera source
 - `0`: reset view transform
 
 ### Jetson camera orientation (repeatable)
