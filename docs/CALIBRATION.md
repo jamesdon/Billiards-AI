@@ -104,6 +104,9 @@ In-window workflow (new default):
   frame (away from corner points) so corner dragging remains clickable.
 - The overlay no longer renders a large text banner across the top of the frame;
   controls/status are consolidated in the right-side panel to keep points visible.
+- The tools panel header supports:
+  - drag to reposition
+  - double-click to collapse/expand (accordion behavior) for unobstructed corner editing
 - View controls are now available directly in the panel:
   - flip horizontal / flip vertical (GUI toggles)
   - zoom in / zoom out
@@ -124,6 +127,7 @@ In-window workflow (new default):
 - Edit modes:
   - outside corners mode (`TL/TR/BL/BR`)
   - side pockets mode (`LS/RS`)
+  - in side-pocket mode, both `LS` and `RS` are fully draggable/manual points (not locked)
   - side-pocket seeds are auto-proposed from table side midpoints and then locally
     refined with dark-blob scoring (darkness + blackhat contrast + contour shape)
     toward the actual pocket mouths; drag to finalize.

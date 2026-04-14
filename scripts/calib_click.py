@@ -163,10 +163,16 @@ def _open_capture_for_source(
 def _read_frame_from_capture(cap: cv2.VideoCapture) -> np.ndarray:
     # Drain buffered frames so redraw uses a current frame instead of stale data.
     frame: Optional[np.ndarray] = None
-    for _ in range(6):
+    grabbed = 0
+    for _ in range(8):
         if not cap.grab():
             break
-    for _ in range(3):
+        grabbed += 1
+    if grabbed > 0:
+        ok, candidate = cap.retrieve()
+        if ok and candidate is not None:
+            frame = candidate
+    for _ in range(2):
         ok, candidate = cap.read()
         if ok and candidate is not None:
             frame = candidate
@@ -1078,6 +1084,7 @@ def main() -> None:
     panel_dragging = False
     panel_drag_offset_x = 0
     panel_drag_offset_y = 0
+    panel_collapsed = False
 
     zoom_levels = [
         1.00,
@@ -1115,12 +1122,8 @@ def main() -> None:
         nonlocal corner_points, side_pocket_points
         if mode == "corners":
             corner_points = points
-            if len(corner_points) == 4 and len(side_pocket_points) == 2:
-                side_pocket_points = _normalize_side_pockets_to_rails(side_pocket_points, corner_points, (h_img, w_img))
         else:
             side_pocket_points = points
-            if len(corner_points) == 4 and len(side_pocket_points) == 2:
-                side_pocket_points = _normalize_side_pockets_to_rails(side_pocket_points, corner_points, (h_img, w_img))
 
     def _current_zoom() -> float:
         return float(zoom_levels[zoom_idx])
@@ -1303,9 +1306,12 @@ def main() -> None:
         view_left = table_left
         view_top = camera_top + camera_rows * row_spacing + menu_gap + view_title_gap
 
-        # Guarantee that the panel border encloses all controls and labels.
-        min_needed_h = (view_top - top) + int(max(160, view_section_h)) + menu_padding + 24
-        panel_h = int(min(safe_h, max(panel_h, min_needed_h)))
+        if panel_collapsed:
+            panel_h = panel_drag_handle_h + 2
+        else:
+            # Guarantee that the panel border encloses all controls and labels.
+            min_needed_h = (view_top - top) + int(max(160, view_section_h)) + menu_padding + 24
+            panel_h = int(min(safe_h, max(panel_h, min_needed_h)))
         top = int(np.clip(top, menu_margin, max(menu_margin, h_img - panel_h - menu_margin)))
         drag_handle_rect = (left, top, left + panel_w, top + panel_drag_handle_h)
         return {
@@ -1637,6 +1643,19 @@ def main() -> None:
             cv2.LINE_AA,
         )
 
+        if panel_collapsed:
+            cv2.putText(
+                view,
+                "Double-click header to expand",
+                (panel_left + 8, panel_top + panel_h - 6),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.42,
+                (190, 190, 190),
+                1,
+                cv2.LINE_AA,
+            )
+            return
+
         cv2.putText(
             view,
             "Table size",
@@ -1868,6 +1887,8 @@ def main() -> None:
         )
 
     def _hit_table_option(x: int, y: int) -> Optional[str]:
+        if panel_collapsed:
+            return None
         layout = _menu_layout()
         table_left = layout["table_left"]
         table_top = layout["table_top"]
@@ -1878,6 +1899,8 @@ def main() -> None:
         return None
 
     def _hit_units_option(x: int, y: int) -> Optional[str]:
+        if panel_collapsed:
+            return None
         layout = _menu_layout()
         units_left = layout["units_left"]
         units_top = layout["units_top"]
@@ -1888,6 +1911,8 @@ def main() -> None:
         return None
 
     def _hit_camera_option(x: int, y: int) -> Optional[int]:
+        if panel_collapsed:
+            return None
         if not camera_menu:
             return None
         layout = _menu_layout()
@@ -1900,6 +1925,8 @@ def main() -> None:
         return None
 
     def _hit_view_control(x: int, y: int) -> Optional[str]:
+        if panel_collapsed:
+            return None
         layout = _menu_layout()
         controls = _view_control_layout(layout)
         flip_h_center = controls["flip_h_center"]
@@ -1946,7 +1973,13 @@ def main() -> None:
         nonlocal selected_table_size, selected_units, selected_camera_idx, active_point_idx, dragging
         nonlocal flip_view_h, flip_view_v, view_step_mode
         nonlocal panel_dragging, panel_drag_offset_x, panel_drag_offset_y
-        nonlocal panel_left_override, panel_top_override, side_pocket_points
+        nonlocal panel_left_override, panel_top_override, side_pocket_points, panel_collapsed
+        if event == cv2.EVENT_LBUTTONDBLCLK:
+            if _hit_panel_drag_handle(x, y):
+                panel_collapsed = not panel_collapsed
+                panel_dragging = False
+                redraw()
+                return
         if event == cv2.EVENT_LBUTTONDOWN:
             if _hit_panel_drag_handle(x, y):
                 layout = _menu_layout()

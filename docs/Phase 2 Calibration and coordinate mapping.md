@@ -81,6 +81,7 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   - Pan controls (clickable directional buttons and keyboard arrows / `i j k l`).
   - Fine/coarse view-step radios (default is **Fine**).
   - Reset-view button to return to default framing.
+  - Double-click the panel header to collapse/expand the tools accordion.
   - These are display-only transforms for calibration UX; saved calibration
     points remain in source image coordinates.
   - Overlay layout now auto-scales to stay fully on-screen so controls remain clickable.
@@ -99,6 +100,8 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   - press `m` to toggle between outside-corner editing and side-pocket editing
   - in side-pocket mode, set/drag exactly two points: `LS` (left side pocket),
     `RS` (right side pocket)
+  - manual LS/RS dragging remains enabled; points are only rail-normalized on
+    save/camera-switch/reseed and are no longer clamped every drag frame
   - side-pocket seeds are now auto-initialized from dark-rail analysis near
     mid-rails using dark-blob + blackhat contour scoring for significantly
     better first placement
