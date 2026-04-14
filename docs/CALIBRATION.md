@@ -57,6 +57,17 @@ This is still a baseline and should be visually validated before match use.
 
 ### Optional interactive corner picker (recommended)
 
+Single-command startup script (preferred):
+
+```bash
+cd "/home/$USER/Billiards-AI"
+"/home/$USER/Billiards-AI/scripts/start_calibration.sh"
+```
+
+This script runs fully from local disk (no git operations), activates the local
+venv, enforces `PYTHONNOUSERSITE=1`, validates `scripts/calib_click.py` for the
+expected GUI view controls, and then launches the calibration window.
+
 Use the helper script to launch an interactive calibration window:
 
 ```bash

@@ -31,6 +31,29 @@ python -m edge.main \
 
 ### Optional: interactive corner-click helper (recommended)
 
+Preferred single-command startup (local disk, no git sync required):
+
+```bash
+cd "/home/$USER/Billiards-AI"
+"/home/$USER/Billiards-AI/scripts/start_calibration.sh"
+```
+
+This launcher:
+
+- activates `/home/$USER/Billiards-AI/.venv`
+- exports `PYTHONNOUSERSITE=1`
+- runs a local script self-check for required GUI features (flip/zoom/rotate/pan)
+- starts `scripts/calib_click.py` from local disk
+- writes `calibration.json` to `/home/$USER/Billiards-AI/calibration.json` by default
+
+Optional overrides:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+CSI_SENSOR_ID=0 CSI_FLIP_METHOD=6 CALIB_OUT="/home/$USER/Billiards-AI/calibration.json" \
+  "/home/$USER/Billiards-AI/scripts/start_calibration.sh"
+```
+
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
