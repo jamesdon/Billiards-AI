@@ -772,10 +772,12 @@ def _estimate_side_pockets_from_corners(
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(corners))]
 
-    left_mid = 0.5 * (tl + bl)
-    right_mid = 0.5 * (tr + br)
-    left_seed = _refine_side_pocket_seed(gray, (float(left_mid[0]), float(left_mid[1])), bl - tl)
-    right_seed = _refine_side_pocket_seed(gray, (float(right_mid[0]), float(right_mid[1])), br - tr)
+    # Side pockets live on the two long rails (top/bottom in table coordinates),
+    # not on the short left/right end rails.
+    top_mid = 0.5 * (tl + tr)
+    bottom_mid = 0.5 * (bl + br)
+    left_seed = _refine_side_pocket_seed(gray, (float(top_mid[0]), float(top_mid[1])), tr - tl)
+    right_seed = _refine_side_pocket_seed(gray, (float(bottom_mid[0]), float(bottom_mid[1])), br - bl)
 
     left_seed = _clip_point_to_image(float(left_seed[0]), float(left_seed[1]), w, h)
     right_seed = _clip_point_to_image(float(right_seed[0]), float(right_seed[1]), w, h)
@@ -805,8 +807,8 @@ def _normalize_side_pockets_to_rails(
         return list(side_points)
     h, w = int(shape_hw[0]), int(shape_hw[1])
     tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(corners))]
-    left_mid = 0.5 * (tl + bl)
-    right_mid = 0.5 * (tr + br)
+    top_mid = 0.5 * (tl + tr)
+    bottom_mid = 0.5 * (bl + br)
 
     def _cost(point_xy: Tuple[float, float], rail_a: np.ndarray, rail_b: np.ndarray, rail_mid: np.ndarray) -> float:
         px, py = float(point_xy[0]), float(point_xy[1])
@@ -817,17 +819,21 @@ def _normalize_side_pockets_to_rails(
     p0 = (float(side_points[0][0]), float(side_points[0][1]))
     p1 = (float(side_points[1][0]), float(side_points[1][1]))
 
-    cost_keep = _cost(p0, tl, bl, left_mid) + _cost(p1, tr, br, right_mid)
-    cost_swap = _cost(p1, tl, bl, left_mid) + _cost(p0, tr, br, right_mid)
+    cost_keep = _cost(p0, tl, tr, top_mid) + _cost(p1, bl, br, bottom_mid)
+    cost_swap = _cost(p1, tl, tr, top_mid) + _cost(p0, bl, br, bottom_mid)
 
     if cost_swap < cost_keep:
-        left_pt, right_pt = p1, p0
+        top_pt, bottom_pt = p1, p0
     else:
-        left_pt, right_pt = p0, p1
+        top_pt, bottom_pt = p0, p1
 
-    left_pt = _clip_point_to_image(float(left_pt[0]), float(left_pt[1]), w, h)
-    right_pt = _clip_point_to_image(float(right_pt[0]), float(right_pt[1]), w, h)
-    return [left_pt, right_pt]
+    # Hard-anchor each point to its correct long rail so side pockets cannot land
+    # on the short end rails.
+    top_xy = _project_point_to_segment(top_pt, tl, tr)
+    bottom_xy = _project_point_to_segment(bottom_pt, bl, br)
+    top_xy = _clip_point_to_image(float(top_xy[0]), float(top_xy[1]), w, h)
+    bottom_xy = _clip_point_to_image(float(bottom_xy[0]), float(bottom_xy[1]), w, h)
+    return [top_xy, bottom_xy]
 
 
 def _project_t_on_segment(point_xy: Tuple[float, float], seg_a: np.ndarray, seg_b: np.ndarray) -> float:
@@ -842,6 +848,12 @@ def _project_t_on_segment(point_xy: Tuple[float, float], seg_a: np.ndarray, seg_
     return float(np.clip(t, 0.0, 1.0))
 
 
+def _project_point_to_segment(point_xy: Tuple[float, float], seg_a: np.ndarray, seg_b: np.ndarray) -> Tuple[float, float]:
+    t = _project_t_on_segment(point_xy, seg_a, seg_b)
+    p = seg_a.astype(np.float64) + (t * (seg_b.astype(np.float64) - seg_a.astype(np.float64)))
+    return float(p[0]), float(p[1])
+
+
 def _remap_side_pockets_between_corners(
     frame: np.ndarray,
     old_side_points: Sequence[Tuple[float, float]],
@@ -854,14 +866,14 @@ def _remap_side_pockets_between_corners(
     new_tl, new_tr, new_bl, new_br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(new_corners))]
 
     old_norm = _normalize_side_pockets_to_rails(old_side_points, old_corners, frame.shape[:2])
-    t_left = _project_t_on_segment(old_norm[0], old_tl, old_bl)
-    t_right = _project_t_on_segment(old_norm[1], old_tr, old_br)
+    t_left = _project_t_on_segment(old_norm[0], old_tl, old_tr)
+    t_right = _project_t_on_segment(old_norm[1], old_bl, old_br)
 
-    seed_left = new_tl + (t_left * (new_bl - new_tl))
-    seed_right = new_tr + (t_right * (new_br - new_tr))
+    seed_left = new_tl + (t_left * (new_tr - new_tl))
+    seed_right = new_bl + (t_right * (new_br - new_bl))
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    left_refined = _refine_side_pocket_seed(gray, (float(seed_left[0]), float(seed_left[1])), new_bl - new_tl)
-    right_refined = _refine_side_pocket_seed(gray, (float(seed_right[0]), float(seed_right[1])), new_br - new_tr)
+    left_refined = _refine_side_pocket_seed(gray, (float(seed_left[0]), float(seed_left[1])), new_tr - new_tl)
+    right_refined = _refine_side_pocket_seed(gray, (float(seed_right[0]), float(seed_right[1])), new_br - new_bl)
     return _normalize_side_pockets_to_rails([left_refined, right_refined], new_corners, frame.shape[:2])
 
 def _order_points_tl_tr_bl_br(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
@@ -1616,10 +1628,10 @@ def main() -> None:
         cv2.line(view, (hx1, hy2), (hx2, hy2), (120, 120, 120), 1)
         cv2.putText(
             view,
-            "Drag tools panel",
+            "Drag panel | Auto corners: r | Side pockets (m) | Enter=save",
             (hx1 + 8, hy2 - 7),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
+            0.44,
             (230, 230, 230),
             1,
             cv2.LINE_AA,
@@ -1846,10 +1858,10 @@ def main() -> None:
         _draw_button(view, controls["reset_rect"], "Reset view")
         cv2.putText(
             view,
-            f"Edit: {'outside corners' if mode == 'corners' else 'side pockets'}",
+            f"Edit: {'outside corners' if mode == 'corners' else 'side pockets'} | LS rail (top), RS rail (bottom)",
             (view_left, panel_top + panel_h - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
+            0.42,
             (0, 255, 255) if mode == "corners" else (255, 200, 0),
             1,
             cv2.LINE_AA,
