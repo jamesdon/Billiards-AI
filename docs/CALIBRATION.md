@@ -122,7 +122,8 @@ In-window workflow (new default):
   - outside corners mode (`TL/TR/BL/BR`)
   - side pockets mode (`LS/RS`)
   - side-pocket seeds are auto-proposed from table side midpoints and then locally
-    refined toward dark pocket openings; drag to finalize.
+    refined with dark-blob scoring (darkness + blackhat contrast + contour shape)
+    toward the actual pocket mouths; drag to finalize.
 - Table-size is selected in-window via radio list:
   - click radio circles or press keys `1..5`
   - options: `6ft (bar box)`, `7ft`, `8ft`, `9ft`, `snooker`

@@ -99,7 +99,8 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   - in side-pocket mode, set/drag exactly two points: `LS` (left side pocket),
     `RS` (right side pocket)
   - side-pocket seeds are now auto-initialized from dark-rail analysis near
-    mid-rails for significantly better first placement
+    mid-rails using dark-blob + blackhat contour scoring for significantly
+    better first placement
   - if no manual side-pocket points are set, defaults are used automatically
 
 Table size menu options include:
