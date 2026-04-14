@@ -1,0 +1,107 @@
+{
+  "H": [
+    [
+      0.0022975563998748555,
+      -0.0006034518960610302,
+      0.04346782138310538
+    ],
+    [
+      0.0002056162484139094,
+      0.002219255273639643,
+      -0.3798760407000728
+    ],
+    [
+      -9.139930211717618e-05,
+      -0.00025602254755873,
+      1.0
+    ]
+  ],
+  "pockets": [
+    {
+      "label": "top_left_corner",
+      "center_xy_m": [
+        0.0,
+        0.0
+      ],
+      "radius_m": 0.07
+    },
+    {
+      "label": "top_right_corner",
+      "center_xy_m": [
+        2.84,
+        0.0
+      ],
+      "radius_m": 0.07
+    },
+    {
+      "label": "bottom_left_corner",
+      "center_xy_m": [
+        0.0,
+        1.42
+      ],
+      "radius_m": 0.07
+    },
+    {
+      "label": "bottom_right_corner",
+      "center_xy_m": [
+        2.84,
+        1.42
+      ],
+      "radius_m": 0.07
+    },
+    {
+      "label": "left_side_pocket",
+      "center_xy_m": [
+        0.0,
+        0.71
+      ],
+      "radius_m": 0.07
+    },
+    {
+      "label": "right_side_pocket",
+      "center_xy_m": [
+        2.84,
+        0.71
+      ],
+      "radius_m": 0.07
+    }
+  ],
+  "table_length_m": 2.84,
+  "table_width_m": 1.42,
+  "kitchen_polygon_xy_m": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.71,
+      0.0
+    ],
+    [
+      0.71,
+      1.42
+    ],
+    [
+      0.0,
+      1.42
+    ]
+  ],
+  "break_area_polygon_xy_m": [
+    [
+      1.42,
+      0.0
+    ],
+    [
+      2.84,
+      0.0
+    ],
+    [
+      2.84,
+      1.42
+    ],
+    [
+      1.42,
+      1.42
+    ]
+  ]
+}
