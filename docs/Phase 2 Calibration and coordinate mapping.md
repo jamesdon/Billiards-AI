@@ -79,10 +79,11 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   - Zoom in/out controls (clickable `+/-` buttons and keyboard).
   - Rotate controls (`Rot-` / `Rot+` in overlay).
   - Pan controls (clickable directional buttons and keyboard arrows / `i j k l`).
-  - Fine/coarse step toggle for view adjustments (`g` key or in-panel toggle).
+  - Fine/coarse view-step radios (default is **Fine**).
   - Reset-view button to return to default framing.
   - These are display-only transforms for calibration UX; saved calibration
     points remain in source image coordinates.
+  - Overlay layout now auto-scales to stay fully on-screen so controls remain clickable.
 - **Camera source controls** are available directly in the overlay:
   - At startup, the helper probes available CSI sensors and USB indices and
     lists detected sources as camera radio options.
@@ -160,7 +161,7 @@ View controls (keyboard):
 - `z` / `,`: rotate left (counter-clockwise)
 - `x` / `.`: rotate right (clockwise)
 - arrow keys or `i`/`j`/`k`/`l`: pan
-- `g`: toggle fine/coarse adjustment step size
+- click `Fine` / `Coarse` radio in the overlay to set adjustment step size (default: Fine)
 - `0`: reset view transforms
 
 Camera controls (keyboard):

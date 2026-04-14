@@ -102,12 +102,14 @@ In-window workflow (new default):
 - You can drag any point to refine it.
 - The table-size/units panel is automatically placed in a low-conflict area of the
   frame (away from corner points) so corner dragging remains clickable.
+- The overlay no longer renders a large text banner across the top of the frame;
+  controls/status are consolidated in the right-side panel to keep points visible.
 - View controls are now available directly in the panel:
   - flip horizontal / flip vertical (GUI toggles)
   - zoom in / zoom out
   - rotate left / rotate right
   - pan up / left / right / down
-  - fine/coarse step toggle for zoom/rotate/pan increment size
+  - fine/coarse radio selector for zoom/rotate/pan increment size (defaults to `fine`)
   - reset view
   - these are view-only transforms for easier editing after camera moves; saved
     calibration points remain in source image coordinates.
@@ -117,7 +119,8 @@ In-window workflow (new default):
   - `c` cycles to the next detected camera
   - switching camera resets auto-corner proposal for the new frame
   - preview is now continuously refreshed from the active camera stream while
-    editing (live background); point coordinates remain in source image space
+    editing (live background), with automatic reconnect attempts if frame reads fail;
+    point coordinates remain in source image space
 - Edit modes:
   - outside corners mode (`TL/TR/BL/BR`)
   - side pockets mode (`LS/RS`)
@@ -160,7 +163,7 @@ Controls:
 - `+` / `-`: zoom in / out
 - `z` / `x` (or `,` / `.`): rotate view left / right
 - arrow keys or `i/j/k/l`: pan up/left/down/right
-- `g`: toggle view control step size (`fine`/`coarse`)
+- `g`: keyboard toggle for view step mode (`fine`/`coarse`)
 - `c`: switch to next detected camera source
 - `0`: reset view transform
 

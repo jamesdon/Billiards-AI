@@ -161,8 +161,14 @@ def _open_capture_for_source(
 
 
 def _read_frame_from_capture(cap: cv2.VideoCapture) -> np.ndarray:
-    ok, frame = cap.read()
-    if not ok or frame is None:
+    frame: Optional[np.ndarray] = None
+    for _ in range(5):
+        cap.grab()
+        ok, candidate = cap.read()
+        if ok and candidate is not None:
+            frame = candidate
+            break
+    if frame is None:
         raise RuntimeError("Failed to capture frame from camera.")
     return frame
 
@@ -838,13 +844,6 @@ def main() -> None:
     selected_camera_idx = 0
     camera_status = ""
     live_capture: Optional[cv2.VideoCapture] = None
-    print(
-        "Corner meaning: TL/TR/BL/BR are the four outside corners of the table "
-        "(cushion intersection corners), not pocket centers."
-    )
-    print(f"Initial table size preset: {selected_table_size}")
-    print(f"Display units: {selected_units}")
-
     # Backward compatibility for direct invocation snippets on Nano:
     # newer script expects --csi-flip-method, older snippets may pass --flip.
     # argparse already aliases --flip, so nothing else is needed besides keeping
@@ -908,6 +907,65 @@ def main() -> None:
     flip_view_h = False
     flip_view_v = False
     view_step_mode = "fine"
+    row_spacing = 24
+    radio_radius = 8
+    radio_hit_radius = 12
+
+    menu_margin = 12
+    menu_padding = 12
+    menu_gap = 12
+    table_title_gap = 16
+    units_title_gap = 16
+    camera_title_gap = 16
+    view_title_gap = 16
+    view_section_h = 228
+    estimated_menu_w = 520
+    estimated_menu_h = (
+        menu_padding
+        + table_title_gap
+        + len(TABLE_MENU) * row_spacing
+        + menu_gap
+        + units_title_gap
+        + len(UNIT_MENU) * row_spacing
+        + menu_gap
+        + camera_title_gap
+        + max(1, len(camera_menu)) * row_spacing
+        + menu_gap
+        + view_title_gap
+        + view_section_h
+        + 12
+    )
+    safe_w = max(240, w_img - 2 * menu_margin)
+    safe_h = max(240, h_img - 2 * menu_margin)
+    ui_scale = min(1.0, float(safe_w) / float(estimated_menu_w), float(safe_h) / float(estimated_menu_h))
+    if ui_scale < 1.0:
+        row_spacing = max(18, int(round(row_spacing * ui_scale)))
+        menu_padding = max(8, int(round(menu_padding * ui_scale)))
+        menu_gap = max(8, int(round(menu_gap * ui_scale)))
+        table_title_gap = max(12, int(round(table_title_gap * ui_scale)))
+        units_title_gap = max(12, int(round(units_title_gap * ui_scale)))
+        camera_title_gap = max(12, int(round(camera_title_gap * ui_scale)))
+        view_title_gap = max(12, int(round(view_title_gap * ui_scale)))
+        view_section_h = max(170, int(round(view_section_h * ui_scale)))
+        radio_radius = max(6, int(round(radio_radius * ui_scale)))
+        radio_hit_radius = max(10, int(round(radio_hit_radius * ui_scale)))
+        estimated_menu_w = max(360, int(round(estimated_menu_w * ui_scale)))
+    estimated_menu_h = (
+        menu_padding
+        + table_title_gap
+        + len(TABLE_MENU) * row_spacing
+        + menu_gap
+        + units_title_gap
+        + len(UNIT_MENU) * row_spacing
+        + menu_gap
+        + camera_title_gap
+        + max(1, len(camera_menu)) * row_spacing
+        + menu_gap
+        + view_title_gap
+        + view_section_h
+        + 12
+    )
+
     zoom_levels = [
         1.00,
         1.03,
@@ -933,38 +991,6 @@ def main() -> None:
     zoom_idx = 0
     pan_center_src_x = 0.5 * float(w_img - 1)
     pan_center_src_y = 0.5 * float(h_img - 1)
-
-    header_h = 222
-    menu_margin = 20
-    menu_padding = 14
-    menu_gap = 16
-    table_title_gap = 18
-    table_row_gap = 24
-    units_title_gap = 18
-    units_row_gap = 24
-    camera_title_gap = 18
-    camera_row_gap = 24
-    view_title_gap = 18
-    view_section_h = 252
-    estimated_menu_w = 520
-    estimated_menu_h = (
-        menu_padding
-        + table_title_gap
-        + len(TABLE_MENU) * table_row_gap
-        + menu_gap
-        + units_title_gap
-        + len(UNIT_MENU) * units_row_gap
-        + menu_gap
-        + camera_title_gap
-        + max(1, len(camera_menu)) * camera_row_gap
-        + menu_gap
-        + view_title_gap
-        + view_section_h
-    )
-
-    row_spacing = 24
-    radio_radius = 8
-    radio_hit_radius = 12
 
     def _active_labels() -> List[str]:
         return CORNER_LABELS if mode == "corners" else SIDE_POCKET_LABELS
@@ -1104,28 +1130,28 @@ def main() -> None:
 
     def _menu_layout() -> Dict[str, int]:
         safe_w = max(200, w_img - 2 * menu_margin)
-        safe_h = max(200, h_img - header_h - menu_margin)
+        safe_h = max(200, h_img - 2 * menu_margin)
         panel_w = min(estimated_menu_w, safe_w)
         panel_h = min(estimated_menu_h, safe_h)
         default_left = max(menu_margin, w_img - panel_w - menu_margin)
-        default_top = max(header_h, h_img - panel_h - menu_margin)
+        default_top = max(menu_margin, h_img - panel_h - menu_margin)
         if len(corner_points) < 4:
             left = default_left
             top = default_top
         else:
             anchors = [
-                (menu_margin, header_h),
-                (w_img - panel_w - menu_margin, header_h),
+                (menu_margin, menu_margin),
+                (w_img - panel_w - menu_margin, menu_margin),
                 (menu_margin, h_img - panel_h - menu_margin),
                 (w_img - panel_w - menu_margin, h_img - panel_h - menu_margin),
-                ((w_img - panel_w) // 2, max(header_h, (h_img - panel_h) // 2)),
+                ((w_img - panel_w) // 2, (h_img - panel_h) // 2),
             ]
             corners_disp = [_source_to_display(float(cx), float(cy)) for cx, cy in corner_points]
             best_anchor = (default_left, default_top)
             best_dist = -1.0
             for ax, ay in anchors:
                 left = int(np.clip(ax, menu_margin, max(menu_margin, w_img - panel_w - menu_margin)))
-                top = int(np.clip(ay, header_h, max(header_h, h_img - panel_h - menu_margin)))
+                top = int(np.clip(ay, menu_margin, max(menu_margin, h_img - panel_h - menu_margin)))
                 right = left + panel_w
                 bottom = top + panel_h
                 d = min(
@@ -1163,9 +1189,9 @@ def main() -> None:
     def _view_control_layout(layout: Dict[str, int]) -> Dict[str, Tuple[int, int, int, int] | Tuple[int, int]]:
         view_left = int(layout["view_left"])
         view_top = int(layout["view_top"])
-        button_w = 28
-        button_h = 20
-        pan_size = 20
+        button_w = max(24, int(round(28 * ui_scale)))
+        button_h = max(18, int(round(20 * ui_scale)))
+        pan_size = max(18, int(round(20 * ui_scale)))
         flip_h_center = (view_left, view_top)
         flip_v_center = (view_left, view_top + row_spacing)
         zoom_y = view_top + (2 * row_spacing) + 8
@@ -1199,8 +1225,9 @@ def main() -> None:
             view_left + 34 + pan_size,
             pan_origin_y + 48 + pan_size,
         )
-        step_toggle_rect = (view_left, pan_origin_y + 78, view_left + 138, pan_origin_y + 102)
-        reset_rect = (view_left, pan_origin_y + 108, view_left + 138, pan_origin_y + 132)
+        step_fine_center = (view_left, pan_origin_y + 82)
+        step_coarse_center = (view_left + 112, pan_origin_y + 82)
+        reset_rect = (view_left, pan_origin_y + 98, view_left + 138, pan_origin_y + 122)
         return {
             "flip_h_center": flip_h_center,
             "flip_v_center": flip_v_center,
@@ -1212,7 +1239,8 @@ def main() -> None:
             "pan_left_rect": pan_left_rect,
             "pan_right_rect": pan_right_rect,
             "pan_down_rect": pan_down_rect,
-            "step_toggle_rect": step_toggle_rect,
+            "step_fine_center": step_fine_center,
+            "step_coarse_center": step_coarse_center,
             "reset_rect": reset_rect,
         }
 
@@ -1304,6 +1332,51 @@ def main() -> None:
         except Exception as exc:
             camera_status = f"Camera switch failed: {exc}"
 
+    def _active_camera_source() -> Tuple[str, int, int, str]:
+        if camera_menu and (0 <= selected_camera_idx < len(camera_menu)):
+            entry = camera_menu[selected_camera_idx]
+            return (
+                str(entry["camera"]),
+                int(entry["usb_index"]),
+                int(entry["csi_sensor_id"]),
+                _camera_label(entry),
+            )
+        return (str(args.camera), int(args.usb_index), int(args.csi_sensor_id), str(args.camera))
+
+    def _refresh_live_frame() -> bool:
+        nonlocal img, live_capture, camera_status
+        if args.frame:
+            return False
+        cam, usb_idx, csi_id, cam_label = _active_camera_source()
+        if live_capture is None:
+            try:
+                live_capture = _open_capture_for_source(
+                    camera=cam,
+                    usb_index=usb_idx,
+                    csi_sensor_id=csi_id,
+                    width=int(args.width),
+                    height=int(args.height),
+                    framerate=int(args.csi_framerate),
+                    flip_method=int(args.csi_flip_method),
+                )
+            except Exception as exc:
+                camera_status = f"Camera reconnect failed: {exc}"
+                return False
+        try:
+            frame = _read_frame_from_capture(live_capture)
+        except Exception:
+            try:
+                live_capture.release()
+            except Exception:
+                pass
+            live_capture = None
+            return False
+        if frame.shape[:2] != (h_img, w_img):
+            frame = cv2.resize(frame, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
+        img = frame
+        camera_status = f"Active camera: {cam_label}"
+        return True
+
     def redraw() -> None:
         nonlocal view
         view = _render_background()
@@ -1339,77 +1412,6 @@ def main() -> None:
                 2,
                 cv2.LINE_AA,
             )
-
-        cv2.putText(
-            view,
-            "Outside-corner mode: drag TL/TR/BL/BR (outside table corners).",
-            (20, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.58,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            view,
-            "Mode: m toggles corner<->side-pocket edit | Enter=save | a/r=reset auto-corners | q=quit",
-            (20, 54),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            view,
-            "View: h/v flip | +/- zoom | z/x rotate | arrows or i/j/k/l pan | g fine/coarse | 0 reset",
-            (20, 78),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            view,
-            "Units: click radio or press t / 6 / 7 | Camera: click radio or c=next | u=undo",
-            (20, 102),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            view,
-            auto_corner_status,
-            (20, 126),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (180, 255, 180),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            view,
-            camera_status,
-            (20, 150),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (180, 220, 255),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            view,
-            f"Current edit mode: {'outside corners' if mode == 'corners' else 'side pockets'}",
-            (20, 174),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            (0, 255, 255) if mode == "corners" else (255, 200, 0),
-            1,
-            cv2.LINE_AA,
-        )
 
         panel_left = layout["panel_left"]
         panel_top = layout["panel_top"]
@@ -1605,11 +1607,38 @@ def main() -> None:
             cv2.LINE_AA,
         )
         step = _current_view_step()
-        _draw_button(view, controls["step_toggle_rect"], f"Step: {view_step_mode.title()} (g)")
+        step_fine_center = controls["step_fine_center"]
+        step_coarse_center = controls["step_coarse_center"]
+        cv2.putText(
+            view,
+            "Step mode",
+            (view_left, int(step_fine_center[1]) - 14),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.48,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        _draw_radio(
+            view,
+            int(step_fine_center[0]),
+            int(step_fine_center[1]),
+            selected=(view_step_mode == "fine"),
+            label="Fine",
+            selected_color=(0, 220, 120),
+        )
+        _draw_radio(
+            view,
+            int(step_coarse_center[0]),
+            int(step_coarse_center[1]),
+            selected=(view_step_mode == "coarse"),
+            label="Coarse",
+            selected_color=(0, 220, 120),
+        )
         cv2.putText(
             view,
             f"Rot step: {step['rotate_deg']:.1f} deg | Pan step: {100.0 * step['pan_frac_x']:.1f}%",
-            (view_left + 146, controls["step_toggle_rect"][3] - 4),
+            (view_left, controls["reset_rect"][3] + 14),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.44,
             (220, 220, 220),
@@ -1617,6 +1646,16 @@ def main() -> None:
             cv2.LINE_AA,
         )
         _draw_button(view, controls["reset_rect"], "Reset view")
+        cv2.putText(
+            view,
+            f"Edit: {'outside corners' if mode == 'corners' else 'side pockets'}",
+            (view_left, panel_top + panel_h - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 255) if mode == "corners" else (255, 200, 0),
+            1,
+            cv2.LINE_AA,
+        )
 
     def _hit_table_option(x: int, y: int) -> Optional[str]:
         layout = _menu_layout()
@@ -1675,8 +1714,12 @@ def main() -> None:
             return "pan_right"
         if _point_in_rect(x, y, controls["pan_down_rect"]):
             return "pan_down"
-        if _point_in_rect(x, y, controls["step_toggle_rect"]):
-            return "step_mode_toggle"
+        step_fine_center = controls["step_fine_center"]
+        step_coarse_center = controls["step_coarse_center"]
+        if abs(x - int(step_fine_center[0])) <= radio_hit_radius and abs(y - int(step_fine_center[1])) <= radio_hit_radius:
+            return "step_fine"
+        if abs(x - int(step_coarse_center[0])) <= radio_hit_radius and abs(y - int(step_coarse_center[1])) <= radio_hit_radius:
+            return "step_coarse"
         if _point_in_rect(x, y, controls["reset_rect"]):
             return "view_reset"
         return None
@@ -1734,8 +1777,10 @@ def main() -> None:
                     _nudge_pan_display(+pan_dx, 0.0)
                 elif hit_view == "pan_down":
                     _nudge_pan_display(0.0, +pan_dy)
-                elif hit_view == "step_mode_toggle":
-                    view_step_mode = "coarse" if view_step_mode == "fine" else "fine"
+                elif hit_view == "step_fine":
+                    view_step_mode = "fine"
+                elif hit_view == "step_coarse":
+                    view_step_mode = "coarse"
                 elif hit_view == "view_reset":
                     _reset_view()
                 redraw()
@@ -1764,13 +1809,8 @@ def main() -> None:
     redraw()
 
     while True:
-        if live_capture is not None:
-            ok, frame = live_capture.read()
-            if ok and frame is not None:
-                if frame.shape[:2] != (h_img, w_img):
-                    frame = cv2.resize(frame, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
-                img = frame
-                redraw()
+        if _refresh_live_frame():
+            redraw()
         cv2.imshow(win, view)
         key = cv2.waitKey(20) & 0xFF
         if key in (ord("q"), 27):
