@@ -105,6 +105,7 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   fi
   MJPEG_PROBE="${PROJECT_ROOT}/.phase2_mjpeg_probe.bin"
   rm -f "$MJPEG_PROBE"
+  echo "[Phase2] Probing first MJPEG bytes (max 25s; needs CSI frames)..." >&2
   set +e
   /usr/bin/curl -sS "http://127.0.0.1:${MJPEG_PORT}/mjpeg" --max-time 25 -o "$MJPEG_PROBE" 2>/dev/null
   _mjpeg_rc=$?
