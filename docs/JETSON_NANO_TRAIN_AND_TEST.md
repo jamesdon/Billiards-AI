@@ -12,6 +12,10 @@ Markdown **code fences** are the lines that look like three backticks (often sho
 
 Open **bash** on the Jetson. `cd` into your clone (default layout: `~/Billiards-AI`). Each line below is a **full command**—copy the line only (no backticks from Markdown, no ` ```bash ` line).
 
+**`git pull` only works inside the repo.** If you see `fatal: not a git repository`, you ran it from `~` or another folder; run `cd ~/Billiards-AI` then `git pull` (or rely on `jetson_train_env.sh`, which runs `git pull` after `cd`).
+
+Plain-text cheat sheet (same commands, no Markdown): `scripts/JETSON_ONE_LINERS.txt` — run `cat scripts/JETSON_ONE_LINERS.txt` and paste lines that do **not** start with `#`.
+
 If your repo lives somewhere else, set `PROJECT_ROOT` first, e.g. `export PROJECT_ROOT=/home/jdonn/Billiards-AI` (scripts read this via `scripts/common.sh`).
 
 1. **Environment + pip installs**
@@ -22,7 +26,7 @@ If your repo lives somewhere else, set `PROJECT_ROOT` first, e.g. `export PROJEC
 
    `cd ~/Billiards-AI && bash scripts/jetson_prepare_yolo_dataset.sh`
 
-3. **Train** (after you have images/labels under `data/datasets/billiards/`)
+3. **Train** — run only after you have images and YOLO labels under `data/datasets/billiards/` (train and val).
 
    `cd ~/Billiards-AI && bash scripts/jetson_yolo_train.sh`
 
@@ -44,9 +48,11 @@ If your repo lives somewhere else, set `PROJECT_ROOT` first, e.g. `export PROJEC
 
    `cd ~/Billiards-AI && bash scripts/jetson_edge_smoke_csi.sh`
 
-   Optional: `CALIB_PATH=/path/to/calibration.json bash scripts/jetson_edge_smoke_csi.sh` from repo root.
+   Optional calib path: `cd ~/Billiards-AI && CALIB_PATH=/path/to/calibration.json bash scripts/jetson_edge_smoke_csi.sh`
 
 Scripts use `PROJECT_ROOT` (default `/home/$USER/Billiards-AI` in `common.sh`). `~/Billiards-AI` is the same directory when your clone is under your home.
+
+**Pip noise:** `jetson_train_env.sh` may print resolver warnings (e.g. packages “not installed” while they install, or old opencv vs numpy). If the script ends with `jetson_train_env.sh: OK`, the venv is in a good state for the next step.
 
 ---
 

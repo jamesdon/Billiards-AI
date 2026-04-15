@@ -1,0 +1,11 @@
+# Billiards-AI — Jetson bash one-liners (paste ONE line at a time).
+# Do not run git pull from ~ ; always cd into the repo first (these lines use ~/Billiards-AI).
+# If your clone is elsewhere: export PROJECT_ROOT=/path/to/Billiards-AI && cd "$PROJECT_ROOT"
+
+cd ~/Billiards-AI && bash scripts/jetson_train_env.sh
+cd ~/Billiards-AI && bash scripts/jetson_prepare_yolo_dataset.sh
+cd ~/Billiards-AI && bash scripts/jetson_yolo_train.sh
+cd ~/Billiards-AI && bash scripts/jetson_yolo_export_latest.sh
+cd ~/Billiards-AI && bash scripts/jetson_pytest.sh
+cd ~/Billiards-AI && bash scripts/jetson_phases_1_3.sh
+cd ~/Billiards-AI && bash scripts/jetson_edge_smoke_csi.sh
