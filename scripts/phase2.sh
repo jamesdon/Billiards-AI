@@ -5,6 +5,10 @@ source "$(dirname "$0")/common.sh"
 cd_root
 activate_venv
 
+echo "[Phase2] Headless validation only (no GUI). For interactive calibration run:" >&2
+echo "       bash \"$PROJECT_ROOT/scripts/start_calibration.sh\"" >&2
+echo "[Phase2] (Requires a desktop session on the Nano, or X11 forwarding.)" >&2
+
 python -m pip install -U pip
 python -m pip install -r "$PROJECT_ROOT/requirements.txt"
 
@@ -217,4 +221,5 @@ if ! grep -qE "top_middle_side|PocketLabel|ValueError" "$INVALID_LOG"; then
 fi
 
 echo "[Phase2] PASS"
+echo "[Phase2] No GUI was used. To open the calibration window: bash \"$PROJECT_ROOT/scripts/start_calibration.sh\"" >&2
 

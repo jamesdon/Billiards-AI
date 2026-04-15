@@ -7,10 +7,6 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-<<<<<<< HEAD
-import cv2
-import numpy as np
-=======
 try:
     import cv2
     import numpy as np
@@ -27,7 +23,6 @@ except Exception:
         file=sys.stderr,
     )
     raise
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
 M_PER_FT = 0.3048
 M_PER_IN = 0.0254
@@ -59,12 +54,8 @@ def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
             "Interactive calibration helper with auto corners and editing. "
-<<<<<<< HEAD
-            "TL/TR/BL/BR are outside table corners (not pocket centers)."
-=======
             "TL/TR are the kitchen (rack) short rail; BL/BR are the opposite short rail. "
             "Points are outside cushion corners, not pocket centers."
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         ),
     )
     p.add_argument("--frame", type=str, default=None, help="Optional image path to annotate.")
@@ -206,10 +197,7 @@ def _read_frame_from_capture(cap: cv2.VideoCapture) -> np.ndarray:
         raise RuntimeError("Failed to capture frame from camera.")
     return frame
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 def _capture_frame(args: argparse.Namespace) -> np.ndarray:
     return _capture_frame_for_source(
         camera=str(args.camera),
@@ -222,82 +210,6 @@ def _capture_frame(args: argparse.Namespace) -> np.ndarray:
     )
 
 
-<<<<<<< HEAD
-def _camera_option_id(camera: str, usb_index: int, csi_sensor_id: int) -> str:
-    cam = str(camera).strip().lower()
-    if cam == "csi":
-        return f"csi:{int(csi_sensor_id)}"
-    if cam == "usb":
-        return f"usb:{int(usb_index)}"
-    if cam.isdigit():
-        return f"usb:{int(cam)}"
-    return f"custom:{str(camera).strip()}"
-
-
-def _detect_available_cameras(args: argparse.Namespace) -> List[Dict[str, Any]]:
-    cameras: List[Dict[str, Any]] = []
-    seen_ids: set[str] = set()
-
-    def _add_camera(entry: Dict[str, Any]) -> None:
-        cam_id = str(entry["id"])
-        if cam_id in seen_ids:
-            return
-        seen_ids.add(cam_id)
-        cameras.append(entry)
-
-    def _probe(camera: str, usb_index: int, csi_sensor_id: int, label: str) -> None:
-        try:
-            _capture_frame_for_source(
-                camera=camera,
-                usb_index=usb_index,
-                csi_sensor_id=csi_sensor_id,
-                width=int(args.width),
-                height=int(args.height),
-                framerate=int(args.csi_framerate),
-                flip_method=int(args.csi_flip_method),
-            )
-        except Exception:
-            return
-        _add_camera(
-            {
-                "id": _camera_option_id(camera, usb_index=usb_index, csi_sensor_id=csi_sensor_id),
-                "label": label,
-                "camera": camera,
-                "usb_index": usb_index,
-                "csi_sensor_id": csi_sensor_id,
-                "probed": True,
-            }
-        )
-
-    for sensor_id in range(4):
-        _probe("csi", usb_index=0, csi_sensor_id=sensor_id, label=f"CSI sensor {sensor_id}")
-    for usb_index in range(8):
-        _probe("usb", usb_index=usb_index, csi_sensor_id=0, label=f"USB camera {usb_index}")
-
-    cli_camera = str(args.camera).strip()
-    cli_id = _camera_option_id(cli_camera, usb_index=int(args.usb_index), csi_sensor_id=int(args.csi_sensor_id))
-    _add_camera(
-        {
-            "id": cli_id,
-            "label": f"CLI source ({cli_camera})",
-            "camera": cli_camera,
-            "usb_index": int(args.usb_index),
-            "csi_sensor_id": int(args.csi_sensor_id),
-            "probed": False,
-        }
-    )
-    return cameras
-
-
-def _camera_option_id(camera: str, usb_index: int, csi_sensor_id: int) -> str:
-    cam = str(camera).strip()
-    cam_l = cam.lower()
-    if cam_l == "csi":
-        return f"csi:{int(csi_sensor_id)}"
-    if cam_l == "usb":
-        return f"usb:{int(usb_index)}"
-    return cam
-=======
 def _apply_fullscreen_window(win_name: str) -> None:
     """Best-effort maximize/fullscreen (macOS HighGUI often needs resize + move as fallback)."""
     try:
@@ -315,7 +227,6 @@ def _apply_fullscreen_window(win_name: str) -> None:
         cv2.setWindowProperty(win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     except Exception:
         pass
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
 
 def _table_dims_m(table_size: str) -> Tuple[float, float]:
@@ -370,14 +281,6 @@ def _estimate_homography(
     table_width_m: float,
 ) -> np.ndarray:
     src = np.array(image_points, dtype=np.float64)
-<<<<<<< HEAD
-    dst = np.array(
-        [
-            [0.0, 0.0],
-            [table_length_m, 0.0],
-            [0.0, table_width_m],
-            [table_length_m, table_width_m],
-=======
     L = float(table_length_m)
     W = float(table_width_m)
     dst = np.array(
@@ -386,7 +289,6 @@ def _estimate_homography(
             [0.0, W],
             [L, 0.0],
             [L, W],
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         ],
         dtype=np.float64,
     )
@@ -699,15 +601,9 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
     hough_area = abs(float(cv2.contourArea(np.array(hough_refined, dtype=np.float32))))
     if refined_area < 0.4 * best_quad_area:
         if hough_area >= 0.4 * best_quad_area:
-<<<<<<< HEAD
-            return hough_refined
-        return [(float(x), float(y)) for x, y in best_quad]
-    return refined_ordered
-=======
             return _order_physical_table_corners(hough_refined)
         return _order_physical_table_corners([(float(x), float(y)) for x, y in best_quad])
     return _order_physical_table_corners(refined_ordered)
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
 
 def _refine_side_pocket_seed(
@@ -742,20 +638,6 @@ def _refine_side_pocket_seed(
     seed_local[0] = float(np.clip(seed_local[0], 0.0, float(max(0, patch_w - 1))))
     seed_local[1] = float(np.clip(seed_local[1], 0.0, float(max(0, patch_h - 1))))
 
-<<<<<<< HEAD
-    dark_thresh = float(np.percentile(patch_blur, 28))
-    dark_mask = (patch_blur <= dark_thresh).astype(np.uint8) * 255
-
-    bh_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
-    blackhat = cv2.morphologyEx(patch_blur, cv2.MORPH_BLACKHAT, bh_kernel)
-    bh_thresh = float(np.percentile(blackhat, 82))
-    bh_mask = (blackhat >= bh_thresh).astype(np.uint8) * 255
-
-    pocket_mask = cv2.bitwise_and(dark_mask, bh_mask)
-    if int(np.count_nonzero(pocket_mask)) < 28:
-        pocket_mask = dark_mask
-
-=======
     dark_thresh = float(np.percentile(patch_blur, 22))
     dark_mask = (patch_blur <= dark_thresh).astype(np.uint8) * 255
 
@@ -807,7 +689,6 @@ def _refine_side_pocket_seed(
             refined = seed + (along * rail_u) + (across * rail_n)
             return _clip_point_to_image(float(refined[0]), float(refined[1]), w, h)
 
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
     pocket_mask = cv2.morphologyEx(pocket_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8), iterations=1)
     pocket_mask = cv2.morphologyEx(pocket_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8), iterations=1)
 
@@ -846,19 +727,11 @@ def _refine_side_pocket_seed(
         dist_across = abs(float(np.dot(delta_local, rail_n))) / float(max(1.0, search_radius))
 
         area_term = min(1.0, area / (0.12 * patch_area))
-<<<<<<< HEAD
-        shape_term = max(0.0, 1.0 - abs(circularity - 0.5))
-        score = (
-            (2.8 * darkness)
-            + (1.0 * area_term)
-            + (0.5 * shape_term)
-=======
         shape_term = max(0.0, 1.0 - abs(circularity - 0.78))
         score = (
             (3.2 * darkness)
             + (1.1 * area_term)
             + (0.65 * shape_term)
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
             - (1.2 * dist_seed)
             - (1.6 * dist_across)
             - (0.4 * dist_along)
@@ -867,11 +740,7 @@ def _refine_side_pocket_seed(
             best_score = score
             best_local_xy = np.array([cx, cy], dtype=np.float64)
 
-<<<<<<< HEAD
-    if best_local_xy is None or best_score < 0.95:
-=======
     if best_local_xy is None or best_score < 0.88:
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         mask = dark_mask > 0
         if int(np.count_nonzero(mask)) < 24:
             return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
@@ -906,16 +775,6 @@ def _estimate_side_pockets_from_corners(
 
     h, w = frame.shape[:2]
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-<<<<<<< HEAD
-    tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(corners))]
-
-    # Side pockets live on the two long rails (top/bottom in table coordinates),
-    # not on the short left/right end rails.
-    top_mid = 0.5 * (tl + tr)
-    bottom_mid = 0.5 * (bl + br)
-    left_seed = _refine_side_pocket_seed(gray, (float(top_mid[0]), float(top_mid[1])), tr - tl)
-    right_seed = _refine_side_pocket_seed(gray, (float(bottom_mid[0]), float(bottom_mid[1])), br - bl)
-=======
     tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in corners]
 
     # Side pockets sit on the two long rails (TL–BL and TR–BR), centered on each rail line.
@@ -923,7 +782,6 @@ def _estimate_side_pockets_from_corners(
     right_mid = 0.5 * (tr + br)
     left_seed = _refine_side_pocket_seed(gray, (float(left_mid[0]), float(left_mid[1])), bl - tl)
     right_seed = _refine_side_pocket_seed(gray, (float(right_mid[0]), float(right_mid[1])), br - tr)
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
     left_seed = _clip_point_to_image(float(left_seed[0]), float(left_seed[1]), w, h)
     right_seed = _clip_point_to_image(float(right_seed[0]), float(right_seed[1]), w, h)
@@ -952,15 +810,9 @@ def _normalize_side_pockets_to_rails(
     if len(side_points) != 2 or len(corners) != 4:
         return list(side_points)
     h, w = int(shape_hw[0]), int(shape_hw[1])
-<<<<<<< HEAD
-    tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(corners))]
-    top_mid = 0.5 * (tl + tr)
-    bottom_mid = 0.5 * (bl + br)
-=======
     tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in corners]
     left_mid = 0.5 * (tl + bl)
     right_mid = 0.5 * (tr + br)
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
     def _cost(point_xy: Tuple[float, float], rail_a: np.ndarray, rail_b: np.ndarray, rail_mid: np.ndarray) -> float:
         px, py = float(point_xy[0]), float(point_xy[1])
@@ -971,23 +823,6 @@ def _normalize_side_pockets_to_rails(
     p0 = (float(side_points[0][0]), float(side_points[0][1]))
     p1 = (float(side_points[1][0]), float(side_points[1][1]))
 
-<<<<<<< HEAD
-    cost_keep = _cost(p0, tl, tr, top_mid) + _cost(p1, bl, br, bottom_mid)
-    cost_swap = _cost(p1, tl, tr, top_mid) + _cost(p0, bl, br, bottom_mid)
-
-    if cost_swap < cost_keep:
-        top_pt, bottom_pt = p1, p0
-    else:
-        top_pt, bottom_pt = p0, p1
-
-    # Hard-anchor each point to its correct long rail so side pockets cannot land
-    # on the short end rails.
-    top_xy = _project_point_to_segment(top_pt, tl, tr)
-    bottom_xy = _project_point_to_segment(bottom_pt, bl, br)
-    top_xy = _clip_point_to_image(float(top_xy[0]), float(top_xy[1]), w, h)
-    bottom_xy = _clip_point_to_image(float(bottom_xy[0]), float(bottom_xy[1]), w, h)
-    return [top_xy, bottom_xy]
-=======
     cost_keep = _cost(p0, tl, bl, left_mid) + _cost(p1, tr, br, right_mid)
     cost_swap = _cost(p1, tl, bl, left_mid) + _cost(p0, tr, br, right_mid)
 
@@ -1001,7 +836,6 @@ def _normalize_side_pockets_to_rails(
     left_xy = _clip_point_to_image(float(left_xy[0]), float(left_xy[1]), w, h)
     right_xy = _clip_point_to_image(float(right_xy[0]), float(right_xy[1]), w, h)
     return [left_xy, right_xy]
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
 
 def _project_t_on_segment(point_xy: Tuple[float, float], seg_a: np.ndarray, seg_b: np.ndarray) -> float:
@@ -1030,20 +864,6 @@ def _remap_side_pockets_between_corners(
 ) -> List[Tuple[float, float]]:
     if len(old_side_points) != 2 or len(old_corners) != 4 or len(new_corners) != 4:
         return _estimate_side_pockets_from_corners(frame, new_corners)
-<<<<<<< HEAD
-    old_tl, old_tr, old_bl, old_br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(old_corners))]
-    new_tl, new_tr, new_bl, new_br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(new_corners))]
-
-    old_norm = _normalize_side_pockets_to_rails(old_side_points, old_corners, frame.shape[:2])
-    t_left = _project_t_on_segment(old_norm[0], old_tl, old_tr)
-    t_right = _project_t_on_segment(old_norm[1], old_bl, old_br)
-
-    seed_left = new_tl + (t_left * (new_tr - new_tl))
-    seed_right = new_bl + (t_right * (new_br - new_bl))
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    left_refined = _refine_side_pocket_seed(gray, (float(seed_left[0]), float(seed_left[1])), new_tr - new_tl)
-    right_refined = _refine_side_pocket_seed(gray, (float(seed_right[0]), float(seed_right[1])), new_br - new_bl)
-=======
     old_tl, old_tr, old_bl, old_br = [np.array(p, dtype=np.float64) for p in old_corners]
     new_tl, new_tr, new_bl, new_br = [np.array(p, dtype=np.float64) for p in new_corners]
 
@@ -1056,7 +876,6 @@ def _remap_side_pockets_between_corners(
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     left_refined = _refine_side_pocket_seed(gray, (float(seed_left[0]), float(seed_left[1])), new_bl - new_tl)
     right_refined = _refine_side_pocket_seed(gray, (float(seed_right[0]), float(seed_right[1])), new_br - new_tr)
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
     return _normalize_side_pockets_to_rails([left_refined, right_refined], new_corners, frame.shape[:2])
 
 def _order_points_tl_tr_bl_br(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
@@ -1073,8 +892,6 @@ def _order_points_tl_tr_bl_br(points: List[Tuple[float, float]]) -> List[Tuple[f
     return [(float(p[0]), float(p[1])) for p in ordered]
 
 
-<<<<<<< HEAD
-=======
 def _order_physical_table_corners(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
     """
     Order four detected corners as physical TL, TR, BL, BR.
@@ -1135,7 +952,6 @@ def _order_physical_table_corners(points: List[Tuple[float, float]]) -> List[Tup
     ]
 
 
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 def _manual_calibration_payload(
     corner_points_px: List[Tuple[float, float]],
     table_length_m: float,
@@ -1151,29 +967,18 @@ def _manual_calibration_payload(
         ls_m = (float(q[0, 0]), float(q[1, 0]))
         rs_m = (float(q[0, 1]), float(q[1, 1]))
     else:
-<<<<<<< HEAD
-        ls_m = (0.0, table_width_m * 0.5)
-        rs_m = (table_length_m, table_width_m * 0.5)
-=======
         ls_m = (0.5 * table_length_m, 0.0)
         rs_m = (0.5 * table_length_m, table_width_m)
     L = float(table_length_m)
     W = float(table_width_m)
     kx = float(L * 0.25)
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
     return {
         "H": [[float(v) for v in row] for row in h.tolist()],
         "pockets": [
             {"label": "top_left_corner", "center_xy_m": [0.0, 0.0], "radius_m": pocket_radius_m},
-<<<<<<< HEAD
-            {"label": "top_right_corner", "center_xy_m": [table_length_m, 0.0], "radius_m": pocket_radius_m},
-            {"label": "bottom_left_corner", "center_xy_m": [0.0, table_width_m], "radius_m": pocket_radius_m},
-            {"label": "bottom_right_corner", "center_xy_m": [table_length_m, table_width_m], "radius_m": pocket_radius_m},
-=======
             {"label": "top_right_corner", "center_xy_m": [0.0, W], "radius_m": pocket_radius_m},
             {"label": "bottom_left_corner", "center_xy_m": [L, 0.0], "radius_m": pocket_radius_m},
             {"label": "bottom_right_corner", "center_xy_m": [L, W], "radius_m": pocket_radius_m},
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
             {"label": "left_side_pocket", "center_xy_m": [ls_m[0], ls_m[1]], "radius_m": pocket_radius_m},
             {"label": "right_side_pocket", "center_xy_m": [rs_m[0], rs_m[1]], "radius_m": pocket_radius_m},
         ],
@@ -1181,17 +986,6 @@ def _manual_calibration_payload(
         "table_width_m": table_width_m,
         "kitchen_polygon_xy_m": [
             [0.0, 0.0],
-<<<<<<< HEAD
-            [table_length_m * 0.25, 0.0],
-            [table_length_m * 0.25, table_width_m],
-            [0.0, table_width_m],
-        ],
-        "break_area_polygon_xy_m": [
-            [table_length_m * 0.5, 0.0],
-            [table_length_m, 0.0],
-            [table_length_m, table_width_m],
-            [table_length_m * 0.5, table_width_m],
-=======
             [kx, 0.0],
             [kx, W],
             [0.0, W],
@@ -1201,7 +995,6 @@ def _manual_calibration_payload(
             [L, 0.0],
             [L, W],
             [L * 0.5, W],
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         ],
     }
 
@@ -1212,12 +1005,6 @@ def main() -> None:
     detected_default_table_size = _detected_default_table_size(out_path)
     selected_table_size = _detected_default_table_size(out_path)
     selected_units = str(args.units)
-<<<<<<< HEAD
-    camera_menu: List[Dict[str, Any]] = []
-    selected_camera_idx = 0
-    camera_status = ""
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
     live_capture: Optional[cv2.VideoCapture] = None
     # Backward compatibility for direct invocation snippets on Nano:
     # newer script expects --csi-flip-method, older snippets may pass --flip.
@@ -1227,41 +1014,6 @@ def main() -> None:
         img = cv2.imread(str(args.frame))
         if img is None:
             raise RuntimeError(f"Failed to read frame image: {args.frame}")
-<<<<<<< HEAD
-        camera_status = "Frame mode: camera switching disabled."
-    else:
-        camera_menu = _detect_available_cameras(args)
-        if camera_menu:
-            preferred_id = f"{str(args.camera)}:{int(args.csi_sensor_id) if str(args.camera).lower() == 'csi' else int(args.usb_index)}"
-            for i, entry in enumerate(camera_menu):
-                if str(entry.get("id", "")) == preferred_id:
-                    selected_camera_idx = i
-                    break
-            selected = camera_menu[selected_camera_idx]
-            live_capture = _open_capture_for_source(
-                camera=str(selected["camera"]),
-                usb_index=int(selected["usb_index"]),
-                csi_sensor_id=int(selected["csi_sensor_id"]),
-                width=int(args.width),
-                height=int(args.height),
-                framerate=int(args.csi_framerate),
-                flip_method=int(args.csi_flip_method),
-            )
-            img = _read_frame_from_capture(live_capture)
-            camera_status = f"Active camera: {selected['label']}"
-        else:
-            live_capture = _open_capture_for_source(
-                camera=str(args.camera),
-                usb_index=int(args.usb_index),
-                csi_sensor_id=int(args.csi_sensor_id),
-                width=int(args.width),
-                height=int(args.height),
-                framerate=int(args.csi_framerate),
-                flip_method=int(args.csi_flip_method),
-            )
-            img = _read_frame_from_capture(live_capture)
-            camera_status = "No alternate cameras detected; using CLI camera source."
-=======
     else:
         live_capture = _open_capture_for_source(
             camera=str(args.camera),
@@ -1273,7 +1025,6 @@ def main() -> None:
             flip_method=int(args.csi_flip_method),
         )
         img = _read_frame_from_capture(live_capture)
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
     win = "calib-click"
     try:
@@ -1298,20 +1049,12 @@ def main() -> None:
     row_spacing = 24
     radio_radius = 8
     radio_hit_radius = 12
-<<<<<<< HEAD
-    max_camera_rows = 4
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
     menu_margin = 12
     menu_padding = 12
     menu_gap = 12
     table_title_gap = 16
     units_title_gap = 16
-<<<<<<< HEAD
-    camera_title_gap = 16
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
     view_title_gap = 16
     view_section_h = 284
     estimated_menu_w = 520
@@ -1325,12 +1068,6 @@ def main() -> None:
         + units_title_gap
         + len(UNIT_MENU) * row_spacing
         + menu_gap
-<<<<<<< HEAD
-        + camera_title_gap
-        + max(1, min(max_camera_rows, len(camera_menu))) * row_spacing
-        + menu_gap
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         + view_title_gap
         + view_section_h
         + 32
@@ -1344,10 +1081,6 @@ def main() -> None:
         menu_gap = max(8, int(round(menu_gap * ui_scale)))
         table_title_gap = max(12, int(round(table_title_gap * ui_scale)))
         units_title_gap = max(12, int(round(units_title_gap * ui_scale)))
-<<<<<<< HEAD
-        camera_title_gap = max(12, int(round(camera_title_gap * ui_scale)))
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         view_title_gap = max(12, int(round(view_title_gap * ui_scale)))
         view_section_h = max(180, int(round(view_section_h * ui_scale)))
         radio_radius = max(6, int(round(radio_radius * ui_scale)))
@@ -1365,12 +1098,6 @@ def main() -> None:
         + units_title_gap
         + len(UNIT_MENU) * row_spacing
         + menu_gap
-<<<<<<< HEAD
-        + camera_title_gap
-        + max(1, min(max_camera_rows, len(camera_menu))) * row_spacing
-        + menu_gap
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         + view_title_gap
         + view_section_h
         + 32
@@ -1430,13 +1157,8 @@ def main() -> None:
 
     def _current_view_step() -> Dict[str, float]:
         if view_step_mode == "coarse":
-<<<<<<< HEAD
-            return {"zoom_delta": 3.0, "rotate_deg": 4.0, "pan_frac_x": 0.08, "pan_frac_y": 0.08}
-        return {"zoom_delta": 1.0, "rotate_deg": 1.0, "pan_frac_x": 0.025, "pan_frac_y": 0.025}
-=======
             return {"zoom_delta": 3.0, "rotate_deg": 2.0, "pan_frac_x": 0.03, "pan_frac_y": 0.03}
         return {"zoom_delta": 1.0, "rotate_deg": 0.5, "pan_frac_x": 0.01, "pan_frac_y": 0.01}
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
     def _clamp_pan_center() -> None:
         nonlocal pan_center_src_x, pan_center_src_y
@@ -1602,16 +1324,8 @@ def main() -> None:
         table_top = content_top + menu_padding + table_title_gap
         units_left = table_left
         units_top = table_top + len(TABLE_MENU) * row_spacing + menu_gap + units_title_gap
-<<<<<<< HEAD
-        camera_left = table_left
-        camera_rows = max(1, min(max_camera_rows, len(camera_menu)))
-        camera_top = units_top + len(UNIT_MENU) * row_spacing + menu_gap + camera_title_gap
-        view_left = table_left
-        view_top = camera_top + camera_rows * row_spacing + menu_gap + view_title_gap
-=======
         view_left = table_left
         view_top = units_top + len(UNIT_MENU) * row_spacing + menu_gap + view_title_gap
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
         if panel_collapsed:
             panel_h = panel_drag_handle_h + 2
@@ -1631,11 +1345,6 @@ def main() -> None:
             "table_top": table_top,
             "units_left": units_left,
             "units_top": units_top,
-<<<<<<< HEAD
-            "camera_left": camera_left,
-            "camera_top": camera_top,
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
             "view_left": view_left,
             "view_top": view_top,
         }
@@ -1656,9 +1365,6 @@ def main() -> None:
             view_left + (2 * button_w) + 6,
             zoom_y + button_h // 2,
         )
-<<<<<<< HEAD
-        rot_y = zoom_y + 26
-=======
         pan_gap = 5
         pan_cx = view_left + (2 * button_w) + 6 + 14 + pan_size // 2
         pan_cy = zoom_y
@@ -1687,42 +1393,15 @@ def main() -> None:
             pan_cy + pan_size // 2,
         )
         rot_y = pan_cy + pan_size + pan_gap + 30
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         rot_minus_rect = (view_left, rot_y - button_h // 2, view_left + 58, rot_y + button_h // 2)
         rot_plus_rect = (view_left + 64, rot_y - button_h // 2, view_left + 122, rot_y + button_h // 2)
         rot90_y = rot_y + 24
         rotate_90_ccw_rect = (view_left, rot90_y - button_h // 2, view_left + 58, rot90_y + button_h // 2)
         rotate_90_cw_rect = (view_left + 64, rot90_y - button_h // 2, view_left + 122, rot90_y + button_h // 2)
-<<<<<<< HEAD
-        pan_origin_y = rot90_y + 18
-        pan_up_rect = (view_left + 34, pan_origin_y, view_left + 34 + pan_size, pan_origin_y + pan_size)
-        pan_left_rect = (
-            view_left + 10,
-            pan_origin_y + 24,
-            view_left + 10 + pan_size,
-            pan_origin_y + 24 + pan_size,
-        )
-        pan_right_rect = (
-            view_left + 58,
-            pan_origin_y + 24,
-            view_left + 58 + pan_size,
-            pan_origin_y + 24 + pan_size,
-        )
-        pan_down_rect = (
-            view_left + 34,
-            pan_origin_y + 48,
-            view_left + 34 + pan_size,
-            pan_origin_y + 48 + pan_size,
-        )
-        step_fine_center = (view_left, pan_origin_y + 82)
-        step_coarse_center = (view_left + 112, pan_origin_y + 82)
-        reset_rect = (view_left, pan_origin_y + 98, view_left + 138, pan_origin_y + 122)
-=======
         pan_block_bottom = max(pan_down_rect[3], zoom_y + button_h // 2)
         step_fine_center = (view_left, pan_block_bottom + 36)
         step_coarse_center = (view_left + 112, pan_block_bottom + 36)
         reset_rect = (view_left, pan_block_bottom + 52, view_left + 138, pan_block_bottom + 76)
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         return {
             "flip_h_center": flip_h_center,
             "flip_v_center": flip_v_center,
@@ -1741,8 +1420,6 @@ def main() -> None:
             "reset_rect": reset_rect,
         }
 
-<<<<<<< HEAD
-=======
     def _snap_side_pocket_to_rail(idx: int, xy: Tuple[float, float]) -> Tuple[float, float]:
         if len(corner_points) != 4:
             return xy
@@ -1751,7 +1428,6 @@ def main() -> None:
             return _project_point_to_segment(xy, tl, bl)
         return _project_point_to_segment(xy, tr, br)
 
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
     def _find_nearest_point(x_disp: float, y_disp: float) -> Optional[int]:
         pts = _active_points()
         if not pts:
@@ -1808,83 +1484,6 @@ def main() -> None:
         x1, y1, x2, y2 = rect
         return x1 <= x <= x2 and y1 <= y <= y2
 
-<<<<<<< HEAD
-    def _camera_label(entry: Dict[str, Any]) -> str:
-        return str(entry.get("label", entry.get("id", "camera")))
-
-    def _visible_camera_entries() -> List[Tuple[int, Dict[str, Any]]]:
-        if not camera_menu:
-            return []
-        if len(camera_menu) <= max_camera_rows:
-            return [(idx, camera_menu[idx]) for idx in range(len(camera_menu))]
-        start = max(0, min(selected_camera_idx - (max_camera_rows // 2), len(camera_menu) - max_camera_rows))
-        end = min(len(camera_menu), start + max_camera_rows)
-        return [(idx, camera_menu[idx]) for idx in range(start, end)]
-
-    def _switch_to_camera(idx: int) -> None:
-        nonlocal img, selected_camera_idx, corner_points, side_pocket_points, camera_status, live_capture
-        if not (0 <= idx < len(camera_menu)):
-            return
-        entry = camera_menu[idx]
-        old_corners = list(corner_points)
-        old_side_pockets = list(side_pocket_points)
-        try:
-            new_cap = _open_capture_for_source(
-                camera=str(entry["camera"]),
-                usb_index=int(entry["usb_index"]),
-                csi_sensor_id=int(entry["csi_sensor_id"]),
-                width=int(args.width),
-                height=int(args.height),
-                framerate=int(args.csi_framerate),
-                flip_method=int(args.csi_flip_method),
-            )
-            new_img = _read_frame_from_capture(new_cap)
-            if new_img.shape[:2] != (h_img, w_img):
-                new_img = cv2.resize(new_img, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
-            if live_capture is not None:
-                live_capture.release()
-            live_capture = new_cap
-            img = new_img
-            selected_camera_idx = idx
-            corner_points = _estimate_outside_corners(img)
-            side_pockets_kept = False
-            if len(old_corners) == 4 and len(old_side_pockets) == 2 and len(corner_points) == 4:
-                side_pocket_points = _remap_side_pockets_between_corners(img, old_side_pockets, old_corners, corner_points)
-                side_pockets_kept = len(side_pocket_points) == 2
-            if not side_pockets_kept:
-                side_pocket_points = _estimate_side_pockets_from_corners(img, corner_points)
-            if len(side_pocket_points) == 2 and len(corner_points) == 4:
-                side_pocket_points = _normalize_side_pockets_to_rails(side_pocket_points, corner_points, (h_img, w_img))
-            if side_pockets_kept:
-                camera_status = f"Active camera: {_camera_label(entry)} | side pockets kept."
-            else:
-                camera_status = f"Active camera: {_camera_label(entry)} | side pockets reseeded."
-        except Exception as exc:
-            camera_status = f"Camera switch failed: {exc}"
-
-    def _active_camera_source() -> Tuple[str, int, int, str]:
-        if camera_menu and (0 <= selected_camera_idx < len(camera_menu)):
-            entry = camera_menu[selected_camera_idx]
-            return (
-                str(entry["camera"]),
-                int(entry["usb_index"]),
-                int(entry["csi_sensor_id"]),
-                _camera_label(entry),
-            )
-        return (str(args.camera), int(args.usb_index), int(args.csi_sensor_id), str(args.camera))
-
-    def _refresh_live_frame() -> bool:
-        nonlocal img, live_capture, camera_status
-        if args.frame:
-            return False
-        cam, usb_idx, csi_id, cam_label = _active_camera_source()
-        if live_capture is None:
-            try:
-                live_capture = _open_capture_for_source(
-                    camera=cam,
-                    usb_index=usb_idx,
-                    csi_sensor_id=csi_id,
-=======
     def _refresh_live_frame() -> bool:
         nonlocal img, live_capture
         if args.frame:
@@ -1895,24 +1494,15 @@ def main() -> None:
                     camera=str(args.camera),
                     usb_index=int(args.usb_index),
                     csi_sensor_id=int(args.csi_sensor_id),
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
                     width=int(args.width),
                     height=int(args.height),
                     framerate=int(args.csi_framerate),
                     flip_method=int(args.csi_flip_method),
                 )
-<<<<<<< HEAD
-            except Exception as exc:
-                camera_status = f"Camera reconnect failed: {exc}"
-                return False
-        frame: Optional[np.ndarray] = None
-        for _attempt in range(2):
-=======
             except Exception:
                 return False
         frame: Optional[np.ndarray] = None
         for _attempt in range(3):
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
             try:
                 frame = _read_frame_from_capture(live_capture)
                 break
@@ -1924,39 +1514,21 @@ def main() -> None:
                 live_capture = None
                 try:
                     live_capture = _open_capture_for_source(
-<<<<<<< HEAD
-                        camera=cam,
-                        usb_index=usb_idx,
-                        csi_sensor_id=csi_id,
-=======
                         camera=str(args.camera),
                         usb_index=int(args.usb_index),
                         csi_sensor_id=int(args.csi_sensor_id),
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
                         width=int(args.width),
                         height=int(args.height),
                         framerate=int(args.csi_framerate),
                         flip_method=int(args.csi_flip_method),
                     )
-<<<<<<< HEAD
-                except Exception as exc:
-                    camera_status = f"Camera reconnect failed: {exc}"
-                    return False
-        if frame is None:
-            camera_status = f"Live frame read failed: {cam_label}"
-=======
                 except Exception:
                     return False
         if frame is None:
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
             return False
         if frame.shape[:2] != (h_img, w_img):
             frame = cv2.resize(frame, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
         img = frame
-<<<<<<< HEAD
-        camera_status = f"Active camera: {cam_label}"
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         return True
 
     def redraw() -> None:
@@ -2004,11 +1576,6 @@ def main() -> None:
         table_top = layout["table_top"]
         units_left = layout["units_left"]
         units_top = layout["units_top"]
-<<<<<<< HEAD
-        camera_left = layout["camera_left"]
-        camera_top = layout["camera_top"]
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         view_left = layout["view_left"]
         view_top = layout["view_top"]
 
@@ -2106,64 +1673,6 @@ def main() -> None:
                 selected_color=(0, 200, 255),
             )
 
-<<<<<<< HEAD
-        cv2.putText(
-            view,
-            "Camera sources",
-            (camera_left, camera_top - 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
-        visible_cameras = _visible_camera_entries()
-        if visible_cameras:
-            for draw_row, (idx, entry) in enumerate(visible_cameras, start=1):
-                row_y = camera_top + (draw_row - 1) * row_spacing
-                _draw_radio(
-                    view,
-                    camera_left,
-                    row_y,
-                    selected=(idx == selected_camera_idx),
-                    label=f"Cam {idx + 1}. {_camera_label(entry)}",
-                    selected_color=(255, 180, 0),
-                )
-            cv2.putText(
-                view,
-                f"Current camera: {_camera_label(camera_menu[selected_camera_idx])}",
-                (camera_left, camera_top + len(visible_cameras) * row_spacing + 14),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.52,
-                (255, 220, 120),
-                1,
-                cv2.LINE_AA,
-            )
-            if len(camera_menu) > len(visible_cameras):
-                cv2.putText(
-                    view,
-                    f"Showing {visible_cameras[0][0] + 1}-{visible_cameras[-1][0] + 1} of {len(camera_menu)} (c=next)",
-                    (camera_left, camera_top + len(visible_cameras) * row_spacing + 34),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.45,
-                    (180, 180, 180),
-                    1,
-                    cv2.LINE_AA,
-                )
-        else:
-            cv2.putText(
-                view,
-                "No alternate cameras detected",
-                (camera_left, camera_top + 8),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (180, 180, 180),
-                1,
-                cv2.LINE_AA,
-            )
-
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         controls = _view_control_layout(layout)
         cv2.putText(
             view,
@@ -2196,18 +1705,11 @@ def main() -> None:
 
         _draw_button(view, controls["zoom_minus_rect"], "-")
         _draw_button(view, controls["zoom_plus_rect"], "+")
-<<<<<<< HEAD
-        cv2.putText(
-            view,
-            f"Zoom: {_current_zoom():.2f}x",
-            (view_left + 76, int(flip_v_center[1]) + row_spacing + 12),
-=======
         _zm = controls["zoom_minus_rect"]
         cv2.putText(
             view,
             f"Zoom: {_current_zoom():.2f}x",
             (view_left, int(_zm[3] + 14)),
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
             cv2.FONT_HERSHEY_SIMPLEX,
             0.52,
             (255, 255, 255),
@@ -2236,11 +1738,7 @@ def main() -> None:
         cv2.putText(
             view,
             "Pan",
-<<<<<<< HEAD
-            (view_left + 92, controls["pan_down_rect"][3] - 2),
-=======
             (controls["pan_right_rect"][2] + 8, controls["pan_right_rect"][1] + 12),
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
             cv2.FONT_HERSHEY_SIMPLEX,
             0.48,
             (255, 255, 255),
@@ -2289,11 +1787,7 @@ def main() -> None:
         _draw_button(view, controls["reset_rect"], "Reset view")
         cv2.putText(
             view,
-<<<<<<< HEAD
-            f"Edit: {'outside corners' if mode == 'corners' else 'side pockets'} | LS rail (top), RS rail (bottom)",
-=======
             f"Edit: {'outside corners' if mode == 'corners' else 'side pockets'} | LS=left long rail, RS=right long (midpoint)",
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
             (view_left, panel_top + panel_h - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.42,
@@ -2326,23 +1820,6 @@ def main() -> None:
                 return name
         return None
 
-<<<<<<< HEAD
-    def _hit_camera_option(x: int, y: int) -> Optional[int]:
-        if panel_collapsed:
-            return None
-        if not camera_menu:
-            return None
-        layout = _menu_layout()
-        camera_left = layout["camera_left"]
-        camera_top = layout["camera_top"]
-        for draw_row, (idx, _entry) in enumerate(_visible_camera_entries(), start=1):
-            row_y = camera_top + (draw_row - 1) * row_spacing
-            if abs(x - camera_left) <= radio_hit_radius and abs(y - row_y) <= radio_hit_radius:
-                return idx
-        return None
-
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
     def _hit_view_control(x: int, y: int) -> Optional[str]:
         if panel_collapsed:
             return None
@@ -2389,11 +1866,7 @@ def main() -> None:
         return _point_in_rect(x, y, layout["drag_handle_rect"])
 
     def on_mouse(event, x, y, _flags, _userdata) -> None:
-<<<<<<< HEAD
-        nonlocal selected_table_size, selected_units, selected_camera_idx, active_point_idx, dragging
-=======
         nonlocal selected_table_size, selected_units, active_point_idx, dragging
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         nonlocal flip_view_h, flip_view_v, view_step_mode
         nonlocal panel_dragging, panel_drag_offset_x, panel_drag_offset_y
         nonlocal panel_left_override, panel_top_override, side_pocket_points, panel_collapsed
@@ -2427,14 +1900,6 @@ def main() -> None:
                 selected_units = hit_units
                 redraw()
                 return
-<<<<<<< HEAD
-            hit_camera = _hit_camera_option(x, y)
-            if hit_camera is not None:
-                _switch_to_camera(hit_camera)
-                redraw()
-                return
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
             hit_view = _hit_view_control(x, y)
             if hit_view is not None:
                 step = _current_view_step()
@@ -2481,11 +1946,8 @@ def main() -> None:
             labels = _active_labels()
             if len(pts) < len(labels):
                 src_x, src_y = _display_to_source(float(x), float(y))
-<<<<<<< HEAD
-=======
                 if mode == "side_pockets":
                     src_x, src_y = _snap_side_pocket_to_rail(len(pts), (src_x, src_y))
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
                 pts.append((src_x, src_y))
                 _set_active_points(pts)
                 redraw()
@@ -2506,11 +1968,8 @@ def main() -> None:
                 pts = _active_points()
                 if 0 <= active_point_idx < len(pts):
                     src_x, src_y = _display_to_source(float(x), float(y))
-<<<<<<< HEAD
-=======
                     if mode == "side_pockets":
                         src_x, src_y = _snap_side_pocket_to_rail(active_point_idx, (src_x, src_y))
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
                     pts[active_point_idx] = (src_x, src_y)
                     _set_active_points(pts)
                     redraw()
@@ -2522,11 +1981,8 @@ def main() -> None:
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
     cv2.setMouseCallback(win, on_mouse)
     redraw()
-<<<<<<< HEAD
-=======
     cv2.imshow(win, view)
     _apply_fullscreen_window(win)
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
     while True:
         _refresh_live_frame()
@@ -2569,12 +2025,6 @@ def main() -> None:
             if 0 <= idx < len(UNIT_MENU):
                 selected_units = UNIT_MENU[idx]
                 redraw()
-<<<<<<< HEAD
-        if key in (ord("c"),) and camera_menu:
-            _switch_to_camera((selected_camera_idx + 1) % len(camera_menu))
-            redraw()
-=======
->>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
         if key in (ord("g"),):
             view_step_mode = "coarse" if view_step_mode == "fine" else "fine"
             redraw()

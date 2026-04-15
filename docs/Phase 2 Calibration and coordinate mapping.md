@@ -4,6 +4,8 @@
 
 Validate calibration schema, pocket labels, and coordinate mapping assumptions.
 
+`scripts/phase2.sh` is **headless** (writes a baseline JSON, runs `edge.main` smoke checks). It does **not** open the OpenCV calibration GUI. For the click-to-calibrate window, run `scripts/start_calibration.sh` (on the Nano desktop, or with X11 forwarding over SSH).
+
 ## What is automated vs manual today
 
 - **Automated derivation from calibration corners**:
