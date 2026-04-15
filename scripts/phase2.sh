@@ -81,24 +81,44 @@ trap cleanup EXIT
 
 if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   echo "[Phase2] Running valid calibration edge startup smoke..."
+  echo "[Phase2] Note: /mjpeg never ends; we probe /health first, then one bounded /mjpeg download."
   run_with_timeout "${EDGE_TIMEOUT_SECONDS}" python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
   EDGE_PID="$!"
   READY=0
-  for _ in $(seq 1 45); do
-    if /usr/bin/curl -fsS "http://127.0.0.1:${MJPEG_PORT}/mjpeg" --max-time 2 --output /dev/null >/dev/null 2>&1; then
+  for i in $(seq 1 60); do
+    if /usr/bin/curl -fsS "http://127.0.0.1:${MJPEG_PORT}/health" --max-time 2 -o /dev/null 2>/dev/null; then
       READY=1
       break
     fi
     if ! kill -0 "$EDGE_PID" 2>/dev/null; then
+      echo "[Phase2] edge exited before listener came up (attempt ${i}). Log: $VALID_LOG" >&2
       break
+    fi
+    if (( i % 10 == 0 )); then
+      echo "[Phase2] still waiting for http://127.0.0.1:${MJPEG_PORT}/health ... (${i}/60)" >&2
     fi
     /usr/bin/sleep 1
   done
   if [[ "$READY" -ne 1 ]]; then
-    echo "Valid calibration startup failed. Log: $VALID_LOG" >&2
+    echo "Valid calibration startup failed (no /health). Log: $VALID_LOG" >&2
     exit 1
   fi
-  echo "[Phase2] Valid calibration loaded; MJPEG endpoint is reachable."
+  MJPEG_PROBE="${PROJECT_ROOT}/.phase2_mjpeg_probe.bin"
+  rm -f "$MJPEG_PROBE"
+  set +e
+  /usr/bin/curl -sS "http://127.0.0.1:${MJPEG_PORT}/mjpeg" --max-time 25 -o "$MJPEG_PROBE" 2>/dev/null
+  _mjpeg_rc=$?
+  set -e
+  _mjpeg_sz=0
+  if [[ -f "$MJPEG_PROBE" ]]; then
+    _mjpeg_sz=$(/usr/bin/wc -c <"$MJPEG_PROBE" | tr -d ' ')
+  fi
+  rm -f "$MJPEG_PROBE"
+  if [[ "${_mjpeg_sz:-0}" -lt 400 ]]; then
+    echo "[Phase2] MJPEG stream too small (${_mjpeg_sz} bytes, curl rc=${_mjpeg_rc}); camera may not be producing frames. Log: $VALID_LOG" >&2
+    exit 1
+  fi
+  echo "[Phase2] Valid calibration loaded; /health OK and MJPEG stream returned data."
   kill "$EDGE_PID" || true
   wait "$EDGE_PID" || true
   EDGE_PID=""

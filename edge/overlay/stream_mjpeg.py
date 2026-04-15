@@ -13,7 +13,17 @@ class _Handler(BaseHTTPRequestHandler):
     server_version = "BilliardsAI-MJPEG/0.1"
 
     def do_GET(self) -> None:  # noqa: N802
-        if self.path not in ("/", "/mjpeg"):
+        path = self.path.split("?", 1)[0]
+        if path == "/health":
+            body = b"ok\n"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path not in ("/", "/mjpeg"):
             self.send_error(404)
             return
         self.send_response(200)
