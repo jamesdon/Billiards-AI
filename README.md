@@ -58,7 +58,7 @@ scripts/docker_jetson_down.sh
 - `docs/ARCHITECTURE.md`
 - `docs/FILE_HIERARCHY.md`
 - `docs/MODEL_OPTIMIZATION.md` (optional train/tune; normal deploy reuses ONNX)
-- `docs/JETSON_NANO_TRAIN_AND_TEST.md` (train + pytest + phases **on the Nano**; `/home/jdonn/Billiards-AI` paths)
+- `docs/JETSON_NANO_TRAIN_AND_TEST.md` (train + pytest + phases **on the Nano**; `/home/$USER/Billiards-AI` paths)
 - `docs/CALIBRATION.md`
 - `docs/EVENT_DETECTION.md`
 - `docs/RULES_ENGINE.md`

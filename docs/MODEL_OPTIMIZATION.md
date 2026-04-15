@@ -93,7 +93,7 @@ names:
 EOF
 ```
 
-Jetson-only checklist: `docs/JETSON_NANO_TRAIN_AND_TEST.md` (paths like `/home/jdonn/Billiards-AI`, NumPy/matplotlib fixes, `yolo` + pytest + phases).
+Jetson-only checklist: `docs/JETSON_NANO_TRAIN_AND_TEST.md` (paths like `/home/$USER/Billiards-AI`, NumPy/matplotlib fixes, `yolo` + pytest + phases).
 
 ## Minimal dataset bootstrap checklist (zero to first model)
 

@@ -14,7 +14,7 @@ Billiards-AI/
     EVENT_DETECTION.md              Pocket/collision/foul/shot detection logic
     CALIBRATION.md                  Homography + coordinate systems
     MODEL_OPTIMIZATION.md           Optional one-time train/tune + ONNX export; normal devices reuse the same model; ONNX→TensorRT on Jetson
-    JETSON_NANO_TRAIN_AND_TEST.md   On-device YOLO train + NumPy fix + pytest + phase scripts using real Nano paths
+    JETSON_NANO_TRAIN_AND_TEST.md   On-device YOLO train + NumPy fix + pytest + phase scripts (`/home/$USER/Billiards-AI`)
     DEPLOYMENT_JETSON.md            Jetson setup + systemd service + runbook
     BACKEND.md                      Optional backend API + storage + websockets
     API.md                          Message schemas + endpoints
