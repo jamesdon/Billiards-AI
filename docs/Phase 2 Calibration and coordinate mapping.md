@@ -87,7 +87,7 @@ The helper now opens with auto-detected corner proposals and in-window controls:
 - **View controls** are available directly in the overlay:
   - Flip horizontal and flip vertical toggles (clickable radios).
   - Zoom in/out controls (clickable `+/-` buttons and keyboard).
-  - Rotate controls (`Rot-` / `Rot+` in overlay).
+  - Rotate controls (increment / decrement buttons wired to `rot_minus_rect` / `rot_plus_rect`).
   - Pan controls (clickable directional buttons and keyboard arrows / `i j k l`).
   - Fine/coarse view-step radios (default is **Fine**).
   - Reset-view button to return to default framing.

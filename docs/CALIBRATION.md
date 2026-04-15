@@ -73,7 +73,7 @@ launching the GUI.
 
 This script runs fully from local disk (no git operations), activates the local
 venv, enforces `PYTHONNOUSERSITE=1`, validates `scripts/calib_click.py` for the
-expected GUI view controls, and then launches the calibration window.
+expected view-control code paths in `calib_click.py`, then launches the calibration window.
 
 Use the helper script to launch an interactive calibration window:
 

@@ -50,12 +50,13 @@ import sys
 
 target = pathlib.Path(sys.argv[1])
 text = target.read_text(encoding="utf-8", errors="ignore")
+# Assert wiring for view transforms (labels change with UI polish; keys stay stable).
 required_tokens = [
     "_rotate_step",
     "_nudge_pan_display",
-    "Rot-",
-    "Rot+",
-    "Angle:",
+    'controls["rot_minus_rect"]',
+    'controls["rot_plus_rect"]',
+    "view_rotate_deg",
     "flip_view_h",
     "flip_view_v",
 ]
