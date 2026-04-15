@@ -1421,6 +1421,14 @@ def main() -> None:
             "reset_rect": reset_rect,
         }
 
+    def _snap_side_pocket_to_rail(idx: int, xy: Tuple[float, float]) -> Tuple[float, float]:
+        if len(corner_points) != 4:
+            return xy
+        tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in corner_points]
+        if idx == 0:
+            return _project_point_to_segment(xy, tl, bl)
+        return _project_point_to_segment(xy, tr, br)
+
     def _find_nearest_point(x_disp: float, y_disp: float) -> Optional[int]:
         pts = _active_points()
         if not pts:
@@ -1939,6 +1947,8 @@ def main() -> None:
             labels = _active_labels()
             if len(pts) < len(labels):
                 src_x, src_y = _display_to_source(float(x), float(y))
+                if mode == "side_pockets":
+                    src_x, src_y = _snap_side_pocket_to_rail(len(pts), (src_x, src_y))
                 pts.append((src_x, src_y))
                 _set_active_points(pts)
                 redraw()
@@ -1959,6 +1969,8 @@ def main() -> None:
                 pts = _active_points()
                 if 0 <= active_point_idx < len(pts):
                     src_x, src_y = _display_to_source(float(x), float(y))
+                    if mode == "side_pockets":
+                        src_x, src_y = _snap_side_pocket_to_rail(active_point_idx, (src_x, src_y))
                     pts[active_point_idx] = (src_x, src_y)
                     _set_active_points(pts)
                     redraw()
