@@ -4,13 +4,17 @@
 
 Verify ONNX detection and multi-track stability.
 
-**Prerequisite note:** Phase 3 assumes a detector ONNX and `class_map.json` are already on the device. **Training that model is a separate, optional step** (see `docs/MODEL_OPTIMIZATION.md`); day-to-day new installs typically **reuse the same exported model** and only run calibration plus this phase as smoke.
+**Prerequisite note:** Phase 3 assumes `models/model.onnx` and `models/class_map.json` are already on the device. **Training that model is a separate, optional step** (see `docs/MODEL_OPTIMIZATION.md`); day-to-day new installs typically **reuse the same exported model** and only run calibration plus this phase as smoke.
 
-## 1) Prepare class map
+## 1) Prepare class map (canonical path)
+
+All detector assets live under `models/`. The repo includes `models/class_map.json`; override only if your ONNX uses different indices or labels.
 
 ```bash
 cd "/home/$USER/Billiards-AI"
-cat > "/home/$USER/Billiards-AI/class_map.json" <<'EOF'
+mkdir -p "/home/$USER/Billiards-AI/models"
+# Optional: only if you are not using the committed template
+cat > "/home/$USER/Billiards-AI/models/class_map.json" <<'EOF'
 {
   "0": "ball",
   "1": "person",
@@ -74,7 +78,7 @@ This script performs:
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 MODEL_PATH="/ABSOLUTE/PATH/TO/model.onnx" \
-CLASS_MAP_PATH="/home/$USER/Billiards-AI/class_map.json" \
+CLASS_MAP_PATH="/home/$USER/Billiards-AI/models/class_map.json" \
 CAMERA_SOURCE="csi" \
 CSI_SENSOR_ID=0 \
 CSI_FLIP_METHOD=6 \
@@ -92,7 +96,7 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
   --camera csi \
   --csi-sensor-id 0 \
   --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" \
-  --class-map "/home/$USER/Billiards-AI/class_map.json" \
+  --class-map "/home/$USER/Billiards-AI/models/class_map.json" \
   --detect-every-n 2 \
   --mjpeg-port 8080
 ```

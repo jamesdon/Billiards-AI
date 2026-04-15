@@ -21,8 +21,8 @@ python -m edge.main \
   --camera csi \
   --csi-sensor-id 0 \
   --csi-flip-method 6 \
-  --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" \
-  --class-map "/home/$USER/Billiards-AI/class_map.json" \
+  --onnx-model "/home/$USER/Billiards-AI/models/model.onnx" \
+  --class-map "/home/$USER/Billiards-AI/models/class_map.json" \
   --calib "/home/$USER/Billiards-AI/calibration.json" \
   --identities "/home/$USER/Billiards-AI/identities.json" \
   --players "Player A,Player B" \

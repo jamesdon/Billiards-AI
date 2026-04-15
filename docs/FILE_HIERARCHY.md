@@ -18,6 +18,10 @@ Billiards-AI/
     BACKEND.md                      Optional backend API + storage + websockets
     API.md                          Message schemas + endpoints
 
+  models/                           Single location for detector runtime + training contract
+    class_map.json                  Maps ONNX class index → pipeline label (`ball`, `person`, `cue_stick`, `rack`); committed
+    model.onnx                      Exported detector weights (not in git; copy or export here)
+
   core/                             Shared logic (no OpenCV/YOLO dependency)
     __init__.py
     config.py                       Typed config objects

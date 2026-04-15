@@ -4,14 +4,44 @@
 
 **Training and billiards-specific tuning are optional and usually done once** (or occasionally when you want a better shared detector). You build a labeled dataset, train a YOLO-family model, export ONNX, and iterate on hard examples until metrics and Phase 3 runs look good.
 
-**Normal setup of additional tables or Jetsons does not repeat training.** You reuse the same artifacts the project already expects:
+**Normal setup of additional tables or Jetsons does not repeat training.** You reuse the same artifacts under a **single directory**:
 
-- `models/model.onnx` (or `MODEL_PATH` pointing at your copy)
-- `class_map.json` in the same place your runtime expects it (repo root for `scripts/phase*.sh` defaults; `./models/class_map.json` when using `docker-compose.jetson.yml` defaults)
+- `models/model.onnx` — detector weights (not committed; override with `MODEL_PATH` / Docker `MODEL_PATH`)
+- `models/class_map.json` — same class indices as training (`0..3` → `ball`, `person`, `cue_stick`, `rack`; committed template in repo)
+
+`scripts/phase3.sh`, `phase4.sh`, and `phase9.sh` default `CLASS_MAP_PATH` to `$PROJECT_ROOT/models/class_map.json`. Jetson Docker mounts `./models` at `/models` and uses the same filenames by default.
 
 Per-device variation is handled by **calibration** (homography, pocket geometry), not by retraining the detector, unless the camera or scene is radically different from what the model saw.
 
-The sections below describe dataset → train → export → optional TensorRT. Treat that whole path as **model authoring**; treat copying ONNX + class map + running Phase 3 smoke as **device bring-up**.
+The sections below describe dataset → train → export → optional TensorRT. Treat that whole path as **model authoring**; treat copying ONNX into `models/` plus running Phase 3 smoke as **device bring-up**.
+
+## Billiards detector: training walkthrough
+
+Follow this once (or when refreshing the shared model). All paths use `"/home/$USER/Billiards-AI"` as the project root; substitute yours.
+
+1. **Class contract** — Keep `models/class_map.json` in sync with your YOLO dataset `names`. The repo template is four classes in order `ball`, `person`, `cue_stick`, `rack`. If you train with fewer classes, remove unused keys from the JSON **and** renumber your dataset so indices stay contiguous from `0` (or keep a dedicated class map that matches exactly what the ONNX head outputs).
+
+2. **Dataset layout (YOLO)** — Under `data/datasets/billiards/`, use `images/train`, `images/val`, `labels/train`, `labels/val` with matching stem names (e.g. `frame_000123.jpg` + `frame_000123.txt`). See **Required input** below for the `billiards-data.yaml` example; its `names:` block must match `class_map.json`.
+
+3. **Label quality** — Start with balls; add people, cue sticks, and rack frames as in the checklist later in this doc. Split train/val by **session** where possible.
+
+4. **Environment** — On the training machine: `python3 -m pip install -U ultralytics` (often inside the project venv). GPU strongly recommended for iteration speed.
+
+5. **Train** — From the project root (paths as in **Option A** / **Option B** below), e.g.  
+   `yolo detect train data=".../billiards-data.yaml" model=yolov8n.pt imgsz=640 epochs=100 batch=16`  
+   Adjust `batch` and `workers` if you train on Jetson.
+
+6. **Export ONNX** —  
+   `yolo export model="runs/detect/train/weights/best.pt" format=onnx imgsz=640`  
+   (use the actual run path Ultralytics prints).
+
+7. **Install weights** — Copy the exported file to the canonical name:  
+   `cp runs/detect/train/weights/best.onnx models/model.onnx`  
+   (`*.onnx` is gitignored; this file lives only on disk or in your release storage.)
+
+8. **Verify** — Run `scripts/phase3.sh` with defaults, or a short smoke:  
+   `python -m edge.main --camera csi --onnx-model models/model.onnx --class-map models/class_map.json --detect-every-n 2 --mjpeg-port 8080`  
+   Tune `conf_thres` / training data if boxes are noisy; see **Runtime knobs** and Phase 3 docs.
 
 ## Do I have to train on another machine?
 
@@ -218,11 +248,12 @@ You must create/export `model.onnx` before Phase 3, 4, or 9.
 
 ### 1) Train a lightweight detector
 
-Train a small YOLO-family detector with classes aligned to `class_map.json`:
+Train a small YOLO-family detector with classes aligned to `models/class_map.json`:
 
 - `0`: `ball`
-- `1`: `person` (optional but recommended for identity tracking)
-- `2`: `cue_stick` (optional but recommended for identity tracking)
+- `1`: `person` (recommended for identity tracking)
+- `2`: `cue_stick` (recommended for identity tracking)
+- `3`: `rack` (triangle/diamond rack; pipeline + rules use this where applicable)
 
 ### 2) Export to ONNX
 
@@ -251,7 +282,7 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
   --camera csi \
   --csi-sensor-id 0 \
   --onnx-model "/home/$USER/Billiards-AI/models/model.onnx" \
-  --class-map "/home/$USER/Billiards-AI/class_map.json" \
+  --class-map "/home/$USER/Billiards-AI/models/class_map.json" \
   --detect-every-n 2 \
   --mjpeg-port 8080
 ```

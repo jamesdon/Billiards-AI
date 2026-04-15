@@ -132,7 +132,7 @@ scripts/docker_jetson_up.sh
 
 Notes:
 
-- Place model assets in `/home/$USER/Billiards-AI/models/`
+- Place detector assets in `/home/$USER/Billiards-AI/models/` (`model.onnx` + `class_map.json`; same paths in Docker via `./models` → `/models`)
 - Place calibration and identities in `/home/$USER/Billiards-AI/data/`
 - CSI camera is default in container command (`--camera csi`)
 

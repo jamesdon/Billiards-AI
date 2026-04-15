@@ -41,11 +41,10 @@ scripts/docker_jetson_up.sh
 
 Required runtime assets:
 
-- Detector: `model.onnx` (commonly `/home/$USER/Billiards-AI/models/model.onnx`; override with `MODEL_PATH`)
-- Class map: `class_map.json` aligned with that model’s class indices (defaults differ by entrypoint: repo root for `scripts/phase*.sh`, `./models/class_map.json` for Jetson Docker compose—set `CLASS_MAP_PATH` if you centralize files under `models/`)
+- Detector bundle (single directory `models/`): `model.onnx` + `class_map.json` with matching class indices (`MODEL_PATH` / `CLASS_MAP_PATH` override defaults; Docker mounts `./models` → `/models`)
 - `/home/$USER/Billiards-AI/data/calibration.json` (per table / per camera install)
 
-There is **no bundled detector** in this repository. **Most new devices only copy** a team-approved `model.onnx` and matching `class_map.json` from your build artifacts or an internal release bucket—**training is optional** and done when you need to create or refresh that shared model. See `docs/MODEL_OPTIMIZATION.md` for the one-time train/tune loop vs normal deployment.
+There is **no bundled `model.onnx`** (weights are gitignored). The repo **does** ship `models/class_map.json` as the canonical label map for training and runtime. **Most new devices only copy** a team-approved `model.onnx` into `models/` beside that file—**training is optional** and done when you create or refresh the shared model. See `docs/MODEL_OPTIMIZATION.md` for the full training walkthrough vs normal deployment.
 
 Stop:
 

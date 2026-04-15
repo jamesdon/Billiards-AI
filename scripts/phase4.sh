@@ -5,7 +5,7 @@ source "$(dirname "$0")/common.sh"
 cd_root
 activate_venv
 MODEL_PATH="${MODEL_PATH:-}"
-CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/class_map.json}"
+CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/models/class_map.json}"
 IDENTITIES_PATH="${IDENTITIES_PATH:-$PROJECT_ROOT/identities.json}"
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"

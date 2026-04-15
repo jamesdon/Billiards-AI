@@ -9,7 +9,7 @@ python -m pip install -U pip
 python -m pip install -r "$PROJECT_ROOT/requirements.txt"
 
 MODEL_PATH="${MODEL_PATH:-$PROJECT_ROOT/models/model.onnx}"
-CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/class_map.json}"
+CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/models/class_map.json}"
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
 MJPEG_PORT="${MJPEG_PORT:-8080}"
@@ -19,6 +19,7 @@ SWEEP_SECONDS="${SWEEP_SECONDS:-20}"
 AUTO_WRITE_CLASS_MAP="${AUTO_WRITE_CLASS_MAP:-1}"
 
 if [[ ! -f "$CLASS_MAP_PATH" ]] && [[ "$AUTO_WRITE_CLASS_MAP" == "1" ]]; then
+  mkdir -p "$(dirname "$CLASS_MAP_PATH")"
   cat > "$CLASS_MAP_PATH" <<'EOF'
 {
   "0": "ball",
