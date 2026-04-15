@@ -18,6 +18,21 @@ Plain-text cheat sheet (same commands, no Markdown): `scripts/JETSON_ONE_LINERS.
 
 If your repo lives somewhere else, set `PROJECT_ROOT` first, e.g. `export PROJECT_ROOT=/home/jdonn/Billiards-AI` (scripts read this via `scripts/common.sh`).
 
+### Where training images come from (the repo does not include them)
+
+**This project does not ship a photo dataset.** You train on **your own** pictures of **your** table from **your** production camera angle (or the same crop you will use live). Typical sources:
+
+1. **Record or grab frames from the Jetson CSI camera** (same rig as Phase 3/4): save stills or short videos to disk, then copy JPEG/PNG frames into `data/datasets/billiards/images/train` and `.../images/val`. Use different nights/sessions for val when you can.
+2. **Extract frames from a video** you shot over the table (see `docs/MODEL_OPTIMIZATION.md` → “Helpful frame extraction tip” for an `ffmpeg` example writing into `data/datasets/billiards/images/...`).
+3. **Import** a YOLO-format dataset (e.g. export from Roboflow, or another billiards project) and merge images + labels into those same `images/` and `labels/` folders—**renumber classes** so they match `models/class_map.json` (`0` ball … `3` rack).
+
+**Where on disk:** after `jetson_prepare_yolo_dataset.sh`, use:
+
+- `~/Billiards-AI/data/datasets/billiards/images/train` and `.../images/val`
+- `~/Billiards-AI/data/datasets/billiards/labels/train` and `.../labels/val`
+
+For every `something.jpg` (or `.png`), YOLO expects a matching `something.txt` in the **labels** split with one line per object: `class cx cy w h` (normalized 0–1). Create labels with a tool (CVAT, Label Studio, Roboflow, etc.); see `docs/MODEL_OPTIMIZATION.md` for composition, class list, and how much data to aim for.
+
 1. **Environment + pip installs**
 
    `cd ~/Billiards-AI && bash scripts/jetson_train_env.sh`
@@ -26,7 +41,7 @@ If your repo lives somewhere else, set `PROJECT_ROOT` first, e.g. `export PROJEC
 
    `cd ~/Billiards-AI && bash scripts/jetson_prepare_yolo_dataset.sh`
 
-3. **Train** — run only after you have images and YOLO labels under `data/datasets/billiards/` (train and val).
+3. **Train** — run only after you have added **your** images + `.txt` labels (see **“Where training images come from”** above).
 
    `cd ~/Billiards-AI && bash scripts/jetson_yolo_train.sh`
 
