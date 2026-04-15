@@ -1120,31 +1120,32 @@ def main() -> None:
     flip_view_h = False
     flip_view_v = False
     view_step_mode = "fine"
-    row_spacing = 24
+    row_spacing = 30
     radio_radius = 8
-    radio_hit_radius = 12
+    radio_hit_radius = 14
 
     menu_margin = 12
-    menu_padding = 12
-    menu_gap = 12
-    table_title_gap = 16
-    units_title_gap = 16
-    view_title_gap = 16
-    view_section_h = 284
-    estimated_menu_w = 520
-    panel_drag_handle_h = 24
+    menu_padding = 14
+    menu_gap = 16
+    table_title_gap = 18
+    units_title_gap = 18
+    view_title_gap = 18
+    view_section_h = 400
+    estimated_menu_w = 600
+    panel_drag_handle_h = 42
     estimated_menu_h = (
         panel_drag_handle_h
         + menu_padding
         + table_title_gap
         + len(TABLE_MENU) * row_spacing
+        + 30
         + menu_gap
         + units_title_gap
         + len(UNIT_MENU) * row_spacing
         + menu_gap
         + view_title_gap
         + view_section_h
-        + 32
+        + 56
     )
     safe_w = max(240, w_img - 2 * menu_margin)
     safe_h = max(240, h_img - 2 * menu_margin)
@@ -1160,21 +1161,22 @@ def main() -> None:
         radio_radius = max(6, int(round(radio_radius * ui_scale)))
         radio_hit_radius = max(10, int(round(radio_hit_radius * ui_scale)))
         estimated_menu_w = max(360, int(round(estimated_menu_w * ui_scale)))
-        panel_drag_handle_h = max(20, int(round(panel_drag_handle_h * ui_scale)))
+        panel_drag_handle_h = max(32, int(round(panel_drag_handle_h * ui_scale)))
     else:
-        panel_drag_handle_h = max(20, panel_drag_handle_h)
+        panel_drag_handle_h = max(32, panel_drag_handle_h)
     estimated_menu_h = (
         panel_drag_handle_h
         + menu_padding
         + table_title_gap
         + len(TABLE_MENU) * row_spacing
+        + 30
         + menu_gap
         + units_title_gap
         + len(UNIT_MENU) * row_spacing
         + menu_gap
         + view_title_gap
         + view_section_h
-        + 32
+        + 56
     )
 
     panel_left_override: Optional[int] = None
@@ -1394,15 +1396,22 @@ def main() -> None:
         table_left = left + menu_padding
         table_top = content_top + menu_padding + table_title_gap
         units_left = table_left
-        units_top = table_top + len(TABLE_MENU) * row_spacing + menu_gap + units_title_gap
+        last_table_row_y = table_top + (len(TABLE_MENU) - 1) * row_spacing
+        selected_table_y = last_table_row_y + int(max(20, round(row_spacing * 0.72)))
+        units_top = selected_table_y + int(max(26, round(24 * max(1.0, ui_scale)))) + menu_gap + units_title_gap
         view_left = table_left
         view_top = units_top + len(UNIT_MENU) * row_spacing + menu_gap + view_title_gap
 
         if panel_collapsed:
             panel_h = panel_drag_handle_h + 2
         else:
-            # Guarantee that the panel border encloses all controls and labels.
-            min_needed_h = (view_top - top) + int(max(160, view_section_h)) + menu_padding + 24
+            ctl = _view_control_layout({"view_left": view_left, "view_top": view_top})
+            content_bottom = int(ctl["reset_rect"][3]) + int(max(40, round(36 * max(1.0, ui_scale))))
+            hint_lines_h = 64
+            min_needed_h = max(
+                int(estimated_menu_h),
+                content_bottom - top + menu_padding + hint_lines_h,
+            )
             panel_h = int(min(safe_h, max(panel_h, min_needed_h)))
         top = int(np.clip(top, menu_margin, max(menu_margin, h_img - panel_h - menu_margin)))
         drag_handle_rect = (left, top, left + panel_w, top + panel_drag_handle_h)
@@ -1414,6 +1423,7 @@ def main() -> None:
             "drag_handle_rect": drag_handle_rect,
             "table_left": table_left,
             "table_top": table_top,
+            "selected_table_y": selected_table_y,
             "units_left": units_left,
             "units_top": units_top,
             "view_left": view_left,
@@ -1423,21 +1433,22 @@ def main() -> None:
     def _view_control_layout(layout: Dict[str, Any]) -> Dict[str, Tuple[int, int, int, int] | Tuple[int, int]]:
         view_left = int(layout["view_left"])
         view_top = int(layout["view_top"])
-        button_w = max(24, int(round(28 * ui_scale)))
-        button_h = max(18, int(round(20 * ui_scale)))
-        pan_size = max(18, int(round(20 * ui_scale)))
+        button_w = max(28, int(round(32 * ui_scale)))
+        button_h = max(20, int(round(22 * ui_scale)))
+        pan_size = max(20, int(round(24 * ui_scale)))
+        v_step = int(max(28, round(row_spacing * 1.05)))
         flip_h_center = (view_left, view_top)
-        flip_v_center = (view_left, view_top + row_spacing)
-        zoom_y = view_top + (2 * row_spacing) + 8
+        flip_v_center = (view_left, view_top + v_step)
+        zoom_y = view_top + 2 * v_step + 10
         zoom_minus_rect = (view_left, zoom_y - button_h // 2, view_left + button_w, zoom_y + button_h // 2)
         zoom_plus_rect = (
-            view_left + button_w + 6,
+            view_left + button_w + 8,
             zoom_y - button_h // 2,
-            view_left + (2 * button_w) + 6,
+            view_left + (2 * button_w) + 8,
             zoom_y + button_h // 2,
         )
-        pan_gap = 5
-        pan_cx = view_left + (2 * button_w) + 6 + 14 + pan_size // 2
+        pan_gap = 6
+        pan_cx = view_left + (2 * button_w) + 8 + 16 + pan_size // 2
         pan_cy = zoom_y
         pan_up_rect = (
             pan_cx - pan_size // 2,
@@ -1463,16 +1474,30 @@ def main() -> None:
             pan_cx + pan_size + pan_gap,
             pan_cy + pan_size // 2,
         )
-        rot_y = pan_cy + pan_size + pan_gap + 30
-        rot_minus_rect = (view_left, rot_y - button_h // 2, view_left + 58, rot_y + button_h // 2)
-        rot_plus_rect = (view_left + 64, rot_y - button_h // 2, view_left + 122, rot_y + button_h // 2)
-        rot90_y = rot_y + 24
-        rotate_90_ccw_rect = (view_left, rot90_y - button_h // 2, view_left + 58, rot90_y + button_h // 2)
-        rotate_90_cw_rect = (view_left + 64, rot90_y - button_h // 2, view_left + 122, rot90_y + button_h // 2)
-        pan_block_bottom = max(pan_down_rect[3], zoom_y + button_h // 2)
-        step_fine_center = (view_left, pan_block_bottom + 36)
-        step_coarse_center = (view_left + 112, pan_block_bottom + 36)
-        reset_rect = (view_left, pan_block_bottom + 52, view_left + 138, pan_block_bottom + 76)
+        rot_y = pan_cy + int(1.55 * pan_size) + pan_gap + 22
+        rot_btn_w = max(58, button_w + 26)
+        rot_minus_rect = (view_left, rot_y - button_h // 2, view_left + rot_btn_w, rot_y + button_h // 2)
+        rot_plus_rect = (
+            view_left + rot_btn_w + 8,
+            rot_y - button_h // 2,
+            view_left + 2 * rot_btn_w + 8,
+            rot_y + button_h // 2,
+        )
+        rot90_y = rot_y + int(30 * max(1.0, ui_scale))
+        rotate_90_ccw_rect = (view_left, rot90_y - button_h // 2, view_left + rot_btn_w, rot90_y + button_h // 2)
+        rotate_90_cw_rect = (
+            view_left + rot_btn_w + 8,
+            rot90_y - button_h // 2,
+            view_left + 2 * rot_btn_w + 8,
+            rot90_y + button_h // 2,
+        )
+        post_rot_y = rotate_90_cw_rect[3] + 24
+        step_fine_center = (view_left, post_rot_y + 36)
+        step_coarse_center = (view_left + int(132 * max(1.0, ui_scale)), post_rot_y + 36)
+        reset_w = max(148, int(154 * max(1.0, ui_scale)))
+        reset_h = max(26, int(28 * max(1.0, ui_scale)))
+        reset_y1 = post_rot_y + int(76 * max(1.0, ui_scale))
+        reset_rect = (view_left, reset_y1, view_left + reset_w, reset_y1 + reset_h)
         return {
             "flip_h_center": flip_h_center,
             "flip_v_center": flip_v_center,
@@ -1521,9 +1546,9 @@ def main() -> None:
         cv2.putText(
             canvas,
             label,
-            (x + 16, y + 5),
+            (x + 18, y + 6),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
+            0.52,
             (255, 255, 255),
             1,
             cv2.LINE_AA,
@@ -1650,11 +1675,21 @@ def main() -> None:
         cv2.line(view, (hx1, hy2), (hx2, hy2), (120, 120, 120), 1)
         cv2.putText(
             view,
-            "Drag panel | Auto corners: r | Live camera (no --frame) | Enter=save",
-            (hx1 + 8, hy2 - 7),
+            "Drag panel | r=auto corners | Enter=save | q/Esc=cancel",
+            (hx1 + 8, hy2 - 18),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.44,
+            0.42,
             (230, 230, 230),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            view,
+            "Live camera unless --frame (still image)",
+            (hx1 + 8, hy2 - 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            (200, 200, 200),
             1,
             cv2.LINE_AA,
         )
@@ -1675,7 +1710,7 @@ def main() -> None:
         cv2.putText(
             view,
             "Table size",
-            (table_left, table_top - 10),
+            (table_left, table_top - 14),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
             (255, 255, 255),
@@ -1695,10 +1730,10 @@ def main() -> None:
             )
         cv2.putText(
             view,
-            f"Selected table size: {_table_size_label(selected_table_size)}",
-            (table_left, table_top + len(TABLE_MENU) * row_spacing + 16),
+            f"Selected: {_table_size_label(selected_table_size)}",
+            (table_left, int(layout["selected_table_y"])),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
+            0.52,
             (0, 255, 255),
             1,
             cv2.LINE_AA,
@@ -1707,7 +1742,7 @@ def main() -> None:
         cv2.putText(
             view,
             "Units",
-            (units_left, units_top - 10),
+            (units_left, units_top - 14),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
             (255, 255, 255),
@@ -1729,7 +1764,7 @@ def main() -> None:
         cv2.putText(
             view,
             "View",
-            (view_left, view_top - 10),
+            (view_left, view_top - 14),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
             (255, 255, 255),
@@ -1775,9 +1810,9 @@ def main() -> None:
         cv2.putText(
             view,
             f"Angle: {view_rotate_deg:+.0f} deg",
-            (view_left + 132, controls["rotate_90_cw_rect"][3] - 4),
+            (view_left, controls["rotate_90_cw_rect"][3] + 8),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.46,
+            0.48,
             (255, 255, 255),
             1,
             cv2.LINE_AA,
@@ -1803,7 +1838,7 @@ def main() -> None:
         cv2.putText(
             view,
             "Step mode",
-            (view_left, int(step_fine_center[1]) - 14),
+            (view_left, int(step_fine_center[1]) - 22),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.48,
             (255, 255, 255),
@@ -1828,10 +1863,10 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            f"Rot step: {step['rotate_deg']:.1f} deg | Pan step: {100.0 * step['pan_frac_x']:.1f}%",
-            (view_left, controls["reset_rect"][3] + 14),
+            f"Rot step {step['rotate_deg']:.1f} deg | Pan {100.0 * step['pan_frac_x']:.1f}%",
+            (view_left, controls["reset_rect"][3] + 12),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.44,
+            0.42,
             (220, 220, 220),
             1,
             cv2.LINE_AA,
@@ -1839,11 +1874,21 @@ def main() -> None:
         _draw_button(view, controls["reset_rect"], "Reset view")
         cv2.putText(
             view,
-            "Edit: outside table corners (TL,TR kitchen short rail; BL,BR foot short rail)",
-            (view_left, panel_top + panel_h - 10),
+            "Corners: TL,TR = kitchen rail; BL,BR = foot rail",
+            (view_left, panel_top + panel_h - 26),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.42,
             (0, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            view,
+            "Drag yellow dots on the table image",
+            (view_left, panel_top + panel_h - 8),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            (200, 220, 255),
             1,
             cv2.LINE_AA,
         )
