@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -40,6 +41,28 @@ UNIT_MENU: list[str] = ["imperial", "metric"]
 CORNER_LABELS: list[str] = ["TL", "TR", "BL", "BR"]
 SIDE_POCKET_LABELS: list[str] = ["LS", "RS"]
 
+_JETSON_CSI_HINT = (
+    "Jetson CSI / Argus (nvarguscamerasrc) often prints 'Failed to create CaptureSession' when no frame arrives.\n"
+    "Try, in order:\n"
+    "  • Close other camera users (another calib_click, edge.main, nvgstcapture). Then:\n"
+    "      sudo systemctl restart nvargus-daemon\n"
+    "    (service name can differ slightly by L4T; reboot if Argus stays wedged.)\n"
+    "  • Wrong module index: CSI_SENSOR_ID=1 bash scripts/start_calibration.sh\n"
+    "  • Wrong orientation: CSI_FLIP_METHOD=0 bash scripts/start_calibration.sh (also try 2 or 6)\n"
+    "  • Lighter mode: add --width 640 --height 480 --csi-framerate 15 to calib_click.py args\n"
+    "  • Offline: python scripts/calib_click.py --frame /path/to/snapshot.jpg --out calibration.json\n"
+)
+
+
+def _csi_troubleshoot_footer(args: argparse.Namespace) -> str:
+    return (
+        _JETSON_CSI_HINT
+        + f"Active settings: camera={args.camera!r} sensor-id={args.csi_sensor_id} "
+        f"flip-method={args.csi_flip_method} {args.width}x{args.height}@{args.csi_framerate} "
+        f"open-retries={args.csi_open_retries}.\n"
+    )
+
+
 try:
     from edge.calib.table_geometry import auto_calibration_from_corners, table_geometry_dict
 
@@ -69,6 +92,12 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--csi-sensor-id", type=int, default=0)
     p.add_argument("--csi-framerate", "--fps", dest="csi_framerate", type=int, default=30)
     p.add_argument("--csi-flip-method", "--flip", dest="csi_flip_method", type=int, default=0)
+    p.add_argument(
+        "--csi-open-retries",
+        type=int,
+        default=8,
+        help="How many times to reopen the CSI GStreamer pipeline if open or first frame fails (Argus flakiness).",
+    )
     p.add_argument("--width", type=int, default=1280)
     p.add_argument("--height", type=int, default=720)
     # Table size is selected only via in-window radio UI.
@@ -131,6 +160,8 @@ def _capture_frame_for_source(
     height: int,
     framerate: int,
     flip_method: int,
+    *,
+    open_retries: int = 1,
 ) -> np.ndarray:
     cap = _open_capture_for_source(
         camera=camera,
@@ -140,9 +171,10 @@ def _capture_frame_for_source(
         height=height,
         framerate=framerate,
         flip_method=flip_method,
+        open_retries=open_retries,
     )
     try:
-        return _read_frame_from_capture(cap)
+        return _read_frame_from_capture(cap, camera_mode=camera)
     finally:
         cap.release()
 
@@ -155,6 +187,8 @@ def _open_capture_for_source(
     height: int,
     framerate: int,
     flip_method: int,
+    *,
+    open_retries: int = 1,
 ) -> cv2.VideoCapture:
     source, use_gst = _resolve_capture_source(
         camera=camera,
@@ -165,17 +199,41 @@ def _open_capture_for_source(
         framerate=framerate,
         flip_method=flip_method,
     )
-    cap = cv2.VideoCapture(source, cv2.CAP_GSTREAMER if use_gst else cv2.CAP_V4L2)
-    if not use_gst and isinstance(source, int):
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, float(width))
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, float(height))
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-    if not cap.isOpened():
-        raise RuntimeError(f"Failed to open camera source={source!r}")
-    return cap
+    attempts = max(1, int(open_retries)) if use_gst else 1
+    last_err: Optional[Exception] = None
+    for attempt in range(attempts):
+        cap = cv2.VideoCapture(source, cv2.CAP_GSTREAMER if use_gst else cv2.CAP_V4L2)
+        if not use_gst and isinstance(source, int):
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, float(width))
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, float(height))
+        if not use_gst:
+            try:
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            except Exception:
+                pass
+        if not cap.isOpened():
+            try:
+                cap.release()
+            except Exception:
+                pass
+            last_err = RuntimeError(f"Failed to open camera source={source!r}")
+        else:
+            ok, probe = cap.read()
+            if ok and probe is not None:
+                return cap
+            try:
+                cap.release()
+            except Exception:
+                pass
+            last_err = RuntimeError("Camera pipeline opened but first read() returned no frame.")
+        if attempt + 1 < attempts:
+            time.sleep(0.5)
+    if last_err is not None:
+        raise last_err
+    raise RuntimeError("Camera open failed.")
 
 
-def _read_frame_from_capture(cap: cv2.VideoCapture) -> np.ndarray:
+def _read_frame_from_capture(cap: cv2.VideoCapture, *, camera_mode: Optional[str] = None) -> np.ndarray:
     # Drain buffered frames so redraw uses a current frame instead of stale data.
     frame: Optional[np.ndarray] = None
     grabbed = 0
@@ -194,7 +252,10 @@ def _read_frame_from_capture(cap: cv2.VideoCapture) -> np.ndarray:
     if frame is None:
         ok, frame = cap.read()
     if frame is None:
-        raise RuntimeError("Failed to capture frame from camera.")
+        msg = "Failed to capture frame from camera."
+        if camera_mode is not None and str(camera_mode).strip().lower() == "csi":
+            msg += "\n\n" + _JETSON_CSI_HINT
+        raise RuntimeError(msg)
     return frame
 
 
@@ -207,6 +268,7 @@ def _capture_frame(args: argparse.Namespace) -> np.ndarray:
         height=int(args.height),
         framerate=int(args.csi_framerate),
         flip_method=int(args.csi_flip_method),
+        open_retries=int(args.csi_open_retries),
     )
 
 
@@ -1015,16 +1077,20 @@ def main() -> None:
         if img is None:
             raise RuntimeError(f"Failed to read frame image: {args.frame}")
     else:
-        live_capture = _open_capture_for_source(
-            camera=str(args.camera),
-            usb_index=int(args.usb_index),
-            csi_sensor_id=int(args.csi_sensor_id),
-            width=int(args.width),
-            height=int(args.height),
-            framerate=int(args.csi_framerate),
-            flip_method=int(args.csi_flip_method),
-        )
-        img = _read_frame_from_capture(live_capture)
+        try:
+            live_capture = _open_capture_for_source(
+                camera=str(args.camera),
+                usb_index=int(args.usb_index),
+                csi_sensor_id=int(args.csi_sensor_id),
+                width=int(args.width),
+                height=int(args.height),
+                framerate=int(args.csi_framerate),
+                flip_method=int(args.csi_flip_method),
+                open_retries=int(args.csi_open_retries),
+            )
+            img = _read_frame_from_capture(live_capture, camera_mode=str(args.camera))
+        except Exception as exc:
+            raise RuntimeError(f"{exc}\n\n{_csi_troubleshoot_footer(args)}") from exc
 
     win = "calib-click"
     try:
@@ -1498,13 +1564,14 @@ def main() -> None:
                     height=int(args.height),
                     framerate=int(args.csi_framerate),
                     flip_method=int(args.csi_flip_method),
+                    open_retries=int(args.csi_open_retries),
                 )
             except Exception:
                 return False
         frame: Optional[np.ndarray] = None
         for _attempt in range(3):
             try:
-                frame = _read_frame_from_capture(live_capture)
+                frame = _read_frame_from_capture(live_capture, camera_mode=str(args.camera))
                 break
             except Exception:
                 try:
@@ -1521,6 +1588,7 @@ def main() -> None:
                         height=int(args.height),
                         framerate=int(args.csi_framerate),
                         flip_method=int(args.csi_flip_method),
+                        open_retries=int(args.csi_open_retries),
                     )
                 except Exception:
                     return False

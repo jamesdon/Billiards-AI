@@ -55,9 +55,14 @@ Optional overrides:
 
 ```bash
 cd "/home/$USER/Billiards-AI"
-CSI_SENSOR_ID=0 CSI_FLIP_METHOD=6 CALIB_OUT="/home/$USER/Billiards-AI/calibration.json" \
+CSI_SENSOR_ID=0 CSI_FLIP_METHOD=6 CSI_OPEN_RETRIES=12 \
+  CALIB_OUT="/home/$USER/Billiards-AI/calibration.json" \
   "/home/$USER/Billiards-AI/scripts/start_calibration.sh"
 ```
+
+If Argus reports `Failed to create CaptureSession`, close other camera users, run
+`sudo systemctl restart nvargus-daemon`, retry `CSI_FLIP_METHOD` (0, 2, 6) and
+`CSI_SENSOR_ID`, or use a still image: `python scripts/calib_click.py --frame snap.jpg --out calibration.json`.
 
 ```bash
 cd "/home/$USER/Billiards-AI"

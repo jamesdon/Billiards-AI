@@ -13,6 +13,7 @@ CAMERA_SOURCE="${CAMERA_SOURCE:-csi}"
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-6}"
 CSI_FRAMERATE="${CSI_FRAMERATE:-30}"
+CSI_OPEN_RETRIES="${CSI_OPEN_RETRIES:-8}"
 FRAME_WIDTH="${FRAME_WIDTH:-1280}"
 FRAME_HEIGHT="${FRAME_HEIGHT:-720}"
 UNITS="${UNITS:-imperial}"
@@ -30,6 +31,7 @@ Environment overrides (optional):
   CSI_SENSOR_ID     (default: 0)
   CSI_FLIP_METHOD   (default: 6)
   CSI_FRAMERATE     (default: 30)
+  CSI_OPEN_RETRIES  (default: 8; Argus CSI reopen attempts in calib_click.py)
   FRAME_WIDTH       (default: 1280)
   FRAME_HEIGHT      (default: 720)
   UNITS             (default: imperial)
@@ -134,6 +136,7 @@ main() {
     --camera "$CAMERA_SOURCE" \
     --csi-sensor-id "$CSI_SENSOR_ID" \
     --csi-framerate "$CSI_FRAMERATE" \
+    --csi-open-retries "$CSI_OPEN_RETRIES" \
     --csi-flip-method "$CSI_FLIP_METHOD" \
     --width "$FRAME_WIDTH" \
     --height "$FRAME_HEIGHT" \

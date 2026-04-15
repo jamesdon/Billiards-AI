@@ -100,8 +100,8 @@ Billiards-AI/
     phase7.sh                       Stats event injection checks
     phase8.sh                       Backend persistence checks (SQLite + optional Dynamo)
     phase9.sh                       End-to-end runtime launcher
-    calib_click.py                  Interactive calibration: physical TL/TR (kitchen short rail) and BL/BR (foot), auto corner + side-pocket seeding (dark holes + Hough circles on long rails), view panel (zoom with pan U/D/L/R to the right of zoom, fine 0.5°/1% pan vs coarse 2°/3%), fullscreen maximize, writes calibration.json; camera is chosen only via CLI / start_calibration.sh (no in-window camera picker)
-    start_calibration.sh            One-command local calibration launcher (env + guardrails + GUI)
+    calib_click.py                  Interactive calibration: physical TL/TR (kitchen short rail) and BL/BR (foot), auto corner + side-pocket seeding (dark holes + Hough circles on long rails), view panel (zoom with pan U/D/L/R to the right of zoom, fine 0.5°/1% pan vs coarse 2°/3%), fullscreen maximize, writes calibration.json; CLI-only CSI with `--csi-open-retries` and Argus-oriented error hints; camera via CLI / start_calibration.sh (no in-window camera picker)
+    start_calibration.sh            One-command local calibration launcher (env + guardrails + GUI); passes CSI_OPEN_RETRIES to calib_click
     jetson_csi_setup.sh             Jetson camera stack triage (Argus + gst + app smoke)
     docker_jetson_build.sh          Build Jetson runtime image
     docker_jetson_up.sh             Start Jetson runtime container
