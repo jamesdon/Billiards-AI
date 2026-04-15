@@ -15,6 +15,23 @@ Per-device variation is handled by **calibration** (homography, pocket geometry)
 
 The sections below describe dataset → train → export → optional TensorRT. Treat that whole path as **model authoring**; treat copying ONNX into `models/` plus running Phase 3 smoke as **device bring-up**.
 
+## Why one `ball` class in the detector (Phase 3) vs type in Phase 4
+
+This is a **project default**, not a hard limit of YOLO.
+
+**What the codebase does today:** the detector finds **generic ball boxes** at full-table resolution; `edge/pipeline.py` then tracks them and `edge/classify/ball_classifier.py` infers **type** (cue vs solids vs stripes, game-dependent) from **cropped ROIs** with cheap HSV-style features and temporal smoothing. That is the Phase 4 layer in `docs/Phase 4 Classification and identity.md`.
+
+**Why split “where” from “what”:**
+
+- **Labeling cost** — every frame needs tight boxes; adding 6–16 ball *types* multiplies annotation and review time.
+- **Full-frame difficulty** — at 720p table-wide views, balls are small and visually similar; a single “ball” head is usually easier to stabilize than many sibling classes fighting the same anchors.
+- **Iteration speed** — get reliable **presence + motion** first (rules, pockets, collisions care about geometry); refine **appearance** once crops are trustworthy.
+- **Runtime** — one detector pass + small ROI work scales better on Nano than pushing all semantics into the largest model.
+
+**You can still train more ball types in YOLO** if you want: extend `names` / labels / `models/class_map.json` (e.g. `cue_ball`, `solid`, `stripe`, `eight_ball`) and widen `ball_dets` filtering in `edge/pipeline.py` so those labels enter the ball tracker. That is extra integration and dataset work, not a merge of “phases” by itself.
+
+**Merging Phase 3 and Phase 4:** the **phase documents** are delivery checkpoints (detection vs identity), not two incompatible algorithms. You might *personally* combine work into one training push (richer detector + less ROI classifier), but the repo keeps them separate so you can ship **tracking without** perfect type classification, and upgrade types later without retraining the whole detector if you choose the two-stage design.
+
 ## Billiards detector: training walkthrough
 
 Follow this once (or when refreshing the shared model). All paths use `"/home/$USER/Billiards-AI"` as the project root; substitute yours.
