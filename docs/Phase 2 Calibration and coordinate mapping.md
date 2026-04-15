@@ -10,8 +10,8 @@ Validate calibration schema, pocket labels, and coordinate mapping assumptions.
   - homography `H` (from provided image corners + table preset)
   - table length/width in meters (from selected table preset)
   - six standardized pocket centers/radii
-  - kitchen polygon (head-string quarter table length)
-  - break area polygon (head quarter of table)
+  - kitchen polygon (head-string quarter from the kitchen short rail along X)
+  - break area polygon (foot half-table / behind break line from kitchen)
 - **Still manual/assisted**:
   - initial table corner selection in image pixel coordinates
   - optional override of pocket radii and exact break-zone policy
@@ -96,8 +96,8 @@ The helper now opens with auto-detected corner proposals and in-window controls:
 - **Units** use an on-screen radio toggle (`imperial` default, `metric` optional).
 - **Side pocket mapping** is integrated in the same editor:
   - press `m` to toggle between outside-corner editing and side-pocket editing
-  - in side-pocket mode, set/drag exactly two points: `LS` (left side pocket),
-    `RS` (right side pocket)
+  - in side-pocket mode, set/drag exactly two points: `LS` and `RS` on the **long**
+    rails (auto-snapped to the midpoint of each rail line; drag to adjust)
   - manual LS/RS dragging remains enabled; points are only rail-normalized on
     save/camera-switch/reseed and are no longer clamped every drag frame
   - side-pocket seeds are now auto-initialized from dark-rail analysis near
@@ -185,11 +185,11 @@ cat > "/home/$USER/Billiards-AI/calibration.json" <<'EOF'
   "H": [[1,0,0],[0,1,0],[0,0,1]],
   "pockets": [
     {"label":"top_left_corner","center_xy_m":[0.0,0.0],"radius_m":0.07},
-    {"label":"top_right_corner","center_xy_m":[2.84,0.0],"radius_m":0.07},
-    {"label":"bottom_left_corner","center_xy_m":[0.0,1.42],"radius_m":0.07},
+    {"label":"top_right_corner","center_xy_m":[0.0,1.42],"radius_m":0.07},
+    {"label":"bottom_left_corner","center_xy_m":[2.84,0.0],"radius_m":0.07},
     {"label":"bottom_right_corner","center_xy_m":[2.84,1.42],"radius_m":0.07},
-    {"label":"left_side_pocket","center_xy_m":[0.0,0.71],"radius_m":0.07},
-    {"label":"right_side_pocket","center_xy_m":[2.84,0.71],"radius_m":0.07}
+    {"label":"left_side_pocket","center_xy_m":[1.42,0.0],"radius_m":0.07},
+    {"label":"right_side_pocket","center_xy_m":[1.42,1.42],"radius_m":0.07}
   ]
 }
 EOF

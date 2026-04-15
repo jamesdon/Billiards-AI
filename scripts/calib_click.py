@@ -54,7 +54,8 @@ def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
             "Interactive calibration helper with auto corners and editing. "
-            "TL/TR/BL/BR are outside table corners (not pocket centers)."
+            "TL/TR are the kitchen (rack) short rail; BL/BR are the opposite short rail. "
+            "Points are outside cushion corners, not pocket centers."
         ),
     )
     p.add_argument("--frame", type=str, default=None, help="Optional image path to annotate.")
@@ -209,6 +210,25 @@ def _capture_frame(args: argparse.Namespace) -> np.ndarray:
     )
 
 
+def _apply_fullscreen_window(win_name: str) -> None:
+    """Best-effort maximize/fullscreen (macOS HighGUI often needs resize + move as fallback)."""
+    try:
+        import tkinter as tk
+
+        root = tk.Tk()
+        sw, sh = int(root.winfo_screenwidth()), int(root.winfo_screenheight())
+        root.destroy()
+        if sw > 0 and sh > 0:
+            cv2.resizeWindow(win_name, sw, sh)
+            cv2.moveWindow(win_name, 0, 0)
+    except Exception:
+        pass
+    try:
+        cv2.setWindowProperty(win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    except Exception:
+        pass
+
+
 def _table_dims_m(table_size: str) -> Tuple[float, float]:
     return TABLE_PRESETS_M[table_size]
 
@@ -261,12 +281,14 @@ def _estimate_homography(
     table_width_m: float,
 ) -> np.ndarray:
     src = np.array(image_points, dtype=np.float64)
+    L = float(table_length_m)
+    W = float(table_width_m)
     dst = np.array(
         [
             [0.0, 0.0],
-            [table_length_m, 0.0],
-            [0.0, table_width_m],
-            [table_length_m, table_width_m],
+            [0.0, W],
+            [L, 0.0],
+            [L, W],
         ],
         dtype=np.float64,
     )
@@ -579,9 +601,9 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
     hough_area = abs(float(cv2.contourArea(np.array(hough_refined, dtype=np.float32))))
     if refined_area < 0.4 * best_quad_area:
         if hough_area >= 0.4 * best_quad_area:
-            return hough_refined
-        return [(float(x), float(y)) for x, y in best_quad]
-    return refined_ordered
+            return _order_physical_table_corners(hough_refined)
+        return _order_physical_table_corners([(float(x), float(y)) for x, y in best_quad])
+    return _order_physical_table_corners(refined_ordered)
 
 
 def _refine_side_pocket_seed(
@@ -616,17 +638,56 @@ def _refine_side_pocket_seed(
     seed_local[0] = float(np.clip(seed_local[0], 0.0, float(max(0, patch_w - 1))))
     seed_local[1] = float(np.clip(seed_local[1], 0.0, float(max(0, patch_h - 1))))
 
-    dark_thresh = float(np.percentile(patch_blur, 28))
+    dark_thresh = float(np.percentile(patch_blur, 22))
     dark_mask = (patch_blur <= dark_thresh).astype(np.uint8) * 255
 
-    bh_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    bh_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (21, 21))
     blackhat = cv2.morphologyEx(patch_blur, cv2.MORPH_BLACKHAT, bh_kernel)
-    bh_thresh = float(np.percentile(blackhat, 82))
+    bh_thresh = float(np.percentile(blackhat, 78))
     bh_mask = (blackhat >= bh_thresh).astype(np.uint8) * 255
 
     pocket_mask = cv2.bitwise_and(dark_mask, bh_mask)
-    if int(np.count_nonzero(pocket_mask)) < 28:
+    if int(np.count_nonzero(pocket_mask)) < 20:
+        pocket_mask = cv2.bitwise_or(dark_mask, bh_mask)
+    if int(np.count_nonzero(pocket_mask)) < 20:
         pocket_mask = dark_mask
+
+    inv = cv2.GaussianBlur(255 - patch_blur, (5, 5), 0)
+    try:
+        circles = cv2.HoughCircles(
+            inv,
+            cv2.HOUGH_GRADIENT,
+            dp=1.15,
+            minDist=max(10, search_radius // 4),
+            param1=64,
+            param2=10,
+            minRadius=max(4, search_radius // 12),
+            maxRadius=max(12, search_radius // 2),
+        )
+    except cv2.error:
+        circles = None
+    if circles is not None and len(circles[0]) > 0:
+        best_c = None
+        best_cs = -1e9
+        for cx_c, cy_c, _r in circles[0]:
+            xi = int(np.clip(round(cx_c), 0, patch_w - 1))
+            yi = int(np.clip(round(cy_c), 0, patch_h - 1))
+            local_dark = 1.0 - (float(patch_blur[yi, xi]) / 255.0)
+            dloc = np.array([cx_c, cy_c], dtype=np.float64) - seed_local
+            sigma2 = float(max(64.0, (0.35 * float(search_radius)) ** 2))
+            dpen = float(np.exp(-float(np.dot(dloc, dloc)) / (2.0 * sigma2)))
+            sc = 3.5 * local_dark + 0.9 * dpen
+            if sc > best_cs:
+                best_cs = sc
+                best_c = (cx_c, cy_c)
+        if best_c is not None and best_cs > 1.1:
+            cx = float(best_c[0]) + float(x0)
+            cy = float(best_c[1]) + float(y0)
+            delta = np.array([cx - seed[0], cy - seed[1]], dtype=np.float64)
+            along = float(np.clip(np.dot(delta, rail_u), -0.22 * rail_len, 0.22 * rail_len))
+            across = float(np.clip(np.dot(delta, rail_n), -0.14 * rail_len, 0.14 * rail_len))
+            refined = seed + (along * rail_u) + (across * rail_n)
+            return _clip_point_to_image(float(refined[0]), float(refined[1]), w, h)
 
     pocket_mask = cv2.morphologyEx(pocket_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8), iterations=1)
     pocket_mask = cv2.morphologyEx(pocket_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8), iterations=1)
@@ -666,11 +727,11 @@ def _refine_side_pocket_seed(
         dist_across = abs(float(np.dot(delta_local, rail_n))) / float(max(1.0, search_radius))
 
         area_term = min(1.0, area / (0.12 * patch_area))
-        shape_term = max(0.0, 1.0 - abs(circularity - 0.5))
+        shape_term = max(0.0, 1.0 - abs(circularity - 0.78))
         score = (
-            (2.8 * darkness)
-            + (1.0 * area_term)
-            + (0.5 * shape_term)
+            (3.2 * darkness)
+            + (1.1 * area_term)
+            + (0.65 * shape_term)
             - (1.2 * dist_seed)
             - (1.6 * dist_across)
             - (0.4 * dist_along)
@@ -679,7 +740,7 @@ def _refine_side_pocket_seed(
             best_score = score
             best_local_xy = np.array([cx, cy], dtype=np.float64)
 
-    if best_local_xy is None or best_score < 0.95:
+    if best_local_xy is None or best_score < 0.88:
         mask = dark_mask > 0
         if int(np.count_nonzero(mask)) < 24:
             return _clip_point_to_image(float(seed[0]), float(seed[1]), w, h)
@@ -714,14 +775,13 @@ def _estimate_side_pockets_from_corners(
 
     h, w = frame.shape[:2]
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(corners))]
+    tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in corners]
 
-    # Side pockets live on the two long rails (top/bottom in table coordinates),
-    # not on the short left/right end rails.
-    top_mid = 0.5 * (tl + tr)
-    bottom_mid = 0.5 * (bl + br)
-    left_seed = _refine_side_pocket_seed(gray, (float(top_mid[0]), float(top_mid[1])), tr - tl)
-    right_seed = _refine_side_pocket_seed(gray, (float(bottom_mid[0]), float(bottom_mid[1])), br - bl)
+    # Side pockets sit on the two long rails (TL–BL and TR–BR), centered on each rail line.
+    left_mid = 0.5 * (tl + bl)
+    right_mid = 0.5 * (tr + br)
+    left_seed = _refine_side_pocket_seed(gray, (float(left_mid[0]), float(left_mid[1])), bl - tl)
+    right_seed = _refine_side_pocket_seed(gray, (float(right_mid[0]), float(right_mid[1])), br - tr)
 
     left_seed = _clip_point_to_image(float(left_seed[0]), float(left_seed[1]), w, h)
     right_seed = _clip_point_to_image(float(right_seed[0]), float(right_seed[1]), w, h)
@@ -750,9 +810,9 @@ def _normalize_side_pockets_to_rails(
     if len(side_points) != 2 or len(corners) != 4:
         return list(side_points)
     h, w = int(shape_hw[0]), int(shape_hw[1])
-    tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(corners))]
-    top_mid = 0.5 * (tl + tr)
-    bottom_mid = 0.5 * (bl + br)
+    tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in corners]
+    left_mid = 0.5 * (tl + bl)
+    right_mid = 0.5 * (tr + br)
 
     def _cost(point_xy: Tuple[float, float], rail_a: np.ndarray, rail_b: np.ndarray, rail_mid: np.ndarray) -> float:
         px, py = float(point_xy[0]), float(point_xy[1])
@@ -763,21 +823,19 @@ def _normalize_side_pockets_to_rails(
     p0 = (float(side_points[0][0]), float(side_points[0][1]))
     p1 = (float(side_points[1][0]), float(side_points[1][1]))
 
-    cost_keep = _cost(p0, tl, tr, top_mid) + _cost(p1, bl, br, bottom_mid)
-    cost_swap = _cost(p1, tl, tr, top_mid) + _cost(p0, bl, br, bottom_mid)
+    cost_keep = _cost(p0, tl, bl, left_mid) + _cost(p1, tr, br, right_mid)
+    cost_swap = _cost(p1, tl, bl, left_mid) + _cost(p0, tr, br, right_mid)
 
     if cost_swap < cost_keep:
-        top_pt, bottom_pt = p1, p0
+        left_pt, right_pt = p1, p0
     else:
-        top_pt, bottom_pt = p0, p1
+        left_pt, right_pt = p0, p1
 
-    # Hard-anchor each point to its correct long rail so side pockets cannot land
-    # on the short end rails.
-    top_xy = _project_point_to_segment(top_pt, tl, tr)
-    bottom_xy = _project_point_to_segment(bottom_pt, bl, br)
-    top_xy = _clip_point_to_image(float(top_xy[0]), float(top_xy[1]), w, h)
-    bottom_xy = _clip_point_to_image(float(bottom_xy[0]), float(bottom_xy[1]), w, h)
-    return [top_xy, bottom_xy]
+    left_xy = _project_point_to_segment(left_pt, tl, bl)
+    right_xy = _project_point_to_segment(right_pt, tr, br)
+    left_xy = _clip_point_to_image(float(left_xy[0]), float(left_xy[1]), w, h)
+    right_xy = _clip_point_to_image(float(right_xy[0]), float(right_xy[1]), w, h)
+    return [left_xy, right_xy]
 
 
 def _project_t_on_segment(point_xy: Tuple[float, float], seg_a: np.ndarray, seg_b: np.ndarray) -> float:
@@ -806,18 +864,18 @@ def _remap_side_pockets_between_corners(
 ) -> List[Tuple[float, float]]:
     if len(old_side_points) != 2 or len(old_corners) != 4 or len(new_corners) != 4:
         return _estimate_side_pockets_from_corners(frame, new_corners)
-    old_tl, old_tr, old_bl, old_br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(old_corners))]
-    new_tl, new_tr, new_bl, new_br = [np.array(p, dtype=np.float64) for p in _order_points_tl_tr_bl_br(list(new_corners))]
+    old_tl, old_tr, old_bl, old_br = [np.array(p, dtype=np.float64) for p in old_corners]
+    new_tl, new_tr, new_bl, new_br = [np.array(p, dtype=np.float64) for p in new_corners]
 
     old_norm = _normalize_side_pockets_to_rails(old_side_points, old_corners, frame.shape[:2])
-    t_left = _project_t_on_segment(old_norm[0], old_tl, old_tr)
-    t_right = _project_t_on_segment(old_norm[1], old_bl, old_br)
+    t_ls = _project_t_on_segment(old_norm[0], old_tl, old_bl)
+    t_rs = _project_t_on_segment(old_norm[1], old_tr, old_br)
 
-    seed_left = new_tl + (t_left * (new_tr - new_tl))
-    seed_right = new_bl + (t_right * (new_br - new_bl))
+    seed_left = new_tl + (t_ls * (new_bl - new_tl))
+    seed_right = new_tr + (t_rs * (new_br - new_tr))
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    left_refined = _refine_side_pocket_seed(gray, (float(seed_left[0]), float(seed_left[1])), new_tr - new_tl)
-    right_refined = _refine_side_pocket_seed(gray, (float(seed_right[0]), float(seed_right[1])), new_br - new_bl)
+    left_refined = _refine_side_pocket_seed(gray, (float(seed_left[0]), float(seed_left[1])), new_bl - new_tl)
+    right_refined = _refine_side_pocket_seed(gray, (float(seed_right[0]), float(seed_right[1])), new_br - new_tr)
     return _normalize_side_pockets_to_rails([left_refined, right_refined], new_corners, frame.shape[:2])
 
 def _order_points_tl_tr_bl_br(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
@@ -832,6 +890,66 @@ def _order_points_tl_tr_bl_br(points: List[Tuple[float, float]]) -> List[Tuple[f
     bl = pts[np.argmin(diff)]
     ordered = [tl, tr, bl, br]
     return [(float(p[0]), float(p[1])) for p in ordered]
+
+
+def _order_physical_table_corners(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    """
+    Order four detected corners as physical TL, TR, BL, BR.
+
+    TL and TR share the head short rail (kitchen / rack). BL and BR share the foot short rail.
+    Assumes the camera sees the kitchen toward smaller image Y (typical overhead / foot view).
+    """
+    pts = np.array(points, dtype=np.float64)
+    if pts.shape[0] != 4:
+        raise ValueError("Need exactly 4 corners.")
+    c = pts.mean(axis=0)
+    angles = np.arctan2(pts[:, 1] - c[1], pts[:, 0] - c[0])
+    order = np.argsort(angles)
+    p = pts[order]
+    p0, p1, p2, p3 = p[0], p[1], p[2], p[3]
+
+    def dist(a: np.ndarray, b: np.ndarray) -> float:
+        return float(np.linalg.norm(a - b))
+
+    len01 = dist(p0, p1)
+    len12 = dist(p1, p2)
+    len23 = dist(p2, p3)
+    len30 = dist(p3, p0)
+    sum_a = len01 + len23
+    sum_b = len12 + len30
+
+    def mid(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+        return 0.5 * (a + b)
+
+    if sum_a <= sum_b:
+        if mid(p0, p1)[1] <= mid(p2, p3)[1]:
+            head_a, head_b = p0, p1
+            foot_a, foot_b = p2, p3
+        else:
+            head_a, head_b = p2, p3
+            foot_a, foot_b = p0, p1
+    else:
+        if mid(p1, p2)[1] <= mid(p3, p0)[1]:
+            head_a, head_b = p1, p2
+            foot_a, foot_b = p3, p0
+        else:
+            head_a, head_b = p3, p0
+            foot_a, foot_b = p1, p2
+
+    if float(head_a[0]) <= float(head_b[0]):
+        tl, tr = head_a, head_b
+    else:
+        tl, tr = head_b, head_a
+    if float(foot_a[0]) <= float(foot_b[0]):
+        bl, br = foot_a, foot_b
+    else:
+        bl, br = foot_b, foot_a
+    return [
+        (float(tl[0]), float(tl[1])),
+        (float(tr[0]), float(tr[1])),
+        (float(bl[0]), float(bl[1])),
+        (float(br[0]), float(br[1])),
+    ]
 
 
 def _manual_calibration_payload(
@@ -849,15 +967,18 @@ def _manual_calibration_payload(
         ls_m = (float(q[0, 0]), float(q[1, 0]))
         rs_m = (float(q[0, 1]), float(q[1, 1]))
     else:
-        ls_m = (0.0, table_width_m * 0.5)
-        rs_m = (table_length_m, table_width_m * 0.5)
+        ls_m = (0.5 * table_length_m, 0.0)
+        rs_m = (0.5 * table_length_m, table_width_m)
+    L = float(table_length_m)
+    W = float(table_width_m)
+    kx = float(L * 0.25)
     return {
         "H": [[float(v) for v in row] for row in h.tolist()],
         "pockets": [
             {"label": "top_left_corner", "center_xy_m": [0.0, 0.0], "radius_m": pocket_radius_m},
-            {"label": "top_right_corner", "center_xy_m": [table_length_m, 0.0], "radius_m": pocket_radius_m},
-            {"label": "bottom_left_corner", "center_xy_m": [0.0, table_width_m], "radius_m": pocket_radius_m},
-            {"label": "bottom_right_corner", "center_xy_m": [table_length_m, table_width_m], "radius_m": pocket_radius_m},
+            {"label": "top_right_corner", "center_xy_m": [0.0, W], "radius_m": pocket_radius_m},
+            {"label": "bottom_left_corner", "center_xy_m": [L, 0.0], "radius_m": pocket_radius_m},
+            {"label": "bottom_right_corner", "center_xy_m": [L, W], "radius_m": pocket_radius_m},
             {"label": "left_side_pocket", "center_xy_m": [ls_m[0], ls_m[1]], "radius_m": pocket_radius_m},
             {"label": "right_side_pocket", "center_xy_m": [rs_m[0], rs_m[1]], "radius_m": pocket_radius_m},
         ],
@@ -865,15 +986,15 @@ def _manual_calibration_payload(
         "table_width_m": table_width_m,
         "kitchen_polygon_xy_m": [
             [0.0, 0.0],
-            [table_length_m * 0.25, 0.0],
-            [table_length_m * 0.25, table_width_m],
-            [0.0, table_width_m],
+            [kx, 0.0],
+            [kx, W],
+            [0.0, W],
         ],
         "break_area_polygon_xy_m": [
-            [table_length_m * 0.5, 0.0],
-            [table_length_m, 0.0],
-            [table_length_m, table_width_m],
-            [table_length_m * 0.5, table_width_m],
+            [L * 0.5, 0.0],
+            [L, 0.0],
+            [L, W],
+            [L * 0.5, W],
         ],
     }
 
@@ -884,15 +1005,7 @@ def main() -> None:
     detected_default_table_size = _detected_default_table_size(out_path)
     selected_table_size = _detected_default_table_size(out_path)
     selected_units = str(args.units)
-    camera_status = ""
     live_capture: Optional[cv2.VideoCapture] = None
-    camera_source_label = str(args.camera)
-    if str(args.camera).strip().lower() == "csi":
-        camera_source_label = f"CSI sensor {int(args.csi_sensor_id)}"
-    elif str(args.camera).strip().lower() == "usb":
-        camera_source_label = f"USB camera {int(args.usb_index)}"
-    elif str(args.camera).strip().isdigit():
-        camera_source_label = f"USB camera {int(str(args.camera).strip())}"
     # Backward compatibility for direct invocation snippets on Nano:
     # newer script expects --csi-flip-method, older snippets may pass --flip.
     # argparse already aliases --flip, so nothing else is needed besides keeping
@@ -901,7 +1014,6 @@ def main() -> None:
         img = cv2.imread(str(args.frame))
         if img is None:
             raise RuntimeError(f"Failed to read frame image: {args.frame}")
-        camera_status = "Frame mode: live camera disabled."
     else:
         live_capture = _open_capture_for_source(
             camera=str(args.camera),
@@ -913,7 +1025,6 @@ def main() -> None:
             flip_method=int(args.csi_flip_method),
         )
         img = _read_frame_from_capture(live_capture)
-        camera_status = f"Active camera: {camera_source_label}"
 
     win = "calib-click"
     auto_corner_status = "AUTO corners loaded from frame contour."
@@ -1047,8 +1158,8 @@ def main() -> None:
 
     def _current_view_step() -> Dict[str, float]:
         if view_step_mode == "coarse":
-            return {"zoom_delta": 3.0, "rotate_deg": 4.0, "pan_frac_x": 0.08, "pan_frac_y": 0.08}
-        return {"zoom_delta": 1.0, "rotate_deg": 1.0, "pan_frac_x": 0.025, "pan_frac_y": 0.025}
+            return {"zoom_delta": 3.0, "rotate_deg": 2.0, "pan_frac_x": 0.03, "pan_frac_y": 0.03}
+        return {"zoom_delta": 1.0, "rotate_deg": 0.5, "pan_frac_x": 0.01, "pan_frac_y": 0.01}
 
     def _clamp_pan_center() -> None:
         nonlocal pan_center_src_x, pan_center_src_y
@@ -1255,35 +1366,43 @@ def main() -> None:
             view_left + (2 * button_w) + 6,
             zoom_y + button_h // 2,
         )
-        rot_y = zoom_y + 26
+        pan_gap = 5
+        pan_cx = view_left + (2 * button_w) + 6 + 14 + pan_size // 2
+        pan_cy = zoom_y
+        pan_up_rect = (
+            pan_cx - pan_size // 2,
+            pan_cy - (2 * pan_size) - pan_gap,
+            pan_cx + pan_size // 2,
+            pan_cy - pan_size - pan_gap,
+        )
+        pan_down_rect = (
+            pan_cx - pan_size // 2,
+            pan_cy + pan_gap,
+            pan_cx + pan_size // 2,
+            pan_cy + pan_size + pan_gap,
+        )
+        pan_left_rect = (
+            pan_cx - (2 * pan_size) - pan_gap,
+            pan_cy - pan_size // 2,
+            pan_cx - pan_gap,
+            pan_cy + pan_size // 2,
+        )
+        pan_right_rect = (
+            pan_cx + pan_gap,
+            pan_cy - pan_size // 2,
+            pan_cx + pan_size + pan_gap,
+            pan_cy + pan_size // 2,
+        )
+        rot_y = pan_cy + pan_size + pan_gap + 30
         rot_minus_rect = (view_left, rot_y - button_h // 2, view_left + 58, rot_y + button_h // 2)
         rot_plus_rect = (view_left + 64, rot_y - button_h // 2, view_left + 122, rot_y + button_h // 2)
         rot90_y = rot_y + 24
         rotate_90_ccw_rect = (view_left, rot90_y - button_h // 2, view_left + 58, rot90_y + button_h // 2)
         rotate_90_cw_rect = (view_left + 64, rot90_y - button_h // 2, view_left + 122, rot90_y + button_h // 2)
-        pan_origin_y = rot90_y + 18
-        pan_up_rect = (view_left + 34, pan_origin_y, view_left + 34 + pan_size, pan_origin_y + pan_size)
-        pan_left_rect = (
-            view_left + 10,
-            pan_origin_y + 24,
-            view_left + 10 + pan_size,
-            pan_origin_y + 24 + pan_size,
-        )
-        pan_right_rect = (
-            view_left + 58,
-            pan_origin_y + 24,
-            view_left + 58 + pan_size,
-            pan_origin_y + 24 + pan_size,
-        )
-        pan_down_rect = (
-            view_left + 34,
-            pan_origin_y + 48,
-            view_left + 34 + pan_size,
-            pan_origin_y + 48 + pan_size,
-        )
-        step_fine_center = (view_left, pan_origin_y + 82)
-        step_coarse_center = (view_left + 112, pan_origin_y + 82)
-        reset_rect = (view_left, pan_origin_y + 98, view_left + 138, pan_origin_y + 122)
+        pan_block_bottom = max(pan_down_rect[3], zoom_y + button_h // 2)
+        step_fine_center = (view_left, pan_block_bottom + 36)
+        step_coarse_center = (view_left + 112, pan_block_bottom + 36)
+        reset_rect = (view_left, pan_block_bottom + 52, view_left + 138, pan_block_bottom + 76)
         return {
             "flip_h_center": flip_h_center,
             "flip_v_center": flip_v_center,
@@ -1359,7 +1478,7 @@ def main() -> None:
         return x1 <= x <= x2 and y1 <= y <= y2
 
     def _refresh_live_frame() -> bool:
-        nonlocal img, live_capture, camera_status
+        nonlocal img, live_capture
         if args.frame:
             return False
         if live_capture is None:
@@ -1373,8 +1492,7 @@ def main() -> None:
                     framerate=int(args.csi_framerate),
                     flip_method=int(args.csi_flip_method),
                 )
-            except Exception as exc:
-                camera_status = f"Camera reconnect failed: {exc}"
+            except Exception:
                 return False
         frame: Optional[np.ndarray] = None
         for _attempt in range(3):
@@ -1397,16 +1515,13 @@ def main() -> None:
                         framerate=int(args.csi_framerate),
                         flip_method=int(args.csi_flip_method),
                     )
-                except Exception as exc:
-                    camera_status = f"Camera reconnect failed: {exc}"
+                except Exception:
                     return False
         if frame is None:
-            camera_status = f"Live frame read failed: {camera_source_label}"
             return False
         if frame.shape[:2] != (h_img, w_img):
             frame = cv2.resize(frame, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
         img = frame
-        camera_status = f"Active camera: {camera_source_label}"
         return True
 
     def redraw() -> None:
@@ -1583,10 +1698,11 @@ def main() -> None:
 
         _draw_button(view, controls["zoom_minus_rect"], "-")
         _draw_button(view, controls["zoom_plus_rect"], "+")
+        _zm = controls["zoom_minus_rect"]
         cv2.putText(
             view,
             f"Zoom: {_current_zoom():.2f}x",
-            (view_left + 76, int(flip_v_center[1]) + row_spacing + 12),
+            (view_left, int(_zm[3] + 14)),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.52,
             (255, 255, 255),
@@ -1615,7 +1731,7 @@ def main() -> None:
         cv2.putText(
             view,
             "Pan",
-            (view_left + 92, controls["pan_down_rect"][3] - 2),
+            (controls["pan_right_rect"][2] + 8, controls["pan_right_rect"][1] + 12),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.48,
             (255, 255, 255),
@@ -1664,7 +1780,7 @@ def main() -> None:
         _draw_button(view, controls["reset_rect"], "Reset view")
         cv2.putText(
             view,
-            f"Edit: {'outside corners' if mode == 'corners' else 'side pockets'} | LS rail (top), RS rail (bottom)",
+            f"Edit: {'outside corners' if mode == 'corners' else 'side pockets'} | LS=left long rail, RS=right long (midpoint)",
             (view_left, panel_top + panel_h - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.42,
@@ -1852,9 +1968,10 @@ def main() -> None:
             active_point_idx = None
 
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty(win, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     cv2.setMouseCallback(win, on_mouse)
     redraw()
+    cv2.imshow(win, view)
+    _apply_fullscreen_window(win)
 
     while True:
         _refresh_live_frame()

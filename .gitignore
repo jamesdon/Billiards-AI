@@ -24,6 +24,11 @@ htmlcov/
 *.swp
 .DS_Store
 
+# Phase scripts / local calibration outputs
+.phase2_*.log
+calibration.json
+calibration_invalid.json
+
 # Local runtime / large artifacts (adjust if you need to version samples)
 *.onnx
 *.engine

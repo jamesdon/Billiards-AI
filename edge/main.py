@@ -89,9 +89,9 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help=(
-            "Required with --auto-calib-out. Four OUTSIDE table corners TL,TR,BL,BR "
-            "(playfield cushion intersections) as 'x1,y1;x2,y2;x3,y3;x4,y4'; "
-            "do not use pocket centers"
+            "Required with --auto-calib-out. Four OUTSIDE cushion corners in order "
+            "TL;TR;BL;BR: TL/TR share the head (kitchen) short rail, BL/BR the foot short rail, "
+            "as 'x1,y1;x2,y2;x3,y3;x4,y4'. Do not use pocket centers."
         ),
     )
     ap.add_argument(

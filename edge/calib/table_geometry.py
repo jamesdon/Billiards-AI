@@ -28,13 +28,16 @@ def _estimate_homography(
     table_width_m: float,
 ) -> np.ndarray:
     src = np.array(image_points, dtype=np.float64)
-    # Expected order: TL, TR, BL, BR.
+    # Expected order: TL, TR, BL, BR (physical table, not image top-left).
+    # X runs head (kitchen / rack short rail) toward foot; Y runs along the head rail from TL to TR.
+    L = float(table_length_m)
+    W = float(table_width_m)
     dst = np.array(
         [
-            [0.0, 0.0],
-            [table_length_m, 0.0],
-            [0.0, table_width_m],
-            [table_length_m, table_width_m],
+            [0.0, 0.0],  # TL: head + left long rail
+            [0.0, W],  # TR: head + right long rail (same short rail as TL)
+            [L, 0.0],  # BL: foot + left
+            [L, W],  # BR: foot + right (same short rail as BL; behind break line from kitchen)
         ],
         dtype=np.float64,
     )
@@ -51,21 +54,22 @@ def _estimate_homography(
 
 
 def _default_pockets(table_length_m: float, table_width_m: float, radius_m: float) -> List[PocketDef]:
+    L = float(table_length_m)
+    W = float(table_width_m)
     return [
         PocketDef(PocketLabel.TOP_LEFT_CORNER, (0.0, 0.0), radius_m),
-        PocketDef(PocketLabel.TOP_RIGHT_CORNER, (table_length_m, 0.0), radius_m),
-        PocketDef(PocketLabel.BOTTOM_LEFT_CORNER, (0.0, table_width_m), radius_m),
-        PocketDef(PocketLabel.BOTTOM_RIGHT_CORNER, (table_length_m, table_width_m), radius_m),
-        PocketDef(PocketLabel.LEFT_SIDE_POCKET, (0.0, table_width_m * 0.5), radius_m),
-        PocketDef(PocketLabel.RIGHT_SIDE_POCKET, (table_length_m, table_width_m * 0.5), radius_m),
+        PocketDef(PocketLabel.TOP_RIGHT_CORNER, (0.0, W), radius_m),
+        PocketDef(PocketLabel.BOTTOM_LEFT_CORNER, (L, 0.0), radius_m),
+        PocketDef(PocketLabel.BOTTOM_RIGHT_CORNER, (L, W), radius_m),
+        PocketDef(PocketLabel.LEFT_SIDE_POCKET, (0.5 * L, 0.0), radius_m),
+        PocketDef(PocketLabel.RIGHT_SIDE_POCKET, (0.5 * L, W), radius_m),
     ]
 
 
 def _geometry(table_length_m: float, table_width_m: float, pocket_radius_m: float) -> TableGeometry:
-    # Break line is roughly 1/4 table length from the head string side.
+    # X=0 is the head short rail (kitchen / rack). Break line is ~1/4 table length toward the foot.
     break_line_x_m = table_length_m * 0.25
     break_box_x_m = table_length_m * 0.5
-    # Kitchen is the quarter-table nearest the breaking side in this coordinate convention.
     kitchen_line_x_m = break_line_x_m
     kitchen_polygon = [
         (0.0, 0.0),
@@ -93,11 +97,11 @@ def auto_calibration_from_corners(
     """
     Build a calibration artifact and table geometry from 4 table corners.
 
-    Corner order must be:
-      1) top-left
-      2) top-right
-      3) bottom-left
-      4) bottom-right
+    Corner order must be physical (not image top-left):
+      1) TL — head rail, left long-rail corner (kitchen side)
+      2) TR — head rail, right long-rail corner (same short rail as TL)
+      3) BL — foot rail, left long-rail corner
+      4) BR — foot rail, right long-rail corner (same short rail as BL)
     """
     if len(image_points) != 4:
         raise ValueError("image_points must contain exactly 4 corners (TL, TR, BL, BR).")

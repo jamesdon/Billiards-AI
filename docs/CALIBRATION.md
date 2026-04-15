@@ -43,12 +43,14 @@ python -m edge.main \
   --table-corners-px "120,80;1160,80;120,640;1160,640"
 ```
 
-Corner order for `--table-corners-px` is strictly:
+Corner order for `--table-corners-px` is strictly **physical** (not “image top-left”):
 
-1. top-left
-2. top-right
-3. bottom-left
-4. bottom-right
+1. **TL** — head short rail (kitchen / rack side), left long-rail corner  
+2. **TR** — same head short rail, right long-rail corner  
+3. **BL** — foot short rail (behind the break line from the kitchen), left long-rail corner  
+4. **BR** — same foot short rail, right long-rail corner  
+
+Table coordinates use **X** from head toward foot and **Y** along the head rail from TL to TR, so corner pockets are **(0,0), (0,W), (L,0), (L,W)** and side pockets sit at **mid-span on each long rail**: **(L/2,0)** and **(L/2,W)**.
 
 These points are the **outside corners of the playable table rectangle**
 (the cushion intersection corners), **not** the centers of pockets.
@@ -117,7 +119,8 @@ In-window workflow (new default):
   - zoom in / zoom out
   - rotate left / rotate right
   - pan up / left / right / down
-  - fine/coarse radio selector for zoom/rotate/pan increment size (defaults to `fine`)
+  - fine/coarse radio selector for zoom/rotate/pan increment size (defaults to `fine`:
+    **fine** = 0.5° rotation and 1% pan; **coarse** = 2° and 3% pan)
   - reset view
   - these are view-only transforms for easier editing after camera moves; saved
     calibration points remain in source image coordinates.
@@ -130,10 +133,10 @@ In-window workflow (new default):
 - Edit modes:
   - outside corners mode (`TL/TR/BL/BR`)
   - side pockets mode (`LS/RS`)
-  - in side-pocket mode, both `LS` and `RS` are fully draggable/manual points (not locked)
-  - side-pocket seeds are auto-proposed from table side midpoints and then locally
-    refined with dark-blob scoring (darkness + blackhat contrast + contour shape)
-    toward the actual pocket mouths; drag to finalize.
+  - in side-pocket mode, both `LS` and `RS` are draggable; they are **anchored to the
+    center line of each long rail** (TL–BL and TR–BR) after auto-seeding
+  - side-pocket seeds use dark circular pocket mouths (threshold + morphology +
+    optional Hough circles), then snap to the long-rail segment; drag to adjust
 - Table-size is selected in-window via radio list:
   - click radio circles or press keys `1..5`
   - options: `6ft (bar box)`, `7ft`, `8ft`, `9ft`, `snooker`
@@ -145,13 +148,12 @@ In-window workflow (new default):
 
 ### What TL/TR/BL/BR means
 
-These points are the **outside corners of the table play area**
-(the cushion intersection points of the playable rectangle), in this strict order:
+These are the **outside cushion corners** of the playfield, in **physical** order (not “image top-left”):
 
-1. `TL`: top-left outside corner
-2. `TR`: top-right outside corner
-3. `BL`: bottom-left outside corner
-4. `BR`: bottom-right outside corner
+1. `TL` / `TR` — the two corners on the **head short rail** (kitchen / rack side)
+2. `BL` / `BR` — the two corners on the **foot short rail** (opposite the kitchen; behind the break line from the kitchen)
+
+Within each short rail, `L` / `R` follow **left** vs **right** as seen from above the table (smaller image **x** = `L` when the table is not flipped).
 
 They are **not** pocket centers.
 

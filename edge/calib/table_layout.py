@@ -62,8 +62,9 @@ def infer_table_size_from_pockets(pockets: List[PocketDef]) -> Tuple[float, floa
         bl = by_label[PocketLabel.BOTTOM_LEFT_CORNER].center_xy_m
     except KeyError:
         return 2.84, 1.42
-    length = abs(float(tr[0]) - float(tl[0]))
-    width = abs(float(bl[1]) - float(tl[1]))
+    # X is head-to-foot; Y is along the head rail (TL–TR).
+    length = abs(float(bl[0]) - float(tl[0]))
+    width = abs(float(tr[1]) - float(tl[1]))
     if length <= 0.0 or width <= 0.0:
         return 2.84, 1.42
     return length, width
