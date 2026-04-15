@@ -1,25 +1,62 @@
 # Jetson Nano: train YOLO on-device, then run tests (Billiards-AI)
 
-## Copy-paste usage (read once)
+## Why “nothing happened” when you pasted from this file
 
-Use **bash** on the Jetson (desktop terminal or SSH). Each block below is one **copy-paste** unit: select the whole fenced block, paste, Enter.
+Markdown **code fences** are the lines that look like three backticks (often shown as ` ```bash ` at the start and ` ``` ` at the end). **Those backtick lines are not shell commands.** If you paste them into the terminal, bash does not run `git pull` or `pip`.
 
-**`$USER` is a normal environment variable** (your login name). These commands use **double quotes** so the shell expands `/home/$USER/...` when the line runs. **You do not type your username instead of `$USER`**—leave it exactly as shown.
-
-Do **not** paste into `sh` or `fish` unless you know how to translate; use `bash`.
+**Use one of the two options below** (A is recommended).
 
 ---
 
-## Paths (reference only)
+## Option A (recommended): one line per step, no Markdown fences
 
-| Wrong | Correct in bash (paste as-is) |
-|-------|----------------------------------|
-| macOS paths under `/Users/...` | `"/home/$USER/Billiards-AI/..."` |
-| A `billiards-data.yaml` whose `path:` line literally contains the characters `$USER` | Run the bootstrap block below; it writes a real absolute path. |
+Open **bash** on the Jetson. `cd` into your clone (default layout: `~/Billiards-AI`). Each line below is a **full command**—copy the line only (no backticks from Markdown, no ` ```bash ` line).
+
+If your repo lives somewhere else, set `PROJECT_ROOT` first, e.g. `export PROJECT_ROOT=/home/jdonn/Billiards-AI` (scripts read this via `scripts/common.sh`).
+
+1. **Environment + pip installs**
+
+   `cd ~/Billiards-AI && bash scripts/jetson_train_env.sh`
+
+2. **Dataset dirs + `billiards-data.yaml`**
+
+   `cd ~/Billiards-AI && bash scripts/jetson_prepare_yolo_dataset.sh`
+
+3. **Train** (after you have images/labels under `data/datasets/billiards/`)
+
+   `cd ~/Billiards-AI && bash scripts/jetson_yolo_train.sh`
+
+   Shorter run (example): `cd ~/Billiards-AI && YOLO_EPOCHS=10 YOLO_BATCH=2 bash scripts/jetson_yolo_train.sh`
+
+4. **Export latest checkpoint to `models/model.onnx`**
+
+   `cd ~/Billiards-AI && bash scripts/jetson_yolo_export_latest.sh`
+
+5. **Pytest**
+
+   `cd ~/Billiards-AI && bash scripts/jetson_pytest.sh`
+
+6. **Phases 1 and 3**
+
+   `cd ~/Billiards-AI && bash scripts/jetson_phases_1_3.sh`
+
+7. **Edge CSI smoke** (runs until Ctrl+C)
+
+   `cd ~/Billiards-AI && bash scripts/jetson_edge_smoke_csi.sh`
+
+   Optional: `CALIB_PATH=/path/to/calibration.json bash scripts/jetson_edge_smoke_csi.sh` from repo root.
+
+Scripts use `PROJECT_ROOT` (default `/home/$USER/Billiards-AI` in `common.sh`). `~/Billiards-AI` is the same directory when your clone is under your home.
 
 ---
 
-## Block 1 — Repo, venv, training dependencies
+## Option B: paste multi-line shell (advanced)
+
+Only copy lines **between** the fences—**never** copy a line that is only three backticks. If your viewer selects the fences, delete them before Enter.
+
+The blocks below are identical to what the `scripts/jetson_*.sh` files run; use Option A unless you are debugging.
+
+### Block 1 (same as `jetson_train_env.sh`)
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -32,15 +69,7 @@ python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
 python -m pip install -r "/home/$USER/Billiards-AI/requirements-train.txt"
 ```
 
-If NumPy/matplotlib was broken earlier, run Block 1 again (same paste).
-
-Torch: if `python -c "import torch"` fails, install Jetson PyTorch from NVIDIA for your JetPack, then run the two `pip install -r ...` lines again.
-
-CUDA “driver too old” with pip `torch+cu*`: training falls back to **CPU** until you use a Jetson-built wheel—that is OK for small runs. Prefer `batch=4`, `workers=2` or lower on Nano.
-
----
-
-## Block 2 — Dataset directories and `billiards-data.yaml` (required before `yolo train`)
+### Block 2 (same as `jetson_prepare_yolo_dataset.sh`)
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -51,13 +80,7 @@ PROJECT_ROOT="/home/$USER/Billiards-AI" "/home/$USER/Billiards-AI/scripts/bootst
 /usr/bin/grep '^path:' "/home/$USER/Billiards-AI/data/datasets/billiards/billiards-data.yaml"
 ```
 
-The `grep` line must print **one** `path:` line whose value is `/home/` + your username + `/Billiards-AI/data/datasets/billiards`. It must **not** show the four characters `$` `U` `S` `E` `R` inside that file.
-
-Then add your images and YOLO `.txt` labels under `data/datasets/billiards/images/{train,val}` and `data/datasets/billiards/labels/{train,val}` (class ids `0`–`3` matching `models/class_map.json`). You need samples in **both** train and val before training.
-
----
-
-## Block 3 — Train (Jetson-friendly)
+### Block 3 (same as `jetson_yolo_train.sh`)
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -65,7 +88,7 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
 export PYTHONNOUSERSITE=1
 yolo detect train \
   data="/home/$USER/Billiards-AI/data/datasets/billiards/billiards-data.yaml" \
-  model="/home/$USER/Billiards-AI/yolov8n.pt" \
+  model="yolov8n.pt" \
   imgsz=640 \
   epochs=30 \
   batch=4 \
@@ -73,71 +96,32 @@ yolo detect train \
   project="/home/$USER/Billiards-AI/runs/detect"
 ```
 
----
-
-## Block 4 — Export latest run to `models/model.onnx` (no manual `train3` name)
+### Block 4 (same as `jetson_yolo_export_latest.sh`)
 
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 export PYTHONNOUSERSITE=1
 LATEST_PT="$(ls -t "/home/$USER/Billiards-AI/runs/detect/"*/weights/best.pt 2>/dev/null | head -1)"
-if [[ -z "${LATEST_PT}" ]]; then echo "No runs found under runs/detect/*/weights/best.pt — run Block 3 first."; exit 1; fi
+if [[ -z "${LATEST_PT}" ]]; then echo "No training run found."; exit 1; fi
 echo "Using: ${LATEST_PT}"
 yolo export model="${LATEST_PT}" format=onnx imgsz=640
 WEIGHTS_DIR="$(dirname "${LATEST_PT}")"
 ONNX_OUT="${WEIGHTS_DIR}/best.onnx"
-if [[ ! -f "${ONNX_OUT}" ]]; then echo "Missing ${ONNX_OUT} after export"; exit 1; fi
+test -f "${ONNX_OUT}"
 mkdir -p "/home/$USER/Billiards-AI/models"
 cp "${ONNX_OUT}" "/home/$USER/Billiards-AI/models/model.onnx"
 ls -lh "/home/$USER/Billiards-AI/models/model.onnx" "/home/$USER/Billiards-AI/models/class_map.json"
 ```
 
----
+### Block 5–7
 
-## Block 5 — Pytest
-
-```bash
-cd "/home/$USER/Billiards-AI"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-export PYTHONNOUSERSITE=1
-python -m pytest "/home/$USER/Billiards-AI/tests" -q --tb=short
-```
+Use `jetson_pytest.sh`, `jetson_phases_1_3.sh`, and `jetson_edge_smoke_csi.sh` (Option A) instead of duplicating long blocks here.
 
 ---
 
-## Block 6 — Phase scripts (env + examples)
+## Notes
 
-```bash
-export PROJECT_ROOT="/home/$USER/Billiards-AI"
-export MODEL_PATH="/home/$USER/Billiards-AI/models/model.onnx"
-export CLASS_MAP_PATH="/home/$USER/Billiards-AI/models/class_map.json"
-"/home/$USER/Billiards-AI/scripts/run_phase.sh" 1
-"/home/$USER/Billiards-AI/scripts/run_phase.sh" 3
-```
-
----
-
-## Block 7 — Edge smoke (CSI)
-
-```bash
-cd "/home/$USER/Billiards-AI"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-export PYTHONNOUSERSITE=1
-python -m edge.main \
-  --camera csi \
-  --csi-sensor-id 0 \
-  --onnx-model "/home/$USER/Billiards-AI/models/model.onnx" \
-  --class-map "/home/$USER/Billiards-AI/models/class_map.json" \
-  --calib "/home/$USER/Billiards-AI/calibration.json" \
-  --detect-every-n 2 \
-  --mjpeg-port 8080
-```
-
-`--calib` should match where calibration was saved (often `"/home/$USER/Billiards-AI/calibration.json"` from `scripts/start_calibration.sh`).
-
----
-
-## Optional: stray `class_map.json` in repo root
-
-Prefer `models/class_map.json` only. If an old file exists at `"/home/$USER/Billiards-AI/class_map.json"`, remove it after you no longer need it.
+- **`$USER` inside double-quoted paths** (Option B only): the shell expands it; do not type your username over `$USER`.
+- **CUDA “driver too old”** with pip `torch+cu*`: CPU training still works; reduce `YOLO_BATCH` / `YOLO_EPOCHS` via env when calling `jetson_yolo_train.sh`.
+- **Stray `class_map.json` in repo root**: use `models/class_map.json` only.
