@@ -101,16 +101,10 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   capture stream so pan/zoom/rotate adjustments match current table state.
 - **Table size** uses an on-screen radio list only (no CLI table-size selection).
 - **Units** use an on-screen radio toggle (`imperial` default, `metric` optional).
-- **Side pocket mapping** is integrated in the same editor:
-  - press `m` to toggle between outside-corner editing and side-pocket editing
-  - in side-pocket mode, set/drag exactly two points: `LS` and `RS` on the **long**
-    rails (auto-snapped to the midpoint of each rail line; drag to adjust)
-  - manual LS/RS dragging remains enabled; points are only rail-normalized on
-    save/camera-switch/reseed and are no longer clamped every drag frame
-  - side-pocket seeds are now auto-initialized from dark-rail analysis near
-    mid-rails using dark-blob + blackhat contour scoring for significantly
-    better first placement
-  - if no manual side-pocket points are set, defaults are used automatically
+- **Side pockets** are not edited in the GUI anymore (they drifted on some setups).
+  Saved `calibration.json` still includes `left_side_pocket` / `right_side_pocket`
+  entries: positions are taken from the homography defaults (mid long-rails) when
+  you save, or from `edge.calib` auto-calibration when that path succeeds.
 
 Table size menu options include:
 
@@ -155,11 +149,6 @@ The helper asks you to click corners in order:
 These four points are the **outside corners of the table playing surface**
 (outside cushion/corner intersections), **not pocket centers**.
 
-Side pocket controls:
-
-- `m`: toggle side pocket mode (`outside corners` / `side pockets`)
-- In side-pocket mode, set/drag exactly two points: `LS` then `RS`
-
 View controls (keyboard):
 
 - `h`: toggle horizontal flip for the preview
@@ -178,8 +167,7 @@ This writes:
 - `table_length_m`, `table_width_m`
 - `kitchen_polygon_xy_m`
 - `break_area_polygon_xy_m`
-- standard `pockets`
-- optional `side_pocket_points_px` when manual side pocket mode is used
+- standard `pockets` (corner + side pockets; side pocket meters from defaults or edge auto-calib)
 
 ## 1) Validate pocket labels in calibration JSON
 

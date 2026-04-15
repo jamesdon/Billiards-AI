@@ -39,7 +39,6 @@ TABLE_PRESETS_M: dict[str, tuple[float, float]] = {
 TABLE_MENU: list[str] = ["6ft", "7ft", "8ft", "9ft", "snooker"]
 UNIT_MENU: list[str] = ["imperial", "metric"]
 CORNER_LABELS: list[str] = ["TL", "TR", "BL", "BR"]
-SIDE_POCKET_LABELS: list[str] = ["LS", "RS"]
 
 _JETSON_CSI_HINT = (
     "Jetson CSI / Argus (nvarguscamerasrc) often prints 'Failed to create CaptureSession' when no frame arrives.\n"
@@ -256,7 +255,20 @@ def _read_frame_from_capture(cap: cv2.VideoCapture, *, camera_mode: Optional[str
         if camera_mode is not None and str(camera_mode).strip().lower() == "csi":
             msg += "\n\n" + _JETSON_CSI_HINT
         raise RuntimeError(msg)
-    return frame
+    return np.ascontiguousarray(frame)
+
+
+def _read_preview_frame(cap: cv2.VideoCapture, *, camera_mode: Optional[str] = None) -> np.ndarray:
+    """One GUI tick: decode fresh frames; copy so GStreamer/OpenCV buffer reuse cannot freeze the table view."""
+    ok, a = cap.read()
+    if not ok or a is None:
+        msg = "Failed to capture frame from camera."
+        if camera_mode is not None and str(camera_mode).strip().lower() == "csi":
+            msg += "\n\n" + _JETSON_CSI_HINT
+        raise RuntimeError(msg)
+    ok2, b = cap.read()
+    frame = b if ok2 and b is not None else a
+    return np.ascontiguousarray(frame)
 
 
 def _capture_frame(args: argparse.Namespace) -> np.ndarray:
@@ -1100,12 +1112,8 @@ def main() -> None:
         corner_points = _default_corners(h, w)
         print(f"AUTO corner detect failed ({exc}); using fallback corners.", file=sys.stderr)
     print("Auto corners (TL,TR,BL,BR):", json.dumps(corner_points))
-    side_pocket_points: List[Tuple[float, float]] = _estimate_side_pockets_from_corners(img, corner_points)
-    if len(side_pocket_points) == 2:
-        print("AUTO corners: contour fit + side-pocket seeds OK.", file=sys.stderr)
     active_point_idx: Optional[int] = None
     dragging = False
-    mode = "corners"  # corners or side_pockets
     view = img.copy()
 
     h_img, w_img = img.shape[:2]
@@ -1203,17 +1211,14 @@ def main() -> None:
     pan_center_src_y = 0.5 * float(h_img - 1)
 
     def _active_labels() -> List[str]:
-        return CORNER_LABELS if mode == "corners" else SIDE_POCKET_LABELS
+        return CORNER_LABELS
 
     def _active_points() -> List[Tuple[float, float]]:
-        return corner_points if mode == "corners" else side_pocket_points
+        return corner_points
 
     def _set_active_points(points: List[Tuple[float, float]]) -> None:
-        nonlocal corner_points, side_pocket_points
-        if mode == "corners":
-            corner_points = points
-        else:
-            side_pocket_points = points
+        nonlocal corner_points
+        corner_points = points
 
     def _current_zoom() -> float:
         return float(zoom_levels[zoom_idx])
@@ -1486,14 +1491,6 @@ def main() -> None:
             "reset_rect": reset_rect,
         }
 
-    def _snap_side_pocket_to_rail(idx: int, xy: Tuple[float, float]) -> Tuple[float, float]:
-        if len(corner_points) != 4:
-            return xy
-        tl, tr, bl, br = [np.array(p, dtype=np.float64) for p in corner_points]
-        if idx == 0:
-            return _project_point_to_segment(xy, tl, bl)
-        return _project_point_to_segment(xy, tr, br)
-
     def _find_nearest_point(x_disp: float, y_disp: float) -> Optional[int]:
         pts = _active_points()
         if not pts:
@@ -1571,7 +1568,7 @@ def main() -> None:
         frame: Optional[np.ndarray] = None
         for _attempt in range(3):
             try:
-                frame = _read_frame_from_capture(live_capture, camera_mode=str(args.camera))
+                frame = _read_preview_frame(live_capture, camera_mode=str(args.camera))
                 break
             except Exception:
                 try:
@@ -1621,19 +1618,6 @@ def main() -> None:
                 2,
                 cv2.LINE_AA,
             )
-        for i, (x_src, y_src) in enumerate(side_pocket_points):
-            x, y = _source_to_display(float(x_src), float(y_src))
-            cv2.circle(view, (int(x), int(y)), 6, (255, 200, 0), -1)
-            cv2.putText(
-                view,
-                SIDE_POCKET_LABELS[i],
-                (int(x) + 8, int(y) - 8),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (255, 200, 0),
-                2,
-                cv2.LINE_AA,
-            )
 
         panel_left = layout["panel_left"]
         panel_top = layout["panel_top"]
@@ -1666,7 +1650,7 @@ def main() -> None:
         cv2.line(view, (hx1, hy2), (hx2, hy2), (120, 120, 120), 1)
         cv2.putText(
             view,
-            "Drag panel | Auto corners: r | Side pockets (m) | Enter=save",
+            "Drag panel | Auto corners: r | Live camera (no --frame) | Enter=save",
             (hx1 + 8, hy2 - 7),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.44,
@@ -1855,11 +1839,11 @@ def main() -> None:
         _draw_button(view, controls["reset_rect"], "Reset view")
         cv2.putText(
             view,
-            f"Edit: {'outside corners' if mode == 'corners' else 'side pockets'} | LS=left long rail, RS=right long (midpoint)",
+            "Edit: outside table corners (TL,TR kitchen short rail; BL,BR foot short rail)",
             (view_left, panel_top + panel_h - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.42,
-            (0, 255, 255) if mode == "corners" else (255, 200, 0),
+            (0, 255, 255),
             1,
             cv2.LINE_AA,
         )
@@ -1937,7 +1921,7 @@ def main() -> None:
         nonlocal selected_table_size, selected_units, active_point_idx, dragging
         nonlocal flip_view_h, flip_view_v, view_step_mode
         nonlocal panel_dragging, panel_drag_offset_x, panel_drag_offset_y
-        nonlocal panel_left_override, panel_top_override, side_pocket_points, panel_collapsed
+        nonlocal panel_left_override, panel_top_override, panel_collapsed
         if event == cv2.EVENT_LBUTTONDBLCLK:
             if _hit_panel_drag_handle(x, y):
                 panel_collapsed = not panel_collapsed
@@ -2014,8 +1998,6 @@ def main() -> None:
             labels = _active_labels()
             if len(pts) < len(labels):
                 src_x, src_y = _display_to_source(float(x), float(y))
-                if mode == "side_pockets":
-                    src_x, src_y = _snap_side_pocket_to_rail(len(pts), (src_x, src_y))
                 pts.append((src_x, src_y))
                 _set_active_points(pts)
                 redraw()
@@ -2036,8 +2018,6 @@ def main() -> None:
                 pts = _active_points()
                 if 0 <= active_point_idx < len(pts):
                     src_x, src_y = _display_to_source(float(x), float(y))
-                    if mode == "side_pockets":
-                        src_x, src_y = _snap_side_pocket_to_rail(active_point_idx, (src_x, src_y))
                     pts[active_point_idx] = (src_x, src_y)
                     _set_active_points(pts)
                     redraw()
@@ -2065,14 +2045,7 @@ def main() -> None:
             raise SystemExit(1)
         if key in (ord("r"), ord("a")):
             corner_points = _estimate_outside_corners(img)
-            side_pocket_points = _estimate_side_pockets_from_corners(img, corner_points)
-            if len(side_pocket_points) == 2:
-                print("AUTO corners reloaded + side-pocket seeds refreshed.", file=sys.stderr)
-            else:
-                print("AUTO corners reloaded from frame contour.", file=sys.stderr)
-            redraw()
-        if key in (ord("m"),):
-            mode = "side_pockets" if mode == "corners" else "corners"
+            print("AUTO corners reloaded from current frame.", file=sys.stderr)
             redraw()
         if key in (ord("u"),):
             pts = _active_points()
@@ -2146,9 +2119,6 @@ def main() -> None:
             if len(corner_points) != 4:
                 print("Need exactly 4 outside corner points before saving.")
                 continue
-            if len(side_pocket_points) not in (0, 2):
-                print("Side pockets: set none or exactly 2 points (LS, RS).")
-                continue
             break
 
     cv2.destroyAllWindows()
@@ -2159,7 +2129,7 @@ def main() -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     wrote_with_edge_helpers = False
 
-    if _HAS_EDGE_AUTOCAL and len(side_pocket_points) == 0:
+    if _HAS_EDGE_AUTOCAL:
         try:
             calib, geom = auto_calibration_from_corners(
                 image_points=corner_points,
@@ -2179,7 +2149,7 @@ def main() -> None:
             table_length_m=table_length_m,
             table_width_m=table_width_m,
             pocket_radius_m=float(args.pocket_radius_m),
-            side_pockets_px=side_pocket_points if len(side_pocket_points) == 2 else None,
+            side_pockets_px=None,
         )
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
@@ -2199,8 +2169,6 @@ def main() -> None:
             f"({table_length_m:.3f} m x {table_width_m:.3f} m, {area_m2:.3f} m^2)"
         )
     print("Outside corners (TL,TR,BL,BR):", json.dumps(corner_points))
-    if side_pocket_points:
-        print("Side pockets (LS,RS) pixel points:", json.dumps(side_pocket_points))
     if not wrote_with_edge_helpers:
         print("Saved using standalone calibration writer.")
 
