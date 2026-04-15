@@ -1241,7 +1241,7 @@ def main() -> None:
     _vc_probe = _view_control_layout(0, 0)
     _view_column_h = int(_vc_probe["reset_rect"][3]) + int(36 * max(1.0, ui_scale))
     _air = int(28 * max(1.0, ui_scale))
-    _head_sub = int(18 * max(1.0, ui_scale))
+    _head_sub = int(26 * max(1.0, ui_scale))
     _table_tail = int(22 * max(1.0, ui_scale))
     _left_column_h = (
         14
@@ -1488,7 +1488,7 @@ def main() -> None:
         divider_x = col1_left + col1_w + max(4, col_gap // 2)
 
         air = int(28 * max(1.0, ui_scale))
-        head_sub = int(18 * max(1.0, ui_scale))
+        head_sub = int(26 * max(1.0, ui_scale))
         table_tail = int(22 * max(1.0, ui_scale))
         setup_heading_baseline = inner_top + 14
         table_heading_y = setup_heading_baseline + air
@@ -1540,6 +1540,7 @@ def main() -> None:
             "setup_heading_baseline": setup_heading_baseline,
             "table_heading_y": table_heading_y,
             "units_heading_y": units_heading_y,
+            "table_block_bottom": table_block_bottom,
             "table_left": table_left,
             "table_top": table_top,
             "units_left": units_left,
@@ -1570,9 +1571,9 @@ def main() -> None:
         y: int,
         selected: bool,
         label: str,
-        selected_color: Tuple[int, int, int] = (255, 152, 88),
+        selected_color: Tuple[int, int, int] = (102, 178, 255),
     ) -> None:
-        ring = (118, 124, 138) if not selected else selected_color
+        ring = (100, 108, 124) if not selected else selected_color
         cv2.circle(canvas, (x, y), radio_radius + 1, ring, 1, lineType=cv2.LINE_AA)
         if selected:
             cv2.circle(canvas, (x, y), max(2, radio_radius - 3), selected_color, -1, lineType=cv2.LINE_AA)
@@ -1590,8 +1591,8 @@ def main() -> None:
 
     def _draw_button(canvas: np.ndarray, rect: Tuple[int, int, int, int], label: str) -> None:
         x1, y1, x2, y2 = rect
-        fill = (62, 66, 74)
-        edge = (98, 104, 118)
+        fill = (54, 58, 70)
+        edge = (88, 96, 114)
         cv2.rectangle(canvas, (x1, y1), (x2, y2), fill, -1, lineType=cv2.LINE_AA)
         cv2.rectangle(canvas, (x1, y1), (x2, y2), edge, 1, lineType=cv2.LINE_AA)
         max_w = max(8, (x2 - x1) - 8)
@@ -1604,6 +1605,23 @@ def main() -> None:
         tx = x1 + max(4, (x2 - x1 - tw) // 2)
         ty = y1 + (y2 - y1 + th) // 2 - 2
         cv2.putText(canvas, label, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, scale, (238, 240, 245), 1, cv2.LINE_AA)
+
+    def _draw_button_primary(canvas: np.ndarray, rect: Tuple[int, int, int, int], label: str) -> None:
+        x1, y1, x2, y2 = rect
+        fill = (92, 118, 220)
+        edge = (140, 168, 255)
+        cv2.rectangle(canvas, (x1, y1), (x2, y2), fill, -1, lineType=cv2.LINE_AA)
+        cv2.rectangle(canvas, (x1, y1), (x2, y2), edge, 1, lineType=cv2.LINE_AA)
+        max_w = max(8, (x2 - x1) - 10)
+        scale = 0.5
+        while scale >= 0.34:
+            (tw, th), _bl = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
+            if tw <= max_w:
+                break
+            scale -= 0.04
+        tx = x1 + max(5, (x2 - x1 - tw) // 2)
+        ty = y1 + (y2 - y1 + th) // 2 - 2
+        cv2.putText(canvas, label, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, scale, (252, 252, 255), 1, cv2.LINE_AA)
 
     def _point_in_rect(x: int, y: int, rect: Tuple[int, int, int, int]) -> bool:
         x1, y1, x2, y2 = rect
@@ -1692,6 +1710,7 @@ def main() -> None:
         setup_heading_baseline = int(layout["setup_heading_baseline"])
         table_heading_y = int(layout["table_heading_y"])
         units_heading_y = int(layout["units_heading_y"])
+        table_block_bottom = int(layout["table_block_bottom"])
         table_left = layout["table_left"]
         table_top = layout["table_top"]
         units_left = layout["units_left"]
@@ -1699,16 +1718,45 @@ def main() -> None:
         view_left = layout["view_left"]
         view_top = layout["view_top"]
 
-        panel_bg = (36, 38, 42)
-        panel_edge = (86, 90, 102)
-        header_bg = (48, 50, 56)
-        accent = (255, 152, 88)
-        muted = (150, 156, 168)
+        # Cohesive “dashboard” palette (BGR): deep slate shell, cool accent, readable type.
+        shell_bg = (28, 32, 40)
+        shell_edge = (62, 70, 86)
+        panel_bg = (34, 38, 48)
+        col_left_fill = (40, 44, 54)
+        col_right_fill = (38, 42, 52)
+        header_bg = (42, 48, 60)
+        header_rim = (28, 34, 44)
+        accent = (102, 178, 255)
+        accent_soft = (78, 130, 210)
+        text_hi = (248, 250, 252)
+        text_mid = (200, 206, 216)
+        muted = (132, 140, 154)
+        line_soft = (64, 72, 88)
+
+        def _micro_label(img: np.ndarray, x: int, y: int, s: str) -> None:
+            cv2.putText(
+                img,
+                s,
+                (x, y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.34,
+                muted,
+                1,
+                cv2.LINE_AA,
+            )
 
         cv2.rectangle(
             view,
             (panel_left, panel_top),
             (panel_left + panel_w, panel_top + panel_h),
+            shell_bg,
+            -1,
+            lineType=cv2.LINE_AA,
+        )
+        cv2.rectangle(
+            view,
+            (panel_left + 1, panel_top + 1),
+            (panel_left + panel_w - 1, panel_top + panel_h - 1),
             panel_bg,
             -1,
             lineType=cv2.LINE_AA,
@@ -1717,29 +1765,30 @@ def main() -> None:
             view,
             (panel_left, panel_top),
             (panel_left + panel_w, panel_top + panel_h),
-            panel_edge,
+            shell_edge,
             1,
             lineType=cv2.LINE_AA,
         )
         hx1, hy1, hx2, hy2 = drag_handle_rect
-        cv2.rectangle(view, (hx1, hy1), (hx2, hy2), header_bg, -1, lineType=cv2.LINE_AA)
-        cv2.line(view, (hx1, hy2 - 1), (hx2, hy2 - 1), accent, 2, lineType=cv2.LINE_AA)
+        cv2.rectangle(view, (hx1, hy1), (hx2, hy2), header_rim, -1, lineType=cv2.LINE_AA)
+        cv2.rectangle(view, (hx1 + 3, hy1), (hx2, hy2), header_bg, -1, lineType=cv2.LINE_AA)
+        cv2.line(view, (hx1 + 2, hy1 + 2), (hx1 + 2, hy2 - 2), accent, 2, lineType=cv2.LINE_AA)
         cv2.putText(
             view,
             "Calibration",
-            (hx1 + 12, hy1 + 26),
+            (hx1 + 14, hy1 + 26),
             cv2.FONT_HERSHEY_DUPLEX,
-            0.62,
-            (244, 246, 250),
+            0.58,
+            text_hi,
             1,
             cv2.LINE_AA,
         )
         cv2.putText(
             view,
-            "Drag header   r auto-corners   Enter save   q Esc quit",
-            (hx1 + 12, hy2 - 8),
+            "Drag header   r corners   Enter save   q Esc",
+            (hx1 + 14, hy2 - 8),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.4,
+            0.38,
             muted,
             1,
             cv2.LINE_AA,
@@ -1763,7 +1812,7 @@ def main() -> None:
             view,
             (col1_left - 6, inner_top - 4),
             (divider_x - 6, inner_bottom),
-            (44, 46, 52),
+            col_left_fill,
             -1,
             lineType=cv2.LINE_AA,
         )
@@ -1771,7 +1820,7 @@ def main() -> None:
             view,
             (divider_x + 6, inner_top - 4),
             (panel_left + panel_w - menu_padding, inner_bottom),
-            (44, 46, 52),
+            col_right_fill,
             -1,
             lineType=cv2.LINE_AA,
         )
@@ -1779,7 +1828,7 @@ def main() -> None:
             view,
             (divider_x, inner_top - 2),
             (divider_x, inner_bottom),
-            (72, 76, 86),
+            line_soft,
             1,
             lineType=cv2.LINE_AA,
         )
@@ -1789,8 +1838,8 @@ def main() -> None:
             "SETUP",
             (col1_left, setup_heading_baseline),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.48,
-            muted,
+            0.5,
+            text_mid,
             1,
             cv2.LINE_AA,
         )
@@ -1799,8 +1848,8 @@ def main() -> None:
             "VIEW",
             (col2_left, setup_heading_baseline),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.48,
-            muted,
+            0.5,
+            text_mid,
             1,
             cv2.LINE_AA,
         )
@@ -1815,16 +1864,19 @@ def main() -> None:
             return t
 
         text_max = max(60, col1_right - table_left - 22)
+        _micro_label(view, table_left, table_heading_y - 2, "TABLE")
         cv2.putText(
             view,
-            "Table presets",
-            (table_left, table_heading_y),
+            "Presets",
+            (table_left, table_heading_y + 10),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.46,
-            (210, 214, 222),
+            0.42,
+            text_mid,
             1,
             cv2.LINE_AA,
         )
+        rx_strip1 = int(col1_left - 2)
+        rx_strip2 = int(col1_right + 2)
         for idx, name in enumerate(TABLE_MENU, start=1):
             row_y = table_top + (idx - 1) * row_spacing
             dims = TABLE_PRESETS_M[name]
@@ -1833,7 +1885,17 @@ def main() -> None:
             line2 = _format_dims(dims[0], dims[1], selected_units)
             line2 = _fit_text_width(line2, 0.38, text_max)
             sel = name == selected_table_size
-            ring = accent if sel else (118, 124, 138)
+            rh = max(16, row_spacing // 2 + 8)
+            if sel:
+                cv2.rectangle(
+                    view,
+                    (rx_strip1, int(row_y - rh)),
+                    (rx_strip2, int(row_y + rh)),
+                    (56, 62, 78),
+                    -1,
+                    lineType=cv2.LINE_AA,
+                )
+            ring = accent if sel else (100, 108, 124)
             cv2.circle(view, (table_left, row_y), radio_radius + 1, ring, 1, lineType=cv2.LINE_AA)
             if sel:
                 cv2.circle(
@@ -1844,13 +1906,21 @@ def main() -> None:
                     -1,
                     lineType=cv2.LINE_AA,
                 )
+                cv2.circle(
+                    view,
+                    (table_left, row_y),
+                    max(1, radio_radius - 5),
+                    (248, 250, 252),
+                    -1,
+                    lineType=cv2.LINE_AA,
+                )
             cv2.putText(
                 view,
                 line1,
                 (table_left + 18, row_y + 4),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
-                (238, 240, 245),
+                text_hi,
                 1,
                 cv2.LINE_AA,
             )
@@ -1865,13 +1935,24 @@ def main() -> None:
                 cv2.LINE_AA,
             )
 
+        div_y = (table_block_bottom + units_heading_y) // 2
+        cv2.line(
+            view,
+            (rx_strip1, div_y),
+            (rx_strip2, div_y),
+            line_soft,
+            1,
+            lineType=cv2.LINE_AA,
+        )
+
+        _micro_label(view, units_left, units_heading_y - 2, "OUTPUT")
         cv2.putText(
             view,
-            "Display units",
-            (units_left, units_heading_y),
+            "Units",
+            (units_left, units_heading_y + 10),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.46,
-            (210, 214, 222),
+            0.42,
+            text_mid,
             1,
             cv2.LINE_AA,
         )
@@ -1889,76 +1970,73 @@ def main() -> None:
         controls = _view_control_layout(int(view_left), int(view_top))
         flip_h_center = controls["flip_h_center"]
         flip_v_center = controls["flip_v_center"]
+        _micro_label(view, view_left, int(view_top) - 6, "ORIENTATION")
         _draw_radio(
             view,
             int(flip_h_center[0]),
             int(flip_h_center[1]),
             selected=flip_view_h,
-            label="Mirror horizontal",
-            selected_color=(120, 190, 255),
+            label="Flip H",
+            selected_color=accent_soft,
         )
         _draw_radio(
             view,
             int(flip_v_center[0]),
             int(flip_v_center[1]),
             selected=flip_view_v,
-            label="Mirror vertical",
-            selected_color=(120, 190, 255),
+            label="Flip V",
+            selected_color=accent_soft,
         )
 
-        _draw_button(view, controls["zoom_minus_rect"], "-")
-        _draw_button(view, controls["zoom_plus_rect"], "+")
         _zm = controls["zoom_minus_rect"]
+        _zp = controls["zoom_plus_rect"]
+        _micro_label(view, view_left, int(_zm[1]) - 6, "SCALE")
+        _draw_button(view, _zm, "-")
+        _draw_button(view, _zp, "+")
         cv2.putText(
             view,
-            f"Zoom  {_current_zoom():.2f}x",
-            (view_left, int(_zm[3] + 14)),
+            f"{_current_zoom():.2f}x",
+            (_zp[2] + 10, int((_zm[1] + _zm[3]) // 2 + 5)),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.48,
-            (228, 232, 238),
-            1,
-            cv2.LINE_AA,
-        )
-        _draw_button(view, controls["rot_minus_rect"], "Rot -")
-        _draw_button(view, controls["rot_plus_rect"], "Rot +")
-        _draw_button(view, controls["rotate_90_ccw_rect"], "-90")
-        _draw_button(view, controls["rotate_90_cw_rect"], "+90")
-        cv2.putText(
-            view,
-            f"Tilt  {view_rotate_deg:+.0f} deg",
-            (view_left, controls["rotate_90_cw_rect"][3] + 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.44,
-            (228, 232, 238),
+            0.46,
+            text_hi,
             1,
             cv2.LINE_AA,
         )
 
         pu = controls["pan_up_rect"]
-        cv2.putText(
-            view,
-            "Pan",
-            (view_left, pu[1] - 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.44,
-            muted,
-            1,
-            cv2.LINE_AA,
-        )
+        _micro_label(view, view_left, int(pu[1]) - 8, "PAN")
         _draw_button(view, controls["pan_up_rect"], "^")
         _draw_button(view, controls["pan_left_rect"], "<")
         _draw_button(view, controls["pan_right_rect"], ">")
         _draw_button(view, controls["pan_down_rect"], "v")
+
+        _micro_label(view, view_left, int(controls["rot_minus_rect"][1]) - 6, "ROTATE")
+        _draw_button(view, controls["rot_minus_rect"], "-")
+        _draw_button(view, controls["rot_plus_rect"], "+")
+        _draw_button(view, controls["rotate_90_ccw_rect"], "-90")
+        _draw_button(view, controls["rotate_90_cw_rect"], "+90")
+        cv2.putText(
+            view,
+            f"{view_rotate_deg:+.0f} deg",
+            (view_left, controls["rotate_90_cw_rect"][3] + 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.44,
+            text_mid,
+            1,
+            cv2.LINE_AA,
+        )
         step = _current_view_step()
         step_fine_center = controls["step_fine_center"]
         step_coarse_center = controls["step_coarse_center"]
+        _micro_label(view, view_left, int(step_fine_center[1]) - 22, "NUDGE")
         cv2.putText(
             view,
-            "Nudge step",
-            (view_left, int(step_fine_center[1]) - 22),
+            "Fine / Coarse",
+            (view_left, int(step_fine_center[1]) - 6),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.44,
-            muted,
+            0.38,
+            text_mid,
             1,
             cv2.LINE_AA,
         )
@@ -1968,7 +2046,7 @@ def main() -> None:
             int(step_fine_center[1]),
             selected=(view_step_mode == "fine"),
             label="Fine",
-            selected_color=(120, 220, 160),
+            selected_color=accent,
         )
         _draw_radio(
             view,
@@ -1976,7 +2054,7 @@ def main() -> None:
             int(step_coarse_center[1]),
             selected=(view_step_mode == "coarse"),
             label="Coarse",
-            selected_color=(120, 220, 160),
+            selected_color=accent,
         )
         cv2.putText(
             view,
@@ -1988,15 +2066,23 @@ def main() -> None:
             1,
             cv2.LINE_AA,
         )
-        _draw_button(view, controls["reset_rect"], "Reset view")
+        _draw_button_primary(view, controls["reset_rect"], "Reset view")
 
         foot_y1 = panel_top + panel_h - 40
         foot_y2 = panel_top + panel_h - 18
+        cv2.rectangle(
+            view,
+            (panel_left + 2, foot_y1 - 18),
+            (panel_left + panel_w - 2, panel_top + panel_h - 2),
+            header_rim,
+            -1,
+            lineType=cv2.LINE_AA,
+        )
         cv2.line(
             view,
             (panel_left + 10, foot_y1 - 10),
             (panel_left + panel_w - 10, foot_y1 - 10),
-            (70, 74, 84),
+            line_soft,
             1,
             lineType=cv2.LINE_AA,
         )
@@ -2005,7 +2091,7 @@ def main() -> None:
             "Corners: TL TR kitchen rail   BL BR foot rail",
             (panel_left + 12, foot_y1),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.4,
+            0.38,
             accent,
             1,
             cv2.LINE_AA,
@@ -2015,8 +2101,8 @@ def main() -> None:
             "Drag the yellow handles on the table",
             (panel_left + 12, foot_y2),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.4,
-            (200, 208, 220),
+            0.36,
+            muted,
             1,
             cv2.LINE_AA,
         )
