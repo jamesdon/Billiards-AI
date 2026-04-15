@@ -146,8 +146,9 @@ The helper asks you to click corners in order:
 3. bottom-left
 4. bottom-right
 
-These four points are the **outside corners of the table playing surface**
-(outside cushion/corner intersections), **not pocket centers**.
+Place each handle at the **inner throat** of that corner pocket: where the long-rail
+and short-rail **playing-surface** lines would meet if extended into the pocket
+(not the pocket center, not the outer cushion nose).
 
 View controls (keyboard):
 

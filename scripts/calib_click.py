@@ -38,6 +38,9 @@ TABLE_PRESETS_M: dict[str, tuple[float, float]] = {
 }
 TABLE_MENU: list[str] = ["6ft", "7ft", "8ft", "9ft", "snooker"]
 UNIT_MENU: list[str] = ["imperial", "metric"]
+# Physical TL,TR,BL,BR — place on the table at each corner pocket’s **inner throat**:
+# the point where the two *playing-surface* rail lines (long rail × short rail) would
+# meet if extended into the pocket (not pocket center, not outer cushion nose).
 CORNER_LABELS: list[str] = ["TL", "TR", "BL", "BR"]
 
 _JETSON_CSI_HINT = (
@@ -1148,79 +1151,85 @@ def main() -> None:
         panel_drag_handle_h = max(34, panel_drag_handle_h)
 
     def _view_control_layout(view_left: int, view_top: int) -> Dict[str, Any]:
-        """Stack: flips → zoom row → (gap) → pan pad → rotate → ±90° → step → reset (no zoom/pan overlap)."""
+        """Vertical stack with reserved label bands (no overlap) and a symmetric pan cross."""
         button_w = max(34, int(round(40 * ui_scale)))
         button_h = max(26, int(round(28 * ui_scale)))
-        pan_size = max(26, int(round(30 * ui_scale)))
         v_step = int(max(34, round(row_spacing * 1.05)))
-        pan_gap = max(8, int(round(10 * ui_scale)))
         rot_btn_w = max(68, button_w + 30)
         rot90_w = max(58, int(round(62 * ui_scale)))
+        lab = int(14 * max(1.0, ui_scale))
+        blk = int(12 * max(1.0, ui_scale))
 
-        cy = int(view_top)
-        flip_h_center = (view_left, cy)
-        cy += v_step
-        flip_v_center = (view_left, cy)
-        cy += v_step + int(14 * max(1.0, ui_scale))
+        y = int(view_top)
+        orient_label_y = y + 2
+        y += lab + 8
+        flip_h_center = (view_left, y)
+        y += v_step
+        flip_v_center = (view_left, y)
+        y += v_step + blk
 
-        zy = cy
+        scale_label_y = y + 2
+        y += lab + 8
+        zy = y
         zoom_minus_rect = (view_left, zy, view_left + button_w, zy + button_h)
         zoom_plus_rect = (view_left + button_w + 10, zy, view_left + 2 * button_w + 10, zy + button_h)
-        zoom_row_bottom = zy + button_h
-        cy = zoom_row_bottom + int(28 * max(1.0, ui_scale))
+        y = zy + button_h + int(20 * max(1.0, ui_scale))
 
-        pan_cx = view_left + 2 * pan_size + pan_gap
-        pan_cy = cy + 2 * pan_size + pan_gap
-        pan_up_rect = (
-            pan_cx - pan_size // 2,
-            pan_cy - (2 * pan_size) - pan_gap,
-            pan_cx + pan_size // 2,
-            pan_cy - pan_size - pan_gap,
-        )
-        pan_down_rect = (
-            pan_cx - pan_size // 2,
-            pan_cy + pan_gap,
-            pan_cx + pan_size // 2,
-            pan_cy + pan_size + pan_gap,
-        )
-        pan_left_rect = (
-            pan_cx - (2 * pan_size) - pan_gap,
-            pan_cy - pan_size // 2,
-            pan_cx - pan_gap,
-            pan_cy + pan_size // 2,
-        )
-        pan_right_rect = (
-            pan_cx + pan_gap,
-            pan_cy - pan_size // 2,
-            pan_cx + pan_size + pan_gap,
-            pan_cy + pan_size // 2,
-        )
-        cy = int(pan_down_rect[3]) + int(18 * max(1.0, ui_scale))
+        pan_label_y = y + 2
+        y += lab + 8
+        s = max(28, int(round(32 * ui_scale)))
+        g = max(8, int(round(10 * ui_scale)))
+        cx = view_left + s + g + s // 2
+        y0 = y
+        pan_up_rect = (cx - s // 2, y0, cx + s // 2, y0 + s)
+        y1 = y0 + s + g
+        pan_left_rect = (cx - s - g, y1, cx - g, y1 + s)
+        pan_right_rect = (cx + g, y1, cx + g + s, y1 + s)
+        y2 = y1 + s + g
+        pan_down_rect = (cx - s // 2, y2, cx + s // 2, y2 + s)
+        y = y2 + s + int(22 * max(1.0, ui_scale))
 
-        rot_minus_rect = (view_left, cy, view_left + rot_btn_w, cy + button_h)
+        rotate_label_y = y + 2
+        y += lab + 8
+        rot_minus_rect = (view_left, y, view_left + rot_btn_w, y + button_h)
         rot_plus_rect = (
             view_left + rot_btn_w + 10,
-            cy,
+            y,
             view_left + 2 * rot_btn_w + 10,
-            cy + button_h,
+            y + button_h,
         )
-        cy += button_h + int(12 * max(1.0, ui_scale))
-        rotate_90_ccw_rect = (view_left, cy, view_left + rot90_w, cy + button_h)
+        y += button_h + int(14 * max(1.0, ui_scale))
+        rotate_90_ccw_rect = (view_left, y, view_left + rot90_w, y + button_h)
         rotate_90_cw_rect = (
             view_left + rot90_w + 10,
-            cy,
+            y,
             view_left + 2 * rot90_w + 10,
-            cy + button_h,
+            y + button_h,
         )
-        post_rot_y = cy + button_h
-        step_row_y = post_rot_y + int(36 * max(1.0, ui_scale))
+        tilt_hint_y = y + button_h + int(10 * max(1.0, ui_scale))
+        y = tilt_hint_y + int(22 * max(1.0, ui_scale))
+
+        nudge_label_y = y + 2
+        y += lab + 8
+        step_subtitle_y = y + 2
+        y += int(16 * max(1.0, ui_scale))
+        step_row_y = y
         step_fine_center = (view_left, step_row_y)
         step_coarse_center = (view_left + int(140 * max(1.0, ui_scale)), step_row_y)
+        step_hint_y = step_row_y + v_step + int(16 * max(1.0, ui_scale))
+        y = step_hint_y + int(22 * max(1.0, ui_scale))
         reset_w = max(158, int(168 * max(1.0, ui_scale)))
         reset_h = max(28, int(30 * max(1.0, ui_scale)))
-        reset_y1 = step_row_y + int(44 * max(1.0, ui_scale))
-        reset_rect = (view_left, reset_y1, view_left + reset_w, reset_y1 + reset_h)
+        reset_rect = (view_left, y, view_left + reset_w, y + reset_h)
         return {
+            "orient_label_y": orient_label_y,
+            "scale_label_y": scale_label_y,
+            "pan_label_y": pan_label_y,
+            "rotate_label_y": rotate_label_y,
+            "nudge_label_y": nudge_label_y,
+            "step_subtitle_y": step_subtitle_y,
+            "tilt_hint_y": tilt_hint_y,
+            "step_hint_y": step_hint_y,
             "flip_h_center": flip_h_center,
             "flip_v_center": flip_v_center,
             "zoom_minus_rect": zoom_minus_rect,
@@ -1885,16 +1894,6 @@ def main() -> None:
             line2 = _format_dims(dims[0], dims[1], selected_units)
             line2 = _fit_text_width(line2, 0.38, text_max)
             sel = name == selected_table_size
-            rh = max(16, row_spacing // 2 + 8)
-            if sel:
-                cv2.rectangle(
-                    view,
-                    (rx_strip1, int(row_y - rh)),
-                    (rx_strip2, int(row_y + rh)),
-                    (56, 62, 78),
-                    -1,
-                    lineType=cv2.LINE_AA,
-                )
             ring = accent if sel else (100, 108, 124)
             cv2.circle(view, (table_left, row_y), radio_radius + 1, ring, 1, lineType=cv2.LINE_AA)
             if sel:
@@ -1970,7 +1969,7 @@ def main() -> None:
         controls = _view_control_layout(int(view_left), int(view_top))
         flip_h_center = controls["flip_h_center"]
         flip_v_center = controls["flip_v_center"]
-        _micro_label(view, view_left, int(view_top) - 6, "ORIENTATION")
+        _micro_label(view, view_left, int(controls["orient_label_y"]), "ORIENTATION")
         _draw_radio(
             view,
             int(flip_h_center[0]),
@@ -1990,7 +1989,7 @@ def main() -> None:
 
         _zm = controls["zoom_minus_rect"]
         _zp = controls["zoom_plus_rect"]
-        _micro_label(view, view_left, int(_zm[1]) - 6, "SCALE")
+        _micro_label(view, view_left, int(controls["scale_label_y"]), "SCALE")
         _draw_button(view, _zm, "-")
         _draw_button(view, _zp, "+")
         cv2.putText(
@@ -2004,24 +2003,47 @@ def main() -> None:
             cv2.LINE_AA,
         )
 
-        pu = controls["pan_up_rect"]
-        _micro_label(view, view_left, int(pu[1]) - 8, "PAN")
-        _draw_button(view, controls["pan_up_rect"], "^")
-        _draw_button(view, controls["pan_left_rect"], "<")
-        _draw_button(view, controls["pan_right_rect"], ">")
-        _draw_button(view, controls["pan_down_rect"], "v")
+        _micro_label(view, view_left, int(controls["pan_label_y"]), "PAN")
 
-        _micro_label(view, view_left, int(controls["rot_minus_rect"][1]) - 6, "ROTATE")
+        def _draw_pan_tile(canvas: np.ndarray, rect: Tuple[int, int, int, int], direction: str) -> None:
+            x1, y1, x2, y2 = rect
+            fill = (54, 58, 70)
+            edge = (88, 96, 114)
+            cv2.rectangle(canvas, (x1, y1), (x2, y2), fill, -1, lineType=cv2.LINE_AA)
+            cv2.rectangle(canvas, (x1, y1), (x2, y2), edge, 1, lineType=cv2.LINE_AA)
+            cx = (x1 + x2) // 2
+            cy = (y1 + y2) // 2
+            inset = max(6, min(x2 - x1, y2 - y1) // 4)
+            col = (230, 235, 245)
+            if direction == "u":
+                pts = np.array([[cx, y1 + inset], [x2 - inset, y2 - inset], [x1 + inset, y2 - inset]], dtype=np.int32)
+                cv2.fillConvexPoly(canvas, pts, col, lineType=cv2.LINE_AA)
+            elif direction == "d":
+                pts = np.array([[cx, y2 - inset], [x1 + inset, y1 + inset], [x2 - inset, y1 + inset]], dtype=np.int32)
+                cv2.fillConvexPoly(canvas, pts, col, lineType=cv2.LINE_AA)
+            elif direction == "l":
+                pts = np.array([[x1 + inset, cy], [x2 - inset, y1 + inset], [x2 - inset, y2 - inset]], dtype=np.int32)
+                cv2.fillConvexPoly(canvas, pts, col, lineType=cv2.LINE_AA)
+            else:
+                pts = np.array([[x2 - inset, cy], [x1 + inset, y1 + inset], [x1 + inset, y2 - inset]], dtype=np.int32)
+                cv2.fillConvexPoly(canvas, pts, col, lineType=cv2.LINE_AA)
+
+        _draw_pan_tile(view, controls["pan_up_rect"], "u")
+        _draw_pan_tile(view, controls["pan_left_rect"], "l")
+        _draw_pan_tile(view, controls["pan_right_rect"], "r")
+        _draw_pan_tile(view, controls["pan_down_rect"], "d")
+
+        _micro_label(view, view_left, int(controls["rotate_label_y"]), "ROTATE")
         _draw_button(view, controls["rot_minus_rect"], "-")
         _draw_button(view, controls["rot_plus_rect"], "+")
         _draw_button(view, controls["rotate_90_ccw_rect"], "-90")
         _draw_button(view, controls["rotate_90_cw_rect"], "+90")
         cv2.putText(
             view,
-            f"{view_rotate_deg:+.0f} deg",
-            (view_left, controls["rotate_90_cw_rect"][3] + 10),
+            f"Tilt {view_rotate_deg:+.0f} deg",
+            (view_left, int(controls["tilt_hint_y"])),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.44,
+            0.4,
             text_mid,
             1,
             cv2.LINE_AA,
@@ -2029,11 +2051,11 @@ def main() -> None:
         step = _current_view_step()
         step_fine_center = controls["step_fine_center"]
         step_coarse_center = controls["step_coarse_center"]
-        _micro_label(view, view_left, int(step_fine_center[1]) - 22, "NUDGE")
+        _micro_label(view, view_left, int(controls["nudge_label_y"]), "NUDGE")
         cv2.putText(
             view,
             "Fine / Coarse",
-            (view_left, int(step_fine_center[1]) - 6),
+            (view_left, int(controls["step_subtitle_y"])),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.38,
             text_mid,
@@ -2059,9 +2081,9 @@ def main() -> None:
         cv2.putText(
             view,
             f"Rotate {step['rotate_deg']:.1f} deg   Pan {100.0 * step['pan_frac_x']:.1f}%",
-            (view_left, controls["reset_rect"][3] + 12),
+            (view_left, int(controls["step_hint_y"])),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.38,
+            0.36,
             muted,
             1,
             cv2.LINE_AA,
@@ -2088,20 +2110,20 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            "Corners: TL TR kitchen rail   BL BR foot rail",
+            "Corners: inner pocket throat (rail lines) TL TR kitchen   BL BR foot",
             (panel_left + 12, foot_y1),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.38,
+            0.34,
             accent,
             1,
             cv2.LINE_AA,
         )
         cv2.putText(
             view,
-            "Drag the yellow handles on the table",
+            "Drag yellow handles to each corner pocket inner intersection",
             (panel_left + 12, foot_y2),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.36,
+            0.34,
             muted,
             1,
             cv2.LINE_AA,

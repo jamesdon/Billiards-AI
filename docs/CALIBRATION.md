@@ -52,10 +52,20 @@ Corner order for `--table-corners-px` is strictly **physical** (not “image top
 
 Table coordinates use **X** from head toward foot and **Y** along the head rail from TL to TR, so corner pockets are **(0,0), (0,W), (L,0), (L,W)** and side pockets sit at **mid-span on each long rail**: **(L/2,0)** and **(L/2,W)**.
 
-These points are the **outside corners of the playable table rectangle**
-(the cushion intersection corners), **not** the centers of pockets.
+### Where to place the four corner calibration points (recommended)
 
-This is still a baseline and should be visually validated before match use.
+For best downstream geometry (pocket zones, rail logic, fine alignment), the four
+image points should sit at each **corner pocket’s inner throat**: the point where
+the two **playing-surface** rail guidelines—long rail and short rail—would intersect
+if extended into the pocket (the inside corner of the pocket mouth), **not** the
+pocket center and **not** the outer cushion nose.
+
+Older text in this doc referred to “outside corners of the playable rectangle” as a
+first-order mental model; the **intended click target** for interactive calibration
+matches the inner throat / rail intersection above. Homography still maps those
+four pixels to \((0,0), (0,W), (L,0), (L,W)\) in table meters.
+
+Validate visually on your table before match use.
 
 ### Optional interactive corner picker (recommended)
 
@@ -103,7 +113,7 @@ the helper now writes `calibration.json` directly without calling `edge.main`.
 
 In-window workflow (new default):
 
-- The helper proposes table outside-corner points automatically from the current frame.
+- The helper proposes initial corner seeds from the current frame (refine by dragging to inner pocket throats).
   - It combines contour/rectangle fitting, adaptive edge thresholds, and Hough-line
     side fitting with corner-feature refinement for tighter initial TL/TR/BL/BR placement.
 - You can drag any point to refine it.
