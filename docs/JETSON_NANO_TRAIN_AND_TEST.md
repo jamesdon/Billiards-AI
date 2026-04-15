@@ -33,6 +33,18 @@ If your repo lives somewhere else, set `PROJECT_ROOT` first, e.g. `export PROJEC
 
 For every `something.jpg` (or `.png`), YOLO expects a matching `something.txt` in the **labels** split with one line per object: `class cx cy w h` (normalized 0–1). Create labels with a tool (CVAT, Label Studio, Roboflow, etc.); see `docs/MODEL_OPTIMIZATION.md` for composition, class list, and how much data to aim for.
 
+### Live table → same training pipeline (record now, label, then `jetson_yolo_train.sh`)
+
+Ultralytics **does not** continuously learn from the camera during `yolo train`; it still needs **saved** images plus labels. What you *can* do is **point the live CSI feed at the table**, save frames to disk, then label those frames—same camera and lighting as production.
+
+**Several ball sets:** run a **separate capture** per set (or use a different `--prefix` / `--out-dir` per session), then mix those JPEGs into `images/train` and `images/val` when you split. Variety across sets improves the detector; ball **identity** (solid/stripe/…) is still Phase 4, not the detector class `ball`.
+
+**Capture command** (from repo root, venv active—`jetson_capture_training_frames.sh` does both):
+
+`cd ~/Billiards-AI && bash scripts/jetson_capture_training_frames.sh --count 300 --stride 20 --prefix stripes_night`
+
+Defaults write under `data/datasets/billiards/images/capture/`. After labeling, move or copy a fraction of JPEGs + matching `.txt` files into `images/train` / `labels/train` and `images/val` / `labels/val` before training.
+
 1. **Environment + pip installs**
 
    `cd ~/Billiards-AI && bash scripts/jetson_train_env.sh`

@@ -182,6 +182,14 @@ Best practice:
 3. Prioritize your in-domain data in later fine-tuning rounds.
 4. Validate on your own held-out sessions before Phase 3 sign-off.
 
+## Live CSI capture (same camera as production)
+
+To build a dataset **from the live table** (no pre-recorded video), save frames with:
+
+`cd ~/Billiards-AI && bash scripts/jetson_capture_training_frames.sh --count 300 --stride 20 --prefix session1`
+
+See `docs/JETSON_NANO_TRAIN_AND_TEST.md` (live table → training). You still add YOLO `.txt` labels and split train/val before `yolo train`.
+
 ## Helpful frame extraction tip
 
 If you capture long videos, extract frames at low frequency first (for diversity):

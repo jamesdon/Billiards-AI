@@ -114,6 +114,8 @@ Billiards-AI/
     jetson_phases_1_3.sh            Nano: run_phase 1 then 3
     jetson_edge_smoke_csi.sh        Nano: edge.main CSI smoke (until Ctrl+C)
     JETSON_ONE_LINERS.txt           Plain-text paste list for bash (no Markdown fences)
+    jetson_capture_training_frames.sh  Wrapper: live CSI → JPEGs for YOLO labeling
+    capture_csi_training_frames.py     Saves frames from CSI (same pipeline as edge.main)
     calib_click.py                  Interactive calibration: TL/TR/BL/BR at corner-pocket **inner throat**; `_estimate_outside_corners` avoids picking the **largest** hull quad (often the room outline) by scoring quads in an area band and with border inset; `_order_physical_table_corners` tries both kitchen-at-top vs kitchen-at-bottom hypotheses vs image-axis order; Hough + `_pocket_throat_from_seed`; `warpAffine` + `BORDER_CONSTANT` for pan/zoom voids; writes calibration.json; CLI via start_calibration.sh
     start_calibration.sh            One-command local calibration launcher (env + guardrails + GUI); passes CSI_OPEN_RETRIES to calib_click; asserts calib_click.py contains stable view-control hooks (not literal on-screen button text)
     jetson_csi_setup.sh             Jetson camera stack triage (Argus + gst + app smoke)
