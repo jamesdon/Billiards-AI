@@ -61,8 +61,8 @@ CSI_SENSOR_ID=0 CSI_FLIP_METHOD=6 CSI_OPEN_RETRIES=12 \
 ```
 
 If Argus reports `Failed to create CaptureSession`, close other camera users, run
-`sudo systemctl restart nvargus-daemon`, retry `CSI_FLIP_METHOD` (0, 2, 6) and
-`CSI_SENSOR_ID`, or use a still image: `python scripts/calib_click.py --frame snap.jpg --out calibration.json`.
+`sudo systemctl restart nvargus-daemon`, and retry `CSI_FLIP_METHOD` (0, 2, 6) and
+`CSI_SENSOR_ID`. The calibration GUI always uses a live camera (CSI/USB per `--camera`).
 
 ```bash
 cd "/home/$USER/Billiards-AI"

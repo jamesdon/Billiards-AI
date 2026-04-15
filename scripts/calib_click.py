@@ -49,7 +49,6 @@ _JETSON_CSI_HINT = (
     "  • Wrong module index: CSI_SENSOR_ID=1 bash scripts/start_calibration.sh\n"
     "  • Wrong orientation: CSI_FLIP_METHOD=0 bash scripts/start_calibration.sh (also try 2 or 6)\n"
     "  • Lighter mode: add --width 640 --height 480 --csi-framerate 15 to calib_click.py args\n"
-    "  • Offline: python scripts/calib_click.py --frame /path/to/snapshot.jpg --out calibration.json\n"
 )
 
 
@@ -75,12 +74,11 @@ except Exception:
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
-            "Interactive calibration helper with auto corners and editing. "
+            "Interactive calibration helper with a live camera, auto corners, and editing. "
             "TL/TR are the kitchen (rack) short rail; BL/BR are the opposite short rail. "
             "Points are outside cushion corners, not pocket centers."
         ),
     )
-    p.add_argument("--frame", type=str, default=None, help="Optional image path to annotate.")
     p.add_argument(
         "--camera",
         type=str,
@@ -1084,25 +1082,20 @@ def main() -> None:
     # newer script expects --csi-flip-method, older snippets may pass --flip.
     # argparse already aliases --flip, so nothing else is needed besides keeping
     # this code path explicit and stable.
-    if args.frame:
-        img = cv2.imread(str(args.frame))
-        if img is None:
-            raise RuntimeError(f"Failed to read frame image: {args.frame}")
-    else:
-        try:
-            live_capture = _open_capture_for_source(
-                camera=str(args.camera),
-                usb_index=int(args.usb_index),
-                csi_sensor_id=int(args.csi_sensor_id),
-                width=int(args.width),
-                height=int(args.height),
-                framerate=int(args.csi_framerate),
-                flip_method=int(args.csi_flip_method),
-                open_retries=int(args.csi_open_retries),
-            )
-            img = _read_frame_from_capture(live_capture, camera_mode=str(args.camera))
-        except Exception as exc:
-            raise RuntimeError(f"{exc}\n\n{_csi_troubleshoot_footer(args)}") from exc
+    try:
+        live_capture = _open_capture_for_source(
+            camera=str(args.camera),
+            usb_index=int(args.usb_index),
+            csi_sensor_id=int(args.csi_sensor_id),
+            width=int(args.width),
+            height=int(args.height),
+            framerate=int(args.csi_framerate),
+            flip_method=int(args.csi_flip_method),
+            open_retries=int(args.csi_open_retries),
+        )
+        img = _read_frame_from_capture(live_capture, camera_mode=str(args.camera))
+    except Exception as exc:
+        raise RuntimeError(f"{exc}\n\n{_csi_troubleshoot_footer(args)}") from exc
 
     win = "calib-click"
     try:
@@ -1574,8 +1567,6 @@ def main() -> None:
 
     def _refresh_live_frame() -> bool:
         nonlocal img, live_capture
-        if args.frame:
-            return False
         if live_capture is None:
             try:
                 live_capture = _open_capture_for_source(
@@ -1676,20 +1667,10 @@ def main() -> None:
         cv2.putText(
             view,
             "Drag panel | r=auto corners | Enter=save | q/Esc=cancel",
-            (hx1 + 8, hy2 - 18),
+            (hx1 + 8, hy2 - 8),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.42,
             (230, 230, 230),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            view,
-            "Live camera unless --frame (still image)",
-            (hx1 + 8, hy2 - 5),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.4,
-            (200, 200, 200),
             1,
             cv2.LINE_AA,
         )
