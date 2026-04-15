@@ -1148,23 +1148,29 @@ def main() -> None:
         panel_drag_handle_h = max(34, panel_drag_handle_h)
 
     def _view_control_layout(view_left: int, view_top: int) -> Dict[str, Any]:
-        button_w = max(30, int(round(36 * ui_scale)))
-        button_h = max(22, int(round(24 * ui_scale)))
-        pan_size = max(22, int(round(26 * ui_scale)))
-        v_step = int(max(30, round(row_spacing * 1.08)))
-        flip_h_center = (view_left, view_top)
-        flip_v_center = (view_left, view_top + v_step)
-        zoom_y = view_top + 2 * v_step + 12
-        zoom_minus_rect = (view_left, zoom_y - button_h // 2, view_left + button_w, zoom_y + button_h // 2)
-        zoom_plus_rect = (
-            view_left + button_w + 10,
-            zoom_y - button_h // 2,
-            view_left + (2 * button_w) + 10,
-            zoom_y + button_h // 2,
-        )
-        pan_gap = 8
-        pan_cx = view_left + (2 * button_w) + 10 + 18 + pan_size // 2
-        pan_cy = zoom_y
+        """Stack: flips → zoom row → (gap) → pan pad → rotate → ±90° → step → reset (no zoom/pan overlap)."""
+        button_w = max(34, int(round(40 * ui_scale)))
+        button_h = max(26, int(round(28 * ui_scale)))
+        pan_size = max(26, int(round(30 * ui_scale)))
+        v_step = int(max(34, round(row_spacing * 1.05)))
+        pan_gap = max(8, int(round(10 * ui_scale)))
+        rot_btn_w = max(68, button_w + 30)
+        rot90_w = max(58, int(round(62 * ui_scale)))
+
+        cy = int(view_top)
+        flip_h_center = (view_left, cy)
+        cy += v_step
+        flip_v_center = (view_left, cy)
+        cy += v_step + int(14 * max(1.0, ui_scale))
+
+        zy = cy
+        zoom_minus_rect = (view_left, zy, view_left + button_w, zy + button_h)
+        zoom_plus_rect = (view_left + button_w + 10, zy, view_left + 2 * button_w + 10, zy + button_h)
+        zoom_row_bottom = zy + button_h
+        cy = zoom_row_bottom + int(28 * max(1.0, ui_scale))
+
+        pan_cx = view_left + 2 * pan_size + pan_gap
+        pan_cy = cy + 2 * pan_size + pan_gap
         pan_up_rect = (
             pan_cx - pan_size // 2,
             pan_cy - (2 * pan_size) - pan_gap,
@@ -1189,25 +1195,25 @@ def main() -> None:
             pan_cx + pan_size + pan_gap,
             pan_cy + pan_size // 2,
         )
-        rot_y = pan_cy + int(1.6 * pan_size) + pan_gap + 24
-        rot_btn_w = max(62, button_w + 28)
-        rot_minus_rect = (view_left, rot_y - button_h // 2, view_left + rot_btn_w, rot_y + button_h // 2)
+        cy = int(pan_down_rect[3]) + int(18 * max(1.0, ui_scale))
+
+        rot_minus_rect = (view_left, cy, view_left + rot_btn_w, cy + button_h)
         rot_plus_rect = (
             view_left + rot_btn_w + 10,
-            rot_y - button_h // 2,
+            cy,
             view_left + 2 * rot_btn_w + 10,
-            rot_y + button_h // 2,
+            cy + button_h,
         )
-        rot90_y = rot_y + int(32 * max(1.0, ui_scale))
-        rotate_90_ccw_rect = (view_left, rot90_y - button_h // 2, view_left + rot_btn_w, rot90_y + button_h // 2)
+        cy += button_h + int(12 * max(1.0, ui_scale))
+        rotate_90_ccw_rect = (view_left, cy, view_left + rot90_w, cy + button_h)
         rotate_90_cw_rect = (
-            view_left + rot_btn_w + 10,
-            rot90_y - button_h // 2,
-            view_left + 2 * rot_btn_w + 10,
-            rot90_y + button_h // 2,
+            view_left + rot90_w + 10,
+            cy,
+            view_left + 2 * rot90_w + 10,
+            cy + button_h,
         )
-        post_rot_y = rotate_90_cw_rect[3] + 20
-        step_row_y = post_rot_y + 38
+        post_rot_y = cy + button_h
+        step_row_y = post_rot_y + int(36 * max(1.0, ui_scale))
         step_fine_center = (view_left, step_row_y)
         step_coarse_center = (view_left + int(140 * max(1.0, ui_scale)), step_row_y)
         reset_w = max(158, int(168 * max(1.0, ui_scale)))
@@ -1234,12 +1240,19 @@ def main() -> None:
 
     _vc_probe = _view_control_layout(0, 0)
     _view_column_h = int(_vc_probe["reset_rect"][3]) + int(36 * max(1.0, ui_scale))
+    _air = int(28 * max(1.0, ui_scale))
+    _head_sub = int(18 * max(1.0, ui_scale))
+    _table_tail = int(22 * max(1.0, ui_scale))
     _left_column_h = (
-        int(22 * max(1.0, ui_scale))
+        14
+        + _air
+        + _head_sub
         + len(TABLE_MENU) * row_spacing
-        + menu_gap
-        + int(18 * max(1.0, ui_scale))
+        + _table_tail
+        + _air
+        + _head_sub
         + len(UNIT_MENU) * row_spacing
+        + int(10 * max(1.0, ui_scale))
     )
     estimated_menu_h = (
         panel_drag_handle_h
@@ -1464,7 +1477,7 @@ def main() -> None:
         inner_top = top + panel_drag_handle_h + menu_padding
         inner_left = left + menu_padding
         inner_w = max(120, panel_w - 2 * menu_padding)
-        min_col2_w = 228
+        min_col2_w = 240
         col1_w = max(
             128,
             min(int(inner_w * col1_width_frac), max(128, inner_w - col_gap - min_col2_w)),
@@ -1474,38 +1487,42 @@ def main() -> None:
         col1_right = col2_left - 2
         divider_x = col1_left + col1_w + max(4, col_gap // 2)
 
-        title_baseline = inner_top + 18
-        body_top = inner_top + 36
+        air = int(28 * max(1.0, ui_scale))
+        head_sub = int(18 * max(1.0, ui_scale))
+        table_tail = int(22 * max(1.0, ui_scale))
+        setup_heading_baseline = inner_top + 14
+        table_heading_y = setup_heading_baseline + air
         table_left = col1_left + 10
-        table_top = body_top
-        units_top = table_top + len(TABLE_MENU) * row_spacing + menu_gap + int(18 * max(1.0, ui_scale))
+        table_top = table_heading_y + head_sub
+        last_table_row_y = table_top + (len(TABLE_MENU) - 1) * row_spacing
+        table_block_bottom = last_table_row_y + table_tail
+        units_heading_y = table_block_bottom + air
         units_left = table_left
+        units_top = units_heading_y + head_sub
         view_left = col2_left + 6
-        view_top = body_top
+        view_top = inner_top + 14 + air + head_sub
 
         if panel_collapsed:
             panel_h = panel_drag_handle_h + 2
         else:
             probe = _view_control_layout(0, 0)
             right_h = int(probe["reset_rect"][3]) + int(28 * max(1.0, ui_scale))
-            left_h = (
-                len(TABLE_MENU) * row_spacing
-                + menu_gap
-                + int(18 * max(1.0, ui_scale))
-                + len(UNIT_MENU) * row_spacing
-                + int(10 * max(1.0, ui_scale))
-            )
-            twin_stack_h = int(36 * max(1.0, ui_scale)) + max(left_h, right_h)
+            left_bottom = units_top + (len(UNIT_MENU) - 1) * row_spacing + int(12 * max(1.0, ui_scale))
+            left_h = left_bottom - inner_top
+            twin_stack_h = max(left_h, right_h) + int(8 * max(1.0, ui_scale))
             footer_block = int(52 * max(1.0, ui_scale))
             min_needed_h = panel_drag_handle_h + menu_padding + twin_stack_h + footer_block
             panel_h = int(min(safe_h, max(int(estimated_menu_h), min_needed_h)))
         top = int(np.clip(top, menu_margin, max(menu_margin, h_img - panel_h - menu_margin)))
         inner_top = top + panel_drag_handle_h + menu_padding
-        title_baseline = inner_top + 18
-        body_top = inner_top + 36
-        table_top = body_top
-        units_top = table_top + len(TABLE_MENU) * row_spacing + menu_gap + int(18 * max(1.0, ui_scale))
-        view_top = body_top
+        setup_heading_baseline = inner_top + 14
+        table_heading_y = setup_heading_baseline + air
+        table_top = table_heading_y + head_sub
+        last_table_row_y = table_top + (len(TABLE_MENU) - 1) * row_spacing
+        table_block_bottom = last_table_row_y + table_tail
+        units_heading_y = table_block_bottom + air
+        units_top = units_heading_y + head_sub
+        view_top = inner_top + 14 + air + head_sub
         drag_handle_rect = (left, top, left + panel_w, top + panel_drag_handle_h)
         return {
             "panel_left": left,
@@ -1520,7 +1537,9 @@ def main() -> None:
             "col1_right": col1_right,
             "col2_left": col2_left,
             "divider_x": divider_x,
-            "title_baseline": title_baseline,
+            "setup_heading_baseline": setup_heading_baseline,
+            "table_heading_y": table_heading_y,
+            "units_heading_y": units_heading_y,
             "table_left": table_left,
             "table_top": table_top,
             "units_left": units_left,
@@ -1575,10 +1594,16 @@ def main() -> None:
         edge = (98, 104, 118)
         cv2.rectangle(canvas, (x1, y1), (x2, y2), fill, -1, lineType=cv2.LINE_AA)
         cv2.rectangle(canvas, (x1, y1), (x2, y2), edge, 1, lineType=cv2.LINE_AA)
-        (tw, th), bl = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.48, 1)
+        max_w = max(8, (x2 - x1) - 8)
+        scale = 0.48
+        while scale >= 0.32:
+            (tw, th), _bl = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
+            if tw <= max_w:
+                break
+            scale -= 0.04
         tx = x1 + max(4, (x2 - x1 - tw) // 2)
         ty = y1 + (y2 - y1 + th) // 2 - 2
-        cv2.putText(canvas, label, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (238, 240, 245), 1, cv2.LINE_AA)
+        cv2.putText(canvas, label, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, scale, (238, 240, 245), 1, cv2.LINE_AA)
 
     def _point_in_rect(x: int, y: int, rect: Tuple[int, int, int, int]) -> bool:
         x1, y1, x2, y2 = rect
@@ -1664,7 +1689,9 @@ def main() -> None:
         col1_right = int(layout["col1_right"])
         col2_left = int(layout["col2_left"])
         divider_x = int(layout["divider_x"])
-        title_baseline = int(layout["title_baseline"])
+        setup_heading_baseline = int(layout["setup_heading_baseline"])
+        table_heading_y = int(layout["table_heading_y"])
+        units_heading_y = int(layout["units_heading_y"])
         table_left = layout["table_left"]
         table_top = layout["table_top"]
         units_left = layout["units_left"]
@@ -1760,7 +1787,7 @@ def main() -> None:
         cv2.putText(
             view,
             "SETUP",
-            (col1_left, title_baseline),
+            (col1_left, setup_heading_baseline),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.48,
             muted,
@@ -1770,7 +1797,7 @@ def main() -> None:
         cv2.putText(
             view,
             "VIEW",
-            (col2_left, title_baseline),
+            (col2_left, setup_heading_baseline),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.48,
             muted,
@@ -1791,7 +1818,7 @@ def main() -> None:
         cv2.putText(
             view,
             "Table presets",
-            (table_left, table_top - 12),
+            (table_left, table_heading_y),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.46,
             (210, 214, 222),
@@ -1841,7 +1868,7 @@ def main() -> None:
         cv2.putText(
             view,
             "Display units",
-            (units_left, units_top - 12),
+            (units_left, units_heading_y),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.46,
             (210, 214, 222),
@@ -1894,8 +1921,8 @@ def main() -> None:
         )
         _draw_button(view, controls["rot_minus_rect"], "Rot -")
         _draw_button(view, controls["rot_plus_rect"], "Rot +")
-        _draw_button(view, controls["rotate_90_ccw_rect"], "-90 deg")
-        _draw_button(view, controls["rotate_90_cw_rect"], "+90 deg")
+        _draw_button(view, controls["rotate_90_ccw_rect"], "-90")
+        _draw_button(view, controls["rotate_90_cw_rect"], "+90")
         cv2.putText(
             view,
             f"Tilt  {view_rotate_deg:+.0f} deg",
@@ -1907,11 +1934,11 @@ def main() -> None:
             cv2.LINE_AA,
         )
 
-        pr = controls["pan_right_rect"]
+        pu = controls["pan_up_rect"]
         cv2.putText(
             view,
             "Pan",
-            (view_left, pr[1] - 8),
+            (view_left, pu[1] - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.44,
             muted,
