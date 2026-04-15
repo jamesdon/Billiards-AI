@@ -121,10 +121,33 @@ phase2_hint_valid_log() {
 if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   echo "[Phase2] Running valid calibration edge startup smoke..."
   echo "[Phase2] Note: /mjpeg never ends; we probe /health first, then one bounded /mjpeg download."
-  run_with_timeout "${EDGE_TIMEOUT_SECONDS}" python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
+  PYTHONUNBUFFERED=1 run_with_timeout "${EDGE_TIMEOUT_SECONDS}" python -u -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
   EDGE_PID="$!"
+  echo "[Phase2] Waiting for MJPEG TCP on 127.0.0.1:${MJPEG_PORT} (first import can be slow on Jetson)..." >&2
+  TCP_READY=0
+  for i in $(seq 1 300); do
+    if ! kill -0 "$EDGE_PID" 2>/dev/null; then
+      echo "[Phase2] edge exited before MJPEG listened (attempt ${i}). Log: $VALID_LOG" >&2
+      echo "Valid calibration startup failed (MJPEG port never opened). Log: $VALID_LOG" >&2
+      phase2_hint_valid_log "$VALID_LOG"
+      exit 1
+    fi
+    if python -c "import socket; s=socket.socket(); s.settimeout(0.4); s.connect(('127.0.0.1',${MJPEG_PORT})); s.close()" 2>/dev/null; then
+      TCP_READY=1
+      break
+    fi
+    if (( i % 25 == 0 )); then
+      echo "[Phase2] still waiting for TCP ${MJPEG_PORT} ... (${i}/300, ~$((i / 5))s wall)" >&2
+    fi
+    /usr/bin/sleep 0.2
+  done
+  if [[ "$TCP_READY" -ne 1 ]]; then
+    echo "Valid calibration startup failed (MJPEG port never accepted TCP within ~60s). Log: $VALID_LOG" >&2
+    phase2_hint_valid_log "$VALID_LOG"
+    exit 1
+  fi
   READY=0
-  for i in $(seq 1 60); do
+  for i in $(seq 1 30); do
     if /usr/bin/curl -fsS "http://127.0.0.1:${MJPEG_PORT}/health" --max-time 2 -o /dev/null 2>/dev/null; then
       READY=1
       break
@@ -134,13 +157,10 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
       phase2_hint_valid_log "$VALID_LOG"
       break
     fi
-    if (( i % 10 == 0 )); then
-      echo "[Phase2] still waiting for http://127.0.0.1:${MJPEG_PORT}/health ... (${i}/60)" >&2
-    fi
-    /usr/bin/sleep 1
+    /usr/bin/sleep 0.2
   done
   if [[ "$READY" -ne 1 ]]; then
-    echo "Valid calibration startup failed (no /health). Log: $VALID_LOG" >&2
+    echo "Valid calibration startup failed (TCP open but /health not OK). Log: $VALID_LOG" >&2
     phase2_hint_valid_log "$VALID_LOG"
     exit 1
   fi

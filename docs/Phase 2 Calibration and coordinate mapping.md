@@ -278,7 +278,8 @@ If the log shows Argus / CSI errors such as `Failed to create CaptureSession` or
 delivers frames (and the process may exit once the capture error is surfaced). Stop
 other consumers of the camera (including background `edge.main` or `nvgstcapture`),
 power-cycle the camera module if needed, retry `--csi-flip-method` values `0` and
-`6`, and confirm `--csi-sensor-id` matches your wiring. `edge.main` binds MJPEG
-right after calibration load so `/health` is available while the pipeline and
-camera initialize.
+`6`, and confirm `--csi-sensor-id` matches your wiring. `edge.main` binds MJPEG immediately after argument parsing (before calibration
+load) and uses a threaded HTTP server so a long-lived `/mjpeg` connection cannot
+block `/health`. `scripts/phase2.sh` waits for the MJPEG TCP port to accept
+connections (Jetson cold import can take many seconds) before curling `/health`.
 

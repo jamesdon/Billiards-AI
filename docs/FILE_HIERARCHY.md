@@ -39,7 +39,7 @@ Billiards-AI/
 
   edge/
     __init__.py
-    main.py                         Edge entrypoint (MJPEG binds soon after calibration load; camera -> overlay -> stream)
+    main.py                         Edge entrypoint (MJPEG binds right after CLI parse; calibration load; camera -> overlay -> stream)
     pipeline.py                     Build/run the module graph
     io/
       __init__.py
@@ -76,7 +76,7 @@ Billiards-AI/
     overlay/
       __init__.py
       draw.py                       Render IDs, trails, speeds, scoreboard
-      stream_mjpeg.py               MJPEG stream server (GET /health, /mjpeg; SO_REUSEADDR on bind for faster restarts)
+      stream_mjpeg.py               MJPEG stream server (GET /health, /mjpeg; threaded server so /mjpeg cannot block /health; SO_REUSEADDR)
       stream_webrtc.py              WebRTC streamer (optional)
       stream_rtsp.py                RTSP publisher (optional)
 

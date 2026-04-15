@@ -3,14 +3,18 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 from typing import Optional
 
 import cv2
 import numpy as np
 
 
-class _ReuseHTTPServer(HTTPServer):
+class _ThreadingReuseHTTPServer(ThreadingMixIn, HTTPServer):
+    """Thread per request so a stuck /mjpeg client cannot block /health probes."""
+
     allow_reuse_address = True
+    daemon_threads = True
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -74,7 +78,7 @@ class MjpegServer:
 
     def start(self) -> None:
         self._stop.clear()
-        httpd = _ReuseHTTPServer((self.host, self.port), _Handler)
+        httpd = _ThreadingReuseHTTPServer((self.host, self.port), _Handler)
         httpd.mjpeg_server = self  # type: ignore[attr-defined]
         self._httpd = httpd
         t = threading.Thread(target=httpd.serve_forever, daemon=True)

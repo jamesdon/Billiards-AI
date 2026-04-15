@@ -137,14 +137,15 @@ def main() -> None:
         print(json.dumps(table_geometry_dict(geom), indent=2))
         return
 
+    # Bind MJPEG before calibration/camera so /health is not blocked by a slow
+    # import, calibration disk I/O, or another client holding /mjpeg (HTTPServer
+    # is single-threaded unless the implementation uses ThreadingMixIn).
+    mjpeg = MjpegServer(port=int(args.mjpeg_port))
+    mjpeg.start()
+
     # Load calibration before opening the camera so invalid pocket labels fail fast
     # (and phase2 invalid-label checks work on hosts without CSI/GStreamer).
     calib: Calibration | None = Calibration.load(args.calib) if args.calib else None
-
-    # Bind MJPEG immediately so probes like /health can succeed while we build the
-    # pipeline and open the camera (Jetson SD + identity load can take seconds).
-    mjpeg = MjpegServer(port=int(args.mjpeg_port))
-    mjpeg.start()
 
     cam_src: int | str
     use_gstreamer = False
