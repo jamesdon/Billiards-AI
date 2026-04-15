@@ -1113,7 +1113,7 @@ def main() -> None:
     flip_view_h = False
     flip_view_v = False
     view_step_mode = "fine"
-    row_spacing = 32
+    row_spacing = 34
     radio_radius = 8
     radio_hit_radius = 14
 
