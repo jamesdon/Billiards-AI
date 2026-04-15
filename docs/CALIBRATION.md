@@ -64,6 +64,11 @@ cd "/home/$USER/Billiards-AI"
 "/home/$USER/Billiards-AI/scripts/start_calibration.sh"
 ```
 
+`start_calibration.sh` now includes a NumPy/OpenCV ABI guard. If local
+packages drift (for example NumPy 2.x with Jetson distro OpenCV built against
+NumPy 1.x), it automatically repairs the venv by reinstalling `numpy<2` before
+launching the GUI.
+
 This script runs fully from local disk (no git operations), activates the local
 venv, enforces `PYTHONNOUSERSITE=1`, validates `scripts/calib_click.py` for the
 expected GUI view controls, and then launches the calibration window.

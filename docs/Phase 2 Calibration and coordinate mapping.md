@@ -43,6 +43,9 @@ This launcher:
 - activates `/home/$USER/Billiards-AI/.venv`
 - exports `PYTHONNOUSERSITE=1`
 - runs a local script self-check for required GUI features (flip/zoom/rotate/pan)
+- runs an OpenCV/NumPy ABI guard; if it detects `_ARRAY_API` / `multiarray`
+  import mismatch on Jetson-style setups, it auto-reinstalls `numpy<2` in the
+  active venv before launching
 - starts `scripts/calib_click.py` from local disk
 - writes `calibration.json` to `/home/$USER/Billiards-AI/calibration.json` by default
 

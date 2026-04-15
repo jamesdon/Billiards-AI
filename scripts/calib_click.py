@@ -7,8 +7,22 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-import cv2
-import numpy as np
+try:
+    import cv2
+    import numpy as np
+except Exception as exc:
+    print(
+        "Failed to import cv2/numpy. On Jetson this usually means a NumPy/OpenCV ABI mismatch.\n"
+        "Fix by running:\n"
+        "  cd \"/home/$USER/Billiards-AI\"\n"
+        "  source \"/home/$USER/Billiards-AI/.venv/bin/activate\"\n"
+        "  export PYTHONNOUSERSITE=1\n"
+        "  python -m pip install --upgrade --force-reinstall \"numpy<2\"\n"
+        "Then rerun calibration with:\n"
+        "  /home/$USER/Billiards-AI/scripts/start_calibration.sh",
+        file=sys.stderr,
+    )
+    raise
 
 M_PER_FT = 0.3048
 M_PER_IN = 0.0254

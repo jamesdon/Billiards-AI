@@ -73,6 +73,50 @@ print("Calibration GUI feature check: OK")
 PY
 }
 
+ensure_cv2_numpy_abi() {
+  if /usr/bin/python3 - <<'PY'
+import sys
+try:
+    import numpy  # noqa: F401
+    import cv2  # noqa: F401
+except Exception:
+    sys.exit(1)
+sys.exit(0)
+PY
+  then
+    echo "OpenCV/NumPy ABI check: OK"
+    return 0
+  fi
+
+  echo "OpenCV/NumPy import failed; attempting Jetson-safe NumPy repair (numpy<2)..."
+  python -m pip install --upgrade --force-reinstall "numpy<2"
+
+  if /usr/bin/python3 - <<'PY'
+import sys
+try:
+    import numpy as np
+    import cv2  # noqa: F401
+    major = int(str(np.__version__).split('.')[0])
+except Exception:
+    sys.exit(1)
+if major >= 2:
+    sys.exit(1)
+sys.exit(0)
+PY
+  then
+    echo "OpenCV/NumPy ABI check after repair: OK"
+    return 0
+  fi
+
+  echo "ERROR: OpenCV/NumPy ABI remains broken after automatic repair." >&2
+  echo "Run manually:" >&2
+  echo "  cd \"$PROJECT_ROOT\"" >&2
+  echo "  source \"$VENV_PATH/bin/activate\"" >&2
+  echo "  python -m pip install --upgrade --force-reinstall \"numpy<2\"" >&2
+  echo "Then rerun start_calibration.sh." >&2
+  exit 2
+}
+
 main() {
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || "${1:-}" == "help" ]]; then
     usage
@@ -81,6 +125,7 @@ main() {
 
   cd_root
   activate_venv
+  ensure_cv2_numpy_abi
   assert_calibration_gui_features
 
   echo "Launching calibration GUI from: $CALIB_SCRIPT"
