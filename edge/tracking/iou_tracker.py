@@ -38,7 +38,7 @@ class IoUTracker:
     This is the fallback when ByteTrack/DeepSORT would be too heavy.
     """
 
-    cfg: IoUTrackerConfig = IoUTrackerConfig()
+    cfg: IoUTrackerConfig = field(default_factory=IoUTrackerConfig)
     _next_id: int = 1
     _tracks_px: Dict[BallId, Tuple[Tuple[float, float, float, float], float]] = field(default_factory=dict)
 

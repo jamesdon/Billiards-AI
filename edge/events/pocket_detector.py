@@ -17,7 +17,7 @@ class PocketDetectorConfig:
 
 @dataclass
 class PocketDetector:
-    cfg: PocketDetectorConfig = PocketDetectorConfig()
+    cfg: PocketDetectorConfig = field(default_factory=PocketDetectorConfig)
     _last_seen_ts: Dict[BallId, float] = field(default_factory=dict)
     _last_pos: Dict[BallId, Tuple[float, float]] = field(default_factory=dict)
 

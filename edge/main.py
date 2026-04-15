@@ -136,6 +136,11 @@ def main() -> None:
         print(f"Wrote calibration: {args.auto_calib_out}")
         print(json.dumps(table_geometry_dict(geom), indent=2))
         return
+
+    # Load calibration before opening the camera so invalid pocket labels fail fast
+    # (and phase2 invalid-label checks work on hosts without CSI/GStreamer).
+    calib: Calibration | None = Calibration.load(args.calib) if args.calib else None
+
     cam_src: int | str
     use_gstreamer = False
     cam_arg = str(args.camera).strip().lower()
@@ -181,7 +186,6 @@ def main() -> None:
     state.resolve_rotation()
 
     rules = _rules_for(cfg.game_type)
-    calib = Calibration.load(args.calib) if args.calib else None
 
     pipeline = EdgePipeline()
     pipeline.cfg.detect_every_n = int(args.detect_every_n)

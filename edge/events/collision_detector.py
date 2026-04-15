@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
 from core.geometry import l2
@@ -16,12 +16,8 @@ class CollisionDetectorConfig:
 
 @dataclass
 class CollisionDetector:
-    cfg: CollisionDetectorConfig = CollisionDetectorConfig()
-    _last_emit_ts: Dict[Tuple[BallId, BallId], float] = None  # type: ignore[assignment]
-
-    def __post_init__(self) -> None:
-        if self._last_emit_ts is None:
-            self._last_emit_ts = {}
+    cfg: CollisionDetectorConfig = field(default_factory=CollisionDetectorConfig)
+    _last_emit_ts: Dict[Tuple[BallId, BallId], float] = field(default_factory=dict)
 
     def update(self, state: GameState, ts: float) -> List[Event]:
         ids = [bid for bid in state.balls.keys() if bid not in state.pocketed]

@@ -14,7 +14,7 @@ import numpy as np
 try:
     import cv2
     import numpy as np
-except Exception as exc:
+except Exception:
     print(
         "Failed to import cv2/numpy. On Jetson this usually means a NumPy/OpenCV ABI mismatch.\n"
         "Fix by running:\n"
@@ -641,7 +641,7 @@ def _refine_corner_seeds(gray: np.ndarray, seeds: Sequence[Tuple[float, float]])
 
 
 def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
-    _h, w = frame.shape[:2]
+    h, w = frame.shape[:2]
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray_eq = cv2.equalizeHist(gray)
     blur = cv2.GaussianBlur(gray_eq, (5, 5), 0)
@@ -1276,17 +1276,16 @@ def main() -> None:
 >>>>>>> 1af648744bea91b803f9cc8a7cd291019adcd2d4
 
     win = "calib-click"
-    auto_corner_status = "AUTO corners loaded from frame contour."
     try:
         corner_points: List[Tuple[float, float]] = _estimate_outside_corners(img)
     except Exception as exc:
         h, w = img.shape[:2]
         corner_points = _default_corners(h, w)
-        auto_corner_status = f"AUTO corner detect failed ({exc}); using fallback corners."
+        print(f"AUTO corner detect failed ({exc}); using fallback corners.", file=sys.stderr)
     print("Auto corners (TL,TR,BL,BR):", json.dumps(corner_points))
     side_pocket_points: List[Tuple[float, float]] = _estimate_side_pockets_from_corners(img, corner_points)
     if len(side_pocket_points) == 2:
-        auto_corner_status = "AUTO corners loaded from frame contour + AUTO side-pocket seeds."
+        print("AUTO corners: contour fit + side-pocket seeds OK.", file=sys.stderr)
     active_point_idx: Optional[int] = None
     dragging = False
     mode = "corners"  # corners or side_pockets
@@ -2544,9 +2543,9 @@ def main() -> None:
             corner_points = _estimate_outside_corners(img)
             side_pocket_points = _estimate_side_pockets_from_corners(img, corner_points)
             if len(side_pocket_points) == 2:
-                auto_corner_status = "AUTO corners reloaded + AUTO side-pocket seeds refreshed."
+                print("AUTO corners reloaded + side-pocket seeds refreshed.", file=sys.stderr)
             else:
-                auto_corner_status = "AUTO corners reloaded from frame contour."
+                print("AUTO corners reloaded from frame contour.", file=sys.stderr)
             redraw()
         if key in (ord("m"),):
             mode = "side_pockets" if mode == "corners" else "corners"

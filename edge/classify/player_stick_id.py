@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 
 import cv2
@@ -43,7 +43,7 @@ class IdentityMatcherConfig:
 @dataclass
 class PlayerStickIdentifier:
     store: IdentityStore
-    cfg: IdentityMatcherConfig = IdentityMatcherConfig()
+    cfg: IdentityMatcherConfig = field(default_factory=IdentityMatcherConfig)
 
     def match_or_create_player(self, roi_bgr: np.ndarray, default_name: str = "Player") -> PlayerProfile:
         sig = hsv_hist_signature(roi_bgr)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
 import cv2
@@ -44,7 +44,7 @@ class BallClassifierConfig:
 
 @dataclass
 class BallClassifier:
-    cfg: BallClassifierConfig = BallClassifierConfig()
+    cfg: BallClassifierConfig = field(default_factory=BallClassifierConfig)
 
     def update_track(
         self,

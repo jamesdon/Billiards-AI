@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple
 
 from core.types import BallClass, BallId, Event, EventType, GameState
@@ -15,13 +15,9 @@ class ShotDetectorConfig:
 
 @dataclass
 class ShotDetector:
-    cfg: ShotDetectorConfig = ShotDetectorConfig()
+    cfg: ShotDetectorConfig = field(default_factory=ShotDetectorConfig)
     _rest_start_ts: Optional[float] = None
-    _last_vel: Dict[BallId, Tuple[float, float]] = None  # type: ignore[assignment]
-
-    def __post_init__(self) -> None:
-        if self._last_vel is None:
-            self._last_vel = {}
+    _last_vel: Dict[BallId, Tuple[float, float]] = field(default_factory=dict)
 
     def update(self, state: GameState, ts: float) -> list[Event]:
         cue_id = self._cue_id(state)

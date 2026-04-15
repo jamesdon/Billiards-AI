@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 import cv2
@@ -15,7 +15,7 @@ from .postprocess import yolo_like_to_observations
 @dataclass
 class OnnxRuntimeDetector:
     model_path: str
-    cfg: DetectorConfig = DetectorConfig()
+    cfg: DetectorConfig = field(default_factory=DetectorConfig)
     input_name: Optional[str] = None
     output_name: Optional[str] = None
     class_map: Optional[dict[int, str]] = None

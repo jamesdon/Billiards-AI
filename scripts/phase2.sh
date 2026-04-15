@@ -18,6 +18,21 @@ MJPEG_PORT="${MJPEG_PORT:-8080}"
 EDGE_TIMEOUT_SECONDS="${EDGE_TIMEOUT_SECONDS:-1200}"
 PHASE2_REQUIRE_CAMERA="${PHASE2_REQUIRE_CAMERA:-1}"
 
+# GNU coreutils timeout is not on all macOS installs; fall back to no timeout.
+run_with_timeout() {
+  local max_secs="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "${max_secs}" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "${max_secs}" "$@"
+  elif [ -x /usr/bin/timeout ]; then
+    /usr/bin/timeout "${max_secs}" "$@"
+  else
+    "$@"
+  fi
+}
+
 echo "[Phase2] Writing baseline calibration file: $CALIB_PATH"
 cat > "$CALIB_PATH" <<'EOF'
 {
@@ -66,7 +81,7 @@ trap cleanup EXIT
 
 if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   echo "[Phase2] Running valid calibration edge startup smoke..."
-  /usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
+  run_with_timeout "${EDGE_TIMEOUT_SECONDS}" python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
   EDGE_PID="$!"
   READY=0
   for _ in $(seq 1 45); do
@@ -107,14 +122,14 @@ print("written", path)
 PY
 
 set +e
-/usr/bin/timeout 120 python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_INVALID_PATH" --mjpeg-port "$((MJPEG_PORT + 1))" >"$INVALID_LOG" 2>&1
+run_with_timeout 120 python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_INVALID_PATH" --mjpeg-port "$((MJPEG_PORT + 1))" >"$INVALID_LOG" 2>&1
 RC=$?
 set -e
 if [[ "$RC" -eq 0 ]]; then
   echo "Invalid calibration unexpectedly succeeded. Log: $INVALID_LOG" >&2
   exit 1
 fi
-if ! rg -q "top_middle_side|PocketLabel|ValueError" "$INVALID_LOG"; then
+if ! grep -qE "top_middle_side|PocketLabel|ValueError" "$INVALID_LOG"; then
   echo "Invalid calibration failed, but did not show expected label/schema error. Log: $INVALID_LOG" >&2
   exit 1
 fi
