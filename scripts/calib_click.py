@@ -612,6 +612,15 @@ def _quad_area_xy(pts: Sequence[Tuple[float, float]]) -> float:
     return abs(float(cv2.contourArea(arr)))
 
 
+def _quad_min_corner_inset(quad: np.ndarray, w: int, h: int) -> float:
+    """Smallest distance from any vertex to the image border (detects frame-filling quads)."""
+    m = float("inf")
+    for row in quad.reshape(-1, 2):
+        x, y = float(row[0]), float(row[1])
+        m = min(m, x, y, float(w - 1) - x, float(h - 1) - y)
+    return float(m)
+
+
 def _refine_quad_with_hough(gray: np.ndarray, seed_quad: Sequence[Tuple[float, float]]) -> List[Tuple[float, float]]:
     h, w = gray.shape[:2]
     if len(seed_quad) != 4:
@@ -785,13 +794,19 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
     if not contours:
         return _default_corners(h, w)
 
-    min_area = 0.08 * float(w * h)
-    best_quad: Optional[np.ndarray] = None
-    best_quad_area = -1.0
+    wh = float(w * h)
+    min_contour_area = 0.08 * wh
+    # Prefer the playfield-sized quad, not the largest hull (often the whole room / frame).
+    max_quad_area = 0.70 * wh
+    min_quad_area = 0.055 * wh
+    inset_target = 0.035 * float(min(h, w))
 
-    for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:12]:
+    scored: List[Tuple[float, np.ndarray]] = []
+    fallback: List[Tuple[float, np.ndarray]] = []
+
+    for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:24]:
         area = float(cv2.contourArea(contour))
-        if area < min_area:
+        if area < min_contour_area:
             continue
         hull = cv2.convexHull(contour).reshape(-1, 2).astype(np.float64)
         if hull.shape[0] < 4:
@@ -806,18 +821,40 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
             snapped.append(hull[int(np.argmin(d))])
         snapped = np.array(_order_points_tl_tr_bl_br(np.array(snapped, dtype=np.float64).tolist()), dtype=np.float64)
         snapped_area = abs(float(cv2.contourArea(snapped.astype(np.float32))))
-        if snapped_area > best_quad_area:
-            best_quad_area = snapped_area
-            best_quad = snapped
+        inset = _quad_min_corner_inset(snapped, w, h)
+        fallback.append((snapped_area, snapped.copy()))
+        if min_quad_area <= snapped_area <= max_quad_area:
+            inset_w = min(1.0, max(0.15, inset / max(inset_target, 1.0)))
+            scored.append((snapped_area * inset_w, snapped.copy()))
 
         eps = 0.012 * cv2.arcLength(hull.astype(np.float32), True)
         approx = cv2.approxPolyDP(hull.astype(np.float32), eps, True).reshape(-1, 2).astype(np.float64)
         if approx.shape[0] == 4:
             approx_ordered = np.array(_order_points_tl_tr_bl_br(approx.tolist()), dtype=np.float64)
             approx_area = abs(float(cv2.contourArea(approx_ordered.astype(np.float32))))
-            if approx_area > best_quad_area:
-                best_quad_area = approx_area
-                best_quad = approx_ordered
+            inset = _quad_min_corner_inset(approx_ordered, w, h)
+            fallback.append((approx_area, approx_ordered.copy()))
+            if min_quad_area <= approx_area <= max_quad_area:
+                inset_w = min(1.0, max(0.15, inset / max(inset_target, 1.0)))
+                scored.append((approx_area * inset_w, approx_ordered.copy()))
+
+    best_quad: Optional[np.ndarray] = None
+    best_quad_area = -1.0
+    if scored:
+        _, best_quad = max(scored, key=lambda t: t[0])
+        best_quad_area = float(_quad_area_xy([(float(x), float(y)) for x, y in best_quad.reshape(-1, 2)]))
+    else:
+        capped = [(qa, q) for qa, q in fallback if qa <= max_quad_area and qa >= min_quad_area * 0.55]
+        if capped:
+            best_quad_area, best_quad = max(capped, key=lambda t: t[0])
+        else:
+            loose = [(qa, q) for qa, q in fallback if qa <= 0.82 * wh]
+            if loose:
+                best_quad_area, best_quad = max(loose, key=lambda t: t[0])
+            elif fallback:
+                best_quad_area, best_quad = max(fallback, key=lambda t: t[0])
+            else:
+                best_quad = None
 
     if best_quad is None or best_quad_area <= 1.0:
         return _default_corners(h, w)
@@ -828,7 +865,10 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
     if throat_pts is not None:
         ta = _quad_area_xy(throat_pts)
         ha = max(_quad_area_xy(hough_refined), 1.0)
-        if ta >= 0.09 * float(w * h) and ta <= 1.5 * max(ha, 0.55 * float(best_quad_area)):
+        if (
+            ta >= 0.09 * float(w * h)
+            and ta <= min(0.62 * float(w * h), 1.5 * max(ha, 0.55 * float(best_quad_area)))
+        ):
             return _order_physical_table_corners(throat_pts)
 
     refined = _refine_corner_seeds(gray, hough_refined)
@@ -1128,12 +1168,16 @@ def _order_points_tl_tr_bl_br(points: List[Tuple[float, float]]) -> List[Tuple[f
     return [(float(p[0]), float(p[1])) for p in ordered]
 
 
-def _order_physical_table_corners(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+def _order_physical_table_corners_impl(
+    points: List[Tuple[float, float]],
+    *,
+    head_toward_small_image_y: bool,
+) -> List[Tuple[float, float]]:
     """
-    Order four detected corners as physical TL, TR, BL, BR.
+    Order four corners as physical TL, TR, BL, BR given which short-rail end is "head".
 
-    TL and TR share the head short rail (kitchen / rack). BL and BR share the foot short rail.
-    Assumes the camera sees the kitchen toward smaller image Y (typical overhead / foot view).
+    head_toward_small_image_y: if True, the head short rail is the one whose midpoint
+    has smaller image Y; if False, the head rail is the one with larger image Y.
     """
     pts = np.array(points, dtype=np.float64)
     if pts.shape[0] != 4:
@@ -1157,15 +1201,20 @@ def _order_physical_table_corners(points: List[Tuple[float, float]]) -> List[Tup
     def mid(a: np.ndarray, b: np.ndarray) -> np.ndarray:
         return 0.5 * (a + b)
 
+    def head_is_first_short_pair(p_a: np.ndarray, p_b: np.ndarray, p_c: np.ndarray, p_d: np.ndarray) -> bool:
+        m01 = float(mid(p_a, p_b)[1])
+        m23 = float(mid(p_c, p_d)[1])
+        return (m01 <= m23) if head_toward_small_image_y else (m01 >= m23)
+
     if sum_a <= sum_b:
-        if mid(p0, p1)[1] <= mid(p2, p3)[1]:
+        if head_is_first_short_pair(p0, p1, p2, p3):
             head_a, head_b = p0, p1
             foot_a, foot_b = p2, p3
         else:
             head_a, head_b = p2, p3
             foot_a, foot_b = p0, p1
     else:
-        if mid(p1, p2)[1] <= mid(p3, p0)[1]:
+        if head_is_first_short_pair(p1, p2, p3, p0):
             head_a, head_b = p1, p2
             foot_a, foot_b = p3, p0
         else:
@@ -1186,6 +1235,32 @@ def _order_physical_table_corners(points: List[Tuple[float, float]]) -> List[Tup
         (float(bl[0]), float(bl[1])),
         (float(br[0]), float(br[1])),
     ]
+
+
+def _order_physical_table_corners(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    """
+    Order four detected corners as physical TL, TR, BL, BR.
+
+    TL and TR share the head short rail (kitchen / rack). BL and BR share the foot short rail.
+    Head vs foot along image Y is ambiguous (camera can show kitchen at top or bottom); we try
+    both and keep the labeling closest to image-axis TL/TR/BL/BR from the same four points.
+    """
+    if len(points) != 4:
+        raise ValueError("Need exactly 4 corners.")
+    flat = [(float(x), float(y)) for x, y in points]
+    img_ref = _order_points_tl_tr_bl_br(flat)
+    phys_lo = _order_physical_table_corners_impl(flat, head_toward_small_image_y=True)
+    phys_hi = _order_physical_table_corners_impl(flat, head_toward_small_image_y=False)
+
+    def _match_cost(phys: List[Tuple[float, float]]) -> float:
+        return float(
+            sum(
+                (phys[i][0] - img_ref[i][0]) ** 2 + (phys[i][1] - img_ref[i][1]) ** 2
+                for i in range(4)
+            )
+        )
+
+    return phys_lo if _match_cost(phys_lo) <= _match_cost(phys_hi) else phys_hi
 
 
 def _manual_calibration_payload(

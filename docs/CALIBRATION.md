@@ -121,6 +121,12 @@ In-window workflow (new default):
   Always verify on your table; drag handles if a pocket is weak in the image.
   - It combines contour/rectangle fitting, adaptive edge thresholds, and Hough-line
     side fitting with corner-feature refinement for tighter initial TL/TR/BL/BR placement.
+  - Auto-detect **does not** maximize quad area alone (that often locks onto the whole
+    room boundary). It prefers quadrilaterals in a **table-sized area band** with
+    vertices **inset from the image border**, then applies throat / Hough refinement.
+  - Physical **TL/TR/BL/BR** vs image-up is ambiguous when the kitchen is at the top
+    or bottom of the frame; the script tries **both** short-rail orientations and
+    keeps the labeling closest to image-axis corner order from the same four points.
 - You can drag any point to refine it.
 - The table-size/units panel is automatically placed in a low-conflict area of the
   frame (away from corner points) so corner dragging remains clickable.
