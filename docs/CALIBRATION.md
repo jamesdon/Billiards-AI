@@ -113,7 +113,12 @@ the helper now writes `calibration.json` directly without calling `edge.main`.
 
 In-window workflow (new default):
 
-- The helper proposes initial corner seeds from the current frame (refine by dragging to inner pocket throats).
+- The helper proposes initial corners from the current frame, then **refines each
+  corner toward the corner-pocket inner throat** by intersecting two offset lines
+  parallel to the adjacent rails, fit to Canny edges in the pocket wedge (see
+  `_pocket_throat_from_seed` in `scripts/calib_click.py`). If that step fails
+  (too few edges), it falls back to the previous Hough-quad + subpixel path.
+  Always verify on your table; drag handles if a pocket is weak in the image.
   - It combines contour/rectangle fitting, adaptive edge thresholds, and Hough-line
     side fitting with corner-feature refinement for tighter initial TL/TR/BL/BR placement.
 - You can drag any point to refine it.

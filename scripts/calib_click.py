@@ -459,6 +459,159 @@ def _clip_point_to_image(x: float, y: float, w: int, h: int) -> Tuple[float, flo
     )
 
 
+def _unit_vec2(v: np.ndarray) -> np.ndarray:
+    n = float(np.linalg.norm(v))
+    if n <= 1e-9:
+        return np.array([0.0, 0.0], dtype=np.float64)
+    return (v / n).astype(np.float64)
+
+
+def _cross2(a: np.ndarray, b: np.ndarray) -> float:
+    return float(a[0] * b[1] - a[1] * b[0])
+
+
+def _intersect_lines_n_d(n1: np.ndarray, d1: float, n2: np.ndarray, d2: float) -> Optional[Tuple[float, float]]:
+    """Solve n1·p=d1, n2·p=d2 for p=(x,y). Lines are parallel to each other's perpendicular."""
+    a = np.array([[float(n1[0]), float(n1[1])], [float(n2[0]), float(n2[1])]], dtype=np.float64)
+    b = np.array([float(d1), float(d2)], dtype=np.float64)
+    try:
+        xy = np.linalg.solve(a, b)
+    except np.linalg.LinAlgError:
+        return None
+    if not (np.all(np.isfinite(xy))):
+        return None
+    return float(xy[0]), float(xy[1])
+
+
+def _pocket_throat_from_seed(
+    gray: np.ndarray,
+    corner: np.ndarray,
+    arm1: np.ndarray,
+    arm2: np.ndarray,
+    w: int,
+    h: int,
+) -> Optional[Tuple[float, float]]:
+    """
+    Estimate the inner pocket throat: intersection of two lines parallel to the
+    playing-surface rails (corner→arm1, corner→arm2) fit to Canny edges in the
+    pocket wedge (direction away from table interior).
+    """
+    u = _unit_vec2(arm1 - corner)
+    v = _unit_vec2(arm2 - corner)
+    if float(np.linalg.norm(u)) < 1e-6 or float(np.linalg.norm(v)) < 1e-6:
+        return None
+    pock = _unit_vec2(-(u + v))
+    if float(np.linalg.norm(pock)) < 1e-6:
+        return None
+
+    diag = float(np.hypot(float(w), float(h)))
+    roi_half = int(max(36, min(0.14 * diag, 0.22 * diag)))
+    ctr = corner + pock * (0.055 * diag)
+    x0 = int(max(0, float(ctr[0]) - roi_half))
+    x1 = int(min(w, float(ctr[0]) + roi_half))
+    y0 = int(max(0, float(ctr[1]) - roi_half))
+    y1 = int(min(h, float(ctr[1]) + roi_half))
+    if x1 - x0 < 24 or y1 - y0 < 24:
+        return None
+
+    patch = gray[y0:y1, x0:x1]
+    blur = cv2.GaussianBlur(patch, (5, 5), 0)
+    med = float(np.median(blur))
+    lo = int(max(12.0, 0.52 * med))
+    hi = int(min(248.0, max(lo + 8.0, 1.38 * med)))
+    edges = cv2.Canny(blur, lo, hi)
+    edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
+
+    tol_strip = max(6.0, 0.015 * diag)
+    max_along = 0.42 * diag
+    min_pock = 3.0
+
+    n_u = _unit_vec2(np.array([-u[1], u[0]], dtype=np.float64))
+    n_v = _unit_vec2(np.array([-v[1], v[0]], dtype=np.float64))
+
+    def collect_d_values(dir_rail: np.ndarray, normal: np.ndarray) -> List[float]:
+        ds: List[float] = []
+        ys, xs = np.where(edges > 0)
+        for yi, xi in zip(ys.tolist(), xs.tolist()):
+            px = float(x0 + int(xi))
+            py = float(y0 + int(yi))
+            p = np.array([px, py], dtype=np.float64)
+            if float(np.dot(p - corner, pock)) < min_pock:
+                continue
+            perp = abs(_cross2(p - corner, dir_rail)) / (float(np.linalg.norm(dir_rail)) + 1e-9)
+            if perp > tol_strip:
+                continue
+            along = float(np.dot(p - corner, -dir_rail))
+            if along < 4.0 or along > max_along:
+                continue
+            ds.append(float(normal[0] * px + normal[1] * py))
+        return ds
+
+    du = collect_d_values(u, n_u)
+    dv = collect_d_values(v, n_v)
+    if len(du) < 6 or len(dv) < 6:
+        return None
+
+    du_arr = np.array(du, dtype=np.float64)
+    dv_arr = np.array(dv, dtype=np.float64)
+
+    def _try_pair(pu: float, pv: float) -> Optional[Tuple[float, float]]:
+        inter_l = _intersect_lines_n_d(n_u, pu, n_v, pv)
+        if inter_l is None:
+            return None
+        ix_l, iy_l = inter_l
+        dm = float(np.hypot(ix_l - float(corner[0]), iy_l - float(corner[1])))
+        if dm > 0.30 * diag or dm < 0.002 * diag:
+            return None
+        return _clip_point_to_image(ix_l, iy_l, w, h)
+
+    d_u_m = float(np.median(du_arr))
+    d_v_m = float(np.median(dv_arr))
+    cand = _try_pair(d_u_m, d_v_m)
+    if cand is not None:
+        return cand
+    # Second pass: percentiles favor inner jaw when median sits between two parallel rails.
+    for pu, pv in (
+        (float(np.percentile(du_arr, 30)), float(np.percentile(dv_arr, 30))),
+        (float(np.percentile(du_arr, 70)), float(np.percentile(dv_arr, 70))),
+    ):
+        cand = _try_pair(pu, pv)
+        if cand is not None:
+            return cand
+    return None
+
+
+def _refine_quad_to_pocket_throats(
+    gray: np.ndarray,
+    physical_tl_tr_bl_br: Sequence[Tuple[float, float]],
+    w: int,
+    h: int,
+) -> Optional[List[Tuple[float, float]]]:
+    """Return four throat points (physical TL,TR,BL,BR order) if all corners refine."""
+    tl = np.array(physical_tl_tr_bl_br[0], dtype=np.float64)
+    tr = np.array(physical_tl_tr_bl_br[1], dtype=np.float64)
+    bl = np.array(physical_tl_tr_bl_br[2], dtype=np.float64)
+    br = np.array(physical_tl_tr_bl_br[3], dtype=np.float64)
+    seeds = [
+        (tl, tr, bl),
+        (tr, tl, br),
+        (bl, tl, br),
+        (br, tr, bl),
+    ]
+    out: List[Tuple[float, float]] = []
+    for corner, a1, a2 in seeds:
+        t = _pocket_throat_from_seed(gray, corner, a1, a2, w, h)
+        if t is None:
+            return None
+        out.append(t)
+    return out
+
+
+def _quad_area_xy(pts: Sequence[Tuple[float, float]]) -> float:
+    arr = np.array(pts, dtype=np.float32).reshape(-1, 1, 2)
+    return abs(float(cv2.contourArea(arr)))
+
+
 def _refine_quad_with_hough(gray: np.ndarray, seed_quad: Sequence[Tuple[float, float]]) -> List[Tuple[float, float]]:
     h, w = gray.shape[:2]
     if len(seed_quad) != 4:
@@ -670,6 +823,14 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
         return _default_corners(h, w)
 
     hough_refined = _refine_quad_with_hough(gray, best_quad.tolist())
+    phys_hough = _order_physical_table_corners(_order_points_tl_tr_bl_br(hough_refined))
+    throat_pts = _refine_quad_to_pocket_throats(gray, phys_hough, w, h)
+    if throat_pts is not None:
+        ta = _quad_area_xy(throat_pts)
+        ha = max(_quad_area_xy(hough_refined), 1.0)
+        if ta >= 0.09 * float(w * h) and ta <= 1.5 * max(ha, 0.55 * float(best_quad_area)):
+            return _order_physical_table_corners(throat_pts)
+
     refined = _refine_corner_seeds(gray, hough_refined)
     refined_ordered = _order_points_tl_tr_bl_br(refined)
     refined_area = abs(float(cv2.contourArea(np.array(refined_ordered, dtype=np.float32))))
