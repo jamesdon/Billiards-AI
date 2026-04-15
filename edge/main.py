@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import time
 import json
+import time
 
 from core.rules.eight_ball import EightBallRules
 from core.rules.nine_ball import NineBallRules
@@ -13,10 +13,34 @@ from core.types import Event, GameConfig, GameState, GameType, PlayerState
 
 from core.identity_store import IdentityStore
 from .calib.calib_store import Calibration
-from .io.camera_opencv import OpenCVCamera, jetson_csi_gstreamer_pipeline
+from .calib.table_geometry import auto_calibration_from_corners, table_geometry_dict
+from .io.camera_opencv import OpenCVCamera, jetson_csi_gstreamer_pipeline, opencv_gstreamer_enabled
 from .overlay.draw import draw_overlay
 from .overlay.stream_mjpeg import MjpegServer
 from .pipeline import EdgePipeline
+
+TABLE_SIZE_PRESETS: dict[str, tuple[float, float]] = {
+    "6ft": (1.829, 0.914),  # bar box
+    "7ft": (1.981, 0.991),
+    "8ft": (2.235, 1.118),
+    "9ft": (2.84, 1.42),
+    "snooker": (3.569, 1.778),
+}
+
+TABLE_SIZE_ALIASES: dict[str, str] = {
+    "bar_box": "6ft",
+    "bar_box_6ft": "6ft",
+}
+
+TABLE_SIZE_CHOICES: tuple[str, ...] = (
+    "6ft",
+    "bar_box",
+    "bar_box_6ft",
+    "7ft",
+    "8ft",
+    "9ft",
+    "snooker",
+)
 
 
 def _rules_for(game_type: GameType):
@@ -47,6 +71,35 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--width", type=int, default=None)
     ap.add_argument("--height", type=int, default=None)
     ap.add_argument("--calib", type=str, default=None, help="Calibration JSON with homography + pockets")
+    ap.add_argument(
+        "--auto-calib-out",
+        type=str,
+        default=None,
+        help="Write a generated calibration JSON from 4 corners and exit",
+    )
+    ap.add_argument(
+        "--table-size",
+        type=str,
+        default="9ft",
+        choices=list(TABLE_SIZE_CHOICES),
+        help="Table size preset used by --auto-calib-out",
+    )
+    ap.add_argument(
+        "--table-corners-px",
+        type=str,
+        default=None,
+        help=(
+            "Required with --auto-calib-out. Four OUTSIDE cushion corners in order "
+            "TL;TR;BL;BR: TL/TR share the head (kitchen) short rail, BL/BR the foot short rail, "
+            "as 'x1,y1;x2,y2;x3,y3;x4,y4'. Do not use pocket centers."
+        ),
+    )
+    ap.add_argument(
+        "--pocket-radius-m",
+        type=float,
+        default=0.07,
+        help="Pocket radius (meters) used by --auto-calib-out",
+    )
     ap.add_argument("--game", type=str, default="8ball", choices=[g.value for g in GameType])
     ap.add_argument("--mjpeg-port", type=int, default=8080)
     ap.add_argument("--players", type=str, default="Player A,Player B")
@@ -59,12 +112,46 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.auto_calib_out:
+        if not args.table_corners_px:
+            raise ValueError("--auto-calib-out requires --table-corners-px")
+        chunks = [c.strip() for c in str(args.table_corners_px).split(";") if c.strip()]
+        if len(chunks) != 4:
+            raise ValueError("--table-corners-px requires exactly 4 points TL,TR,BL,BR")
+        corners: list[tuple[float, float]] = []
+        for c in chunks:
+            parts = [p.strip() for p in c.split(",")]
+            if len(parts) != 2:
+                raise ValueError(f"Invalid corner format: {c!r}")
+            corners.append((float(parts[0]), float(parts[1])))
+        table_size = TABLE_SIZE_ALIASES.get(str(args.table_size), str(args.table_size))
+        table_length_m, table_width_m = TABLE_SIZE_PRESETS[table_size]
+        calib, geom = auto_calibration_from_corners(
+            image_points=corners,
+            table_length_m=table_length_m,
+            table_width_m=table_width_m,
+            pocket_radius_m=float(args.pocket_radius_m),
+        )
+        calib.save(str(args.auto_calib_out))
+        print(f"Wrote calibration: {args.auto_calib_out}")
+        print(json.dumps(table_geometry_dict(geom), indent=2))
+        return
     cam_src: int | str
     use_gstreamer = False
     cam_arg = str(args.camera).strip().lower()
     if cam_arg == "csi":
         w = int(args.width or 1280)
         h = int(args.height or 720)
+        if not opencv_gstreamer_enabled():
+            raise RuntimeError(
+                "CSI camera mode requires OpenCV with GStreamer support, but current cv2 build has "
+                "GStreamer=NO. On Jetson, remove pip OpenCV wheels and use system OpenCV.\n"
+                "Suggested fix:\n"
+                "  /usr/bin/python3 -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless\n"
+                "  sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools\n"
+                "  # recreate virtualenv with system site packages\n"
+                "  /usr/bin/python3 -m venv --system-site-packages /home/$USER/Billiards-AI/.venv"
+            )
         cam_src = jetson_csi_gstreamer_pipeline(
             sensor_id=int(args.csi_sensor_id),
             capture_width=w,

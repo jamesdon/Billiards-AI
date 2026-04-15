@@ -16,12 +16,12 @@ Verify the system boots reliably on dev hardware and Jetson-style targets.
 ### Entry criteria
 
 - dependencies installed
-- camera available
+- CSI camera available and recognized by Jetson camera stack (`nvargus-daemon`)
 - optional backend env vars set
 
 ### Test cases
 
-- start edge with camera only
+- start edge with CSI camera only (`--camera csi`)
 - start edge with ONNX model + class map
 - start backend and validate `/health`
 - verify MJPEG stream endpoint

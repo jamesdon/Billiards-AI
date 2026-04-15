@@ -19,7 +19,7 @@ python -m edge.main --help
 - **Project path**: expected at `"/home/$USER/Billiards-AI"` on device.
 - **Camera source**:
   - CSI camera is the default: `--camera csi`
-  - USB camera: `--camera usb --usb-index 0`
+  - CSI camera is the required production/test path for this project
   - optional CSI controls: `--csi-sensor-id`, `--csi-framerate`, `--csi-flip-method`
   - setup helper script: `scripts/jetson_csi_setup.sh`
 - **Acceleration**:
@@ -44,6 +44,10 @@ Required runtime assets:
 - `/home/$USER/Billiards-AI/models/model.onnx`
 - `/home/$USER/Billiards-AI/models/class_map.json`
 - `/home/$USER/Billiards-AI/data/calibration.json`
+
+If you are starting from scratch, there is no bundled detector model in this repository.
+You must train/export your own ONNX detector and place it at
+`/home/$USER/Billiards-AI/models/model.onnx` before running phases 3/4/9.
 
 Stop:
 

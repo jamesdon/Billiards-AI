@@ -21,10 +21,173 @@ Compute homography \(H\) such that \(P \sim H p\).
 
 This is robust and simple on edge hardware.
 
-### 2) Automatic corner detection (optional)
+### 2) Automatic geometry derivation from corners (implemented)
 
-If table rails are visually distinct, detect rectangle via edges/lines and refine using RANSAC.
-This is optional; manual is the default for reliability.
+This repo includes a helper (`edge/calib/table_geometry.py`) that derives
+baseline table geometry from four image corners:
+
+- homography `H`
+- six standardized pockets
+- table length/width
+- kitchen polygon
+- break area polygon
+
+CLI workflow:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python -m edge.main \
+  --auto-calib-out "/home/$USER/Billiards-AI/calibration.json" \
+  --table-size 6ft \
+  --table-corners-px "120,80;1160,80;120,640;1160,640"
+```
+
+Corner order for `--table-corners-px` is strictly **physical** (not “image top-left”):
+
+1. **TL** — head short rail (kitchen / rack side), left long-rail corner  
+2. **TR** — same head short rail, right long-rail corner  
+3. **BL** — foot short rail (behind the break line from the kitchen), left long-rail corner  
+4. **BR** — same foot short rail, right long-rail corner  
+
+Table coordinates use **X** from head toward foot and **Y** along the head rail from TL to TR, so corner pockets are **(0,0), (0,W), (L,0), (L,W)** and side pockets sit at **mid-span on each long rail**: **(L/2,0)** and **(L/2,W)**.
+
+These points are the **outside corners of the playable table rectangle**
+(the cushion intersection corners), **not** the centers of pockets.
+
+This is still a baseline and should be visually validated before match use.
+
+### Optional interactive corner picker (recommended)
+
+Single-command startup script (preferred):
+
+```bash
+cd "/home/$USER/Billiards-AI"
+"/home/$USER/Billiards-AI/scripts/start_calibration.sh"
+```
+
+`start_calibration.sh` now includes a NumPy/OpenCV ABI guard. If local
+packages drift (for example NumPy 2.x with Jetson distro OpenCV built against
+NumPy 1.x), it automatically repairs the venv by reinstalling `numpy<2` before
+launching the GUI.
+
+This script runs fully from local disk (no git operations), activates the local
+venv, enforces `PYTHONNOUSERSITE=1`, validates `scripts/calib_click.py` for the
+expected GUI view controls, and then launches the calibration window.
+
+Use the helper script to launch an interactive calibration window:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+export PYTHONNOUSERSITE=1
+python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
+  --camera csi \
+  --csi-sensor-id 0 \
+  --csi-flip-method 6 \
+  --out "/home/$USER/Billiards-AI/calibration.json"
+```
+
+If your local script is older and does not accept `--csi-flip-method`, use:
+
+```bash
+python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
+  --camera csi \
+  --csi-sensor-id 0 \
+  --flip 6 \
+  --out "/home/$USER/Billiards-AI/calibration.json"
+```
+
+If your local `edge.main` is also older and does not support `--auto-calib-out`,
+the helper now writes `calibration.json` directly without calling `edge.main`.
+
+In-window workflow (new default):
+
+- The helper proposes table outside-corner points automatically from the current frame.
+  - It combines contour/rectangle fitting, adaptive edge thresholds, and Hough-line
+    side fitting with corner-feature refinement for tighter initial TL/TR/BL/BR placement.
+- You can drag any point to refine it.
+- The table-size/units panel is automatically placed in a low-conflict area of the
+  frame (away from corner points) so corner dragging remains clickable.
+- The overlay no longer renders a large text banner across the top of the frame;
+  controls/status are consolidated in the right-side panel to keep points visible.
+- The tools panel header supports:
+  - drag to reposition
+  - double-click to collapse/expand (accordion behavior) for unobstructed corner editing
+- View controls are now available directly in the panel:
+  - flip horizontal / flip vertical (GUI toggles)
+  - zoom in / zoom out
+  - rotate left / rotate right
+  - pan up / left / right / down
+  - fine/coarse radio selector for zoom/rotate/pan increment size (defaults to `fine`:
+    **fine** = 0.5° rotation and 1% pan; **coarse** = 2° and 3% pan)
+  - reset view
+  - these are view-only transforms for easier editing after camera moves; saved
+    calibration points remain in source image coordinates.
+- Camera source switching controls were removed from the overlay to reduce startup
+  latency and simplify editing. The selected CLI camera source remains the single
+  active source for the session.
+- Preview is continuously refreshed from the selected camera stream while editing
+  (live background), with automatic reconnect attempts if frame reads fail; point
+  coordinates remain in source image space.
+- Edit modes:
+  - outside corners mode (`TL/TR/BL/BR`)
+  - side pockets mode (`LS/RS`)
+  - in side-pocket mode, both `LS` and `RS` are draggable; they are **anchored to the
+    center line of each long rail** (TL–BL and TR–BR) after auto-seeding
+  - side-pocket seeds use dark circular pocket mouths (threshold + morphology +
+    optional Hough circles), then snap to the long-rail segment; drag to adjust
+- Table-size is selected in-window via radio list:
+  - click radio circles or press keys `1..5`
+  - options: `6ft (bar box)`, `7ft`, `8ft`, `9ft`, `snooker`
+  - detected/default option is preselected from previous calibration file when available
+- `--table-size` is intentionally not used by this GUI workflow; selection happens in-window.
+- Unit display toggle uses an in-window radio list:
+  - click radio circles or press `6` (`imperial`) / `7` (`metric`)
+  - default UI unit is `imperial`
+
+### What TL/TR/BL/BR means
+
+These are the **outside cushion corners** of the playfield, in **physical** order (not “image top-left”):
+
+1. `TL` / `TR` — the two corners on the **head short rail** (kitchen / rack side)
+2. `BL` / `BR` — the two corners on the **foot short rail** (opposite the kitchen; behind the break line from the kitchen)
+
+Within each short rail, `L` / `R` follow **left** vs **right** as seen from above the table (smaller image **x** = `L` when the table is not flipped).
+
+They are **not** pocket centers.
+
+Controls:
+
+- drag points to adjust
+- `r`: reset to auto-detected corners
+- `q` or `Esc`: quit without saving
+- `Enter`: save calibration
+- `u`: undo the most recent point in current mode
+- `t`: toggle units (imperial/metric)
+- `6`: select imperial units, `7`: select metric units
+- `m`: toggle side-pocket edit mode
+- `h`: toggle horizontal view flip
+- `v`: toggle vertical view flip
+- `+` / `-`: zoom in / out
+- `z` / `x` (or `,` / `.`): rotate view left / right
+- arrow keys or `i/j/k/l`: pan up/left/down/right
+- `g`: keyboard toggle for view step mode (`fine`/`coarse`)
+- `0`: reset view transform
+
+### Jetson camera orientation (repeatable)
+
+If the live view is upside down and you want a vertical flip, use:
+
+- `--csi-flip-method 6` (vertical mirror)
+
+Common Jetson `nvvidconv` values used in this project:
+
+- `0`: no transform
+- `2`: rotate 180 degrees
+- `6`: vertical mirror
+
+For repeatable runs, set this in every CSI command you use (calibration + edge runtime).
 
 ## Table dimensions presets
 
@@ -32,8 +195,9 @@ Calibration stores:
 
 - table length/width in meters
 - pocket centers/radii (or polygons) in table coords
+- kitchen and break area polygons in table coords
 
-Presets can be created per table type (7ft/8ft/9ft, snooker).
+Presets can be created per table type (6ft bar box/7ft/8ft/9ft, snooker).
 
 ## Output artifact
 
@@ -43,6 +207,10 @@ Calibration is saved to JSON (see `edge/calib/calib_store.py`) containing:
 - `table_points`: four corners (meters)
 - `H`: 3x3 homography (float)
 - `pockets`: pocket definitions in table coords with standardized labels
+- `table_length_m`: inferred or configured table length
+- `table_width_m`: inferred or configured table width
+- `kitchen_polygon_xy_m`: polygon in table coordinates
+- `break_area_polygon_xy_m`: polygon in table coordinates
 
 ### Pocket labels (standard)
 

@@ -7,7 +7,7 @@ import numpy as np
 
 from core.geometry import Homography
 from core.stats import StatsAggregator
-from core.types import BallClass, BallId, BallObservation, BallTrack, Event, EventType, GameState
+from core.types import BallClass, BallId, BallObservation, BallTrack, Event, EventType, GameState, RackTrack
 
 from .calib.calib_store import Calibration
 from .events.collision_detector import CollisionDetector
@@ -58,6 +58,9 @@ class EdgePipeline:
     _ui_stick_banner: Optional[str] = None
     _ui_stick_banner_until_ts: float = 0.0
     _game_over_emitted: bool = False
+    _rack_tracker: IoUTracker = field(default_factory=IoUTracker)
+    _rack_tracks: Dict[int, RackTrack] = field(default_factory=dict)
+    _pending_rack_game_over_ts: Optional[float] = None
 
     def step(
         self,
@@ -76,14 +79,17 @@ class EdgePipeline:
         ball_dets = [d for d in dets if d.label in ("ball", "cue_ball", "object_ball", "0", "1")]
         player_dets = [d for d in dets if d.label in ("person", "player")]
         stick_dets = [d for d in dets if d.label in ("cue_stick", "stick")]
+        rack_dets = [d for d in dets if d.label in ("rack",)]
 
         # Track each category separately
         tracks_px = self.tracker.update(ball_dets, ts)
         player_tracks = self.player_tracker.update(player_dets, ts)
         stick_tracks = self.stick_tracker.update(stick_dets, ts)
+        rack_tracks = self._rack_tracker.update(rack_dets, ts)
 
         H = calib.H if calib is not None else None
         self._update_ball_tracks(state, frame_bgr, tracks_px, ts, H)
+        self._update_rack_tracks(rack_tracks, ts)
 
         # Identity: players and sticks
         if self.player_stick_id is not None:
@@ -134,6 +140,7 @@ class EdgePipeline:
         events += self.rail.update(state, ts)
         events += self.pocket.update(state, ts, calib)
         events += self.foul.update(state, ts)
+        events += self._rack_events(state, ts)
 
         # Shot analyzer needs per-frame state too (for follow/draw distances, rail hits).
         self.shot_analyzer.on_state(state, ts)
@@ -286,4 +293,84 @@ class EdgePipeline:
 
         # Last resort: most recently seen stick
         return self._last_seen_stick_profile_id if (self._last_seen_stick_ts > -1e8) else None
+
+    def _update_rack_tracks(
+        self,
+        rack_tracks: Dict[int, Tuple[Tuple[float, float], Tuple[float, float, float, float], str]],
+        ts: float,
+    ) -> None:
+        for tid, (center, bbox, _) in rack_tracks.items():
+            self._rack_tracks[tid] = RackTrack(
+                id=int(tid),
+                center_px=(float(center[0]), float(center[1])),
+                bbox_xyxy=(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])),
+                last_seen_ts=float(ts),
+            )
+        stale = [rid for rid, rt in self._rack_tracks.items() if (ts - rt.last_seen_ts) > self._rack_tracker.cfg.max_age_s]
+        for rid in stale:
+            self._rack_tracks.pop(rid, None)
+
+    def _rack_events(self, state: GameState, ts: float) -> List[Event]:
+        """
+        Optional fallback signal: if a rack object appears while no shot is active,
+        assume the game/rack was concluded manually (e.g., concession) and emit a
+        game_over event once after a short stability window.
+        """
+        events: List[Event] = []
+        rack_present = bool(self._rack_tracks)
+        if not rack_present or state.shot.in_shot:
+            self._pending_rack_game_over_ts = None
+            return events
+        if state.winner_team is not None:
+            return events
+        if self._pending_rack_game_over_ts is None:
+            self._pending_rack_game_over_ts = ts
+            return events
+        if ts - self._pending_rack_game_over_ts < 1.5:
+            return events
+        # Winner may be unknown for a concession/reset fallback.
+        events.append(
+            Event(
+                type=EventType.GAME_OVER,
+                ts=ts,
+                payload={
+                    "game_type": state.config.game_type.value,
+                    "play_mode": state.config.play_mode.value,
+                    "rulesets": {
+                        "8ball": state.config.eight_ball_ruleset.value,
+                        "9ball": state.config.nine_ball_ruleset.value,
+                        "straight_pool": state.config.straight_pool_ruleset.value,
+                        "uk_pool": state.config.uk_pool_ruleset.value,
+                        "snooker": state.config.snooker_ruleset.value,
+                    },
+                    "winner_team": state.winner_team,
+                    "game_over_reason": "rack_detected_manual_end",
+                    "inning": state.inning,
+                    "shot_count": state.shot_count,
+                    "players": [
+                        {
+                            "name": p.name,
+                            "profile_id": p.profile_id,
+                            "score": p.score,
+                            "fouls": p.fouls,
+                            "shots_taken": p.shots_taken,
+                            "innings": p.innings,
+                        }
+                        for p in state.players
+                    ],
+                    "teams": [
+                        {
+                            "name": t.name,
+                            "player_indices": t.player_indices,
+                            "score": t.score,
+                            "fouls": t.fouls,
+                            "innings": t.innings,
+                        }
+                        for t in state.teams
+                    ],
+                },
+            )
+        )
+        self._pending_rack_game_over_ts = None
+        return events
 

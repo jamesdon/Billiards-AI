@@ -43,7 +43,7 @@ Billiards-AI/
     pipeline.py                     Build/run the module graph
     io/
       __init__.py
-      camera_opencv.py              OpenCV camera capture (CSI/USB)
+      camera_opencv.py              OpenCV/GStreamer camera capture (Jetson CSI primary)
       video_file.py                 Replay from file
       clock.py                      Monotonic clock, fps limiter
     vision/
@@ -64,7 +64,8 @@ Billiards-AI/
       ocr_number.py                 Optional OCR (pluggable)
     calib/
       __init__.py
-      table_calibration.py          Homography, pocket zones, table coords
+      table_geometry.py             Homography from 4 outside corners + default pockets/kitchen geometry
+      table_layout.py               Kitchen/break polygons; infer table size from pocket labels
       calib_store.py                Load/save calibration json
     events/
       __init__.py
@@ -88,8 +89,23 @@ Billiards-AI/
     routes.py                       REST endpoints
 
   scripts/
-    run_edge.sh                     Convenience runner
-    run_backend.sh                  Convenience runner
+    common.sh                       Shared env/bootstrap helpers (venv + PYTHONNOUSERSITE)
+    run_phase.sh                    Entry point for phase scripts
+    phase1.sh                       Environment + backend + CSI smoke checks
+    phase2.sh                       Calibration validation (valid/invalid label tests)
+    phase3.sh                       Detection/tracking verification sweep (n=1/2/3)
+    phase4.sh                       Identity/profile persistence checks
+    phase5.sh                       Foul event injection sanity checks
+    phase6.sh                       Rules test execution
+    phase7.sh                       Stats event injection checks
+    phase8.sh                       Backend persistence checks (SQLite + optional Dynamo)
+    phase9.sh                       End-to-end runtime launcher
+    calib_click.py                  Interactive calibration: physical TL/TR (kitchen short rail) and BL/BR (foot), auto corner + side-pocket seeding (dark holes + Hough circles on long rails), view panel (zoom with pan U/D/L/R to the right of zoom, fine 0.5°/1% pan vs coarse 2°/3%), fullscreen maximize, writes calibration.json; camera is chosen only via CLI / start_calibration.sh (no in-window camera picker)
+    start_calibration.sh            One-command local calibration launcher (env + guardrails + GUI)
+    jetson_csi_setup.sh             Jetson camera stack triage (Argus + gst + app smoke)
+    docker_jetson_build.sh          Build Jetson runtime image
+    docker_jetson_up.sh             Start Jetson runtime container
+    docker_jetson_down.sh           Stop Jetson runtime container
 
   tests/
     test_rules_8ball.py

@@ -8,6 +8,8 @@ MODEL_PATH="${MODEL_PATH:-}"
 CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/class_map.json}"
 CALIB_PATH="${CALIB_PATH:-$PROJECT_ROOT/calibration.json}"
 IDENTITIES_PATH="${IDENTITIES_PATH:-$PROJECT_ROOT/identities.json}"
+CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
+CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
 MODE="${MODE:-native}"
 if [[ -z "$MODEL_PATH" ]]; then
   echo "Set MODEL_PATH to an ONNX model path." >&2
@@ -22,6 +24,8 @@ fi
 
 python -m edge.main \
   --camera "${CAMERA_SOURCE:-csi}" \
+  --csi-sensor-id "${CSI_SENSOR_ID}" \
+  --csi-flip-method "${CSI_FLIP_METHOD}" \
   --onnx-model "$MODEL_PATH" \
   --class-map "$CLASS_MAP_PATH" \
   --calib "$CALIB_PATH" \

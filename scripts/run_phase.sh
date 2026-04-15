@@ -48,6 +48,7 @@ main() {
       done
       echo "Completed default all set (1,5,6,7,8)."
       echo "Run phases 2,3,4,9 manually when camera/model are available."
+      echo "Phase 3 now supports automated sweep via MODEL_PATH + CLASS_MAP_PATH env vars."
       ;;
     -h|--help|help)
       usage
