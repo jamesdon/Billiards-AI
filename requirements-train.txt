@@ -1,0 +1,9 @@
+# Optional: Ultralytics YOLO training in the same venv as the edge stack.
+# Install on the Nano (or any trainer) after requirements.txt:
+#   cd /home/jdonn/Billiards-AI && source .venv/bin/activate && pip install -r requirements.txt && pip install -r requirements-train.txt
+#
+# Pins NumPy 1.x because `ultralytics` often pulls NumPy 2.x, which then breaks
+# matplotlib/OpenCV binary stacks on Jetson (see docs/JETSON_NANO_TRAIN_AND_TEST.md).
+numpy>=1.23,<2
+matplotlib>=3.7
+ultralytics>=8.2.0

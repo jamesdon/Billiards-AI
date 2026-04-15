@@ -25,7 +25,7 @@ Follow this once (or when refreshing the shared model). All paths use `"/home/$U
 
 3. **Label quality** — Start with balls; add people, cue sticks, and rack frames as in the checklist later in this doc. Split train/val by **session** where possible.
 
-4. **Environment** — On the training machine: `python3 -m pip install -U ultralytics` (often inside the project venv). GPU strongly recommended for iteration speed.
+4. **Environment** — In the project venv: install **`requirements-train.txt`** after `requirements.txt` so NumPy stays pinned with `numpy<2` on Jetson and matplotlib is venv-local (avoids Ultralytics importing system matplotlib against NumPy 2). On a desktop GPU you can still use the same file. See `docs/JETSON_NANO_TRAIN_AND_TEST.md` for the full Nano sequence.
 
 5. **Train** — From the project root (paths as in **Option A** / **Option B** below), e.g.  
    `yolo detect train data=".../billiards-data.yaml" model=yolov8n.pt imgsz=640 epochs=100 batch=16`  
@@ -63,10 +63,25 @@ Recommended project-local location:
 - `"/home/$USER/Billiards-AI/data/datasets/billiards/labels/train"`
 - `"/home/$USER/Billiards-AI/data/datasets/billiards/labels/val"`
 
-Create YAML:
+Create the dataset YAML with a **real absolute** `path:` (never a literal `$USER` string inside the file; Ultralytics will fail if `path:` is wrong).
+
+Preferred (writes paths from your actual project root):
 
 ```bash
-cat > "/home/$USER/Billiards-AI/data/datasets/billiards/billiards-data.yaml" <<'EOF'
+cd "/home/$USER/Billiards-AI"
+chmod +x scripts/bootstrap_billiards_dataset.sh
+PROJECT_ROOT="/home/$USER/Billiards-AI" ./scripts/bootstrap_billiards_dataset.sh
+grep '^path:' "/home/$USER/Billiards-AI/data/datasets/billiards/billiards-data.yaml"
+```
+
+Manual alternative (note **unquoted** `EOF` so `$USER` expands into the YAML):
+
+```bash
+mkdir -p "/home/$USER/Billiards-AI/data/datasets/billiards/images/train"
+mkdir -p "/home/$USER/Billiards-AI/data/datasets/billiards/images/val"
+mkdir -p "/home/$USER/Billiards-AI/data/datasets/billiards/labels/train"
+mkdir -p "/home/$USER/Billiards-AI/data/datasets/billiards/labels/val"
+cat > "/home/$USER/Billiards-AI/data/datasets/billiards/billiards-data.yaml" <<EOF
 path: /home/$USER/Billiards-AI/data/datasets/billiards
 train: images/train
 val: images/val
@@ -77,6 +92,8 @@ names:
   3: rack
 EOF
 ```
+
+Jetson-only checklist: `docs/JETSON_NANO_TRAIN_AND_TEST.md` (paths like `/home/jdonn/Billiards-AI`, NumPy/matplotlib fixes, `yolo` + pytest + phases).
 
 ## Minimal dataset bootstrap checklist (zero to first model)
 
@@ -188,7 +205,9 @@ Use this if you do not have another GPU machine available.
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m pip install -U ultralytics
+python -m pip install -U pip
+python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
+python -m pip install -r "/home/$USER/Billiards-AI/requirements-train.txt"
 ```
 
 Train (Jetson-friendly defaults):

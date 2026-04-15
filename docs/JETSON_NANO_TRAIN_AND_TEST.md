@@ -1,0 +1,179 @@
+# Jetson Nano: train YOLO on-device, then run tests (Billiards-AI)
+
+This guide assumes **everything happens on the Nano** at:
+
+`/home/jdonn/Billiards-AI`
+
+If your Linux user is not `jdonn`, replace that segment everywhere (or set `export USER=jdonn` only if your username really is `jdonn`).
+
+## Paths you must use on the Nano
+
+| Wrong (Mac / copy-paste hazard) | Correct on your Nano |
+|----------------------------------|----------------------|
+| `/Users/jdonn/AppDev/Billiards-AI/...` | `/home/jdonn/Billiards-AI/...` |
+| YAML `path:` containing literal `$USER` | Real path, e.g. `path: /home/jdonn/Billiards-AI/data/datasets/billiards` |
+
+Use **only** absolute paths under `/home/jdonn/Billiards-AI` for `data=`, `--onnx-model`, `--class-map`, and calibration.
+
+## 1) One-time: repo, venv, training dependencies
+
+```bash
+cd /home/jdonn/Billiards-AI
+git pull
+```
+
+Create or refresh the venv (Jetson uses `--system-site-packages` for GStreamer OpenCV; `scripts/common.sh` handles this when invoked from other scripts):
+
+```bash
+cd /home/jdonn/Billiards-AI
+test -d .venv || python3 -m venv --system-site-packages .venv
+source /home/jdonn/Billiards-AI/.venv/bin/activate
+python -m pip install -U pip
+python -m pip install -r /home/jdonn/Billiards-AI/requirements.txt
+python -m pip install -r /home/jdonn/Billiards-AI/requirements-train.txt
+```
+
+`requirements-train.txt` pins **`numpy<2`** and installs **`matplotlib` into the venv** so Ultralytics does not import the broken combo of **venv NumPy 2.x + Ubuntu’s system matplotlib** (the `_ARRAY_API` / `multiarray` errors you saw).
+
+If you already ran `pip install -U ultralytics` alone and broke NumPy, repair:
+
+```bash
+source /home/jdonn/Billiards-AI/.venv/bin/activate
+python -m pip install -r /home/jdonn/Billiards-AI/requirements.txt
+python -m pip install -r /home/jdonn/Billiards-AI/requirements-train.txt
+```
+
+Optional but recommended for reproducibility (matches phase scripts and avoids `~/.local` shadowing):
+
+```bash
+export PYTHONNOUSERSITE=1
+```
+
+If after that `python -c "import torch"` fails, install a Jetson-compatible **torch** inside the venv from NVIDIA’s Jetson PyTorch instructions for your JetPack version, then reinstall `requirements-train.txt`.
+
+## 2) CUDA warning and CPU training on Nano
+
+If you see **CUDA initialization: The NVIDIA driver on your system is too old** while `torch` is a generic **pip CUDA** build (e.g. `+cu130`), PyTorch will fall back to **CPU**. That is normal until you install a **Jetson-built** torch wheel that matches your JetPack driver.
+
+Training on **CPU** works but is slow; use small epochs and a small dataset first:
+
+- `batch=2` or `batch=4`
+- `workers=0` or `workers=2`
+
+## 3) Dataset layout and YAML (must exist before `yolo train`)
+
+The file `data/datasets/billiards/billiards-data.yaml` is **not** committed (it must contain a real absolute `path:`). After `git pull`, create it with:
+
+Generate dirs and `billiards-data.yaml` with a **correct absolute** `path:` line:
+
+```bash
+cd /home/jdonn/Billiards-AI
+chmod +x /home/jdonn/Billiards-AI/scripts/bootstrap_billiards_dataset.sh
+PROJECT_ROOT=/home/jdonn/Billiards-AI /home/jdonn/Billiards-AI/scripts/bootstrap_billiards_dataset.sh
+/usr/bin/grep '^path:' /home/jdonn/Billiards-AI/data/datasets/billiards/billiards-data.yaml
+```
+
+You must see:
+
+`path: /home/jdonn/Billiards-AI/data/datasets/billiards`
+
+**not** a literal `$USER`.
+
+Add labeled images and YOLO labels:
+
+- Images: `data/datasets/billiards/images/train` and `.../val`
+- Labels: `data/datasets/billiards/labels/train` and `.../val` (same basename as each image, `.txt` per image)
+
+Class indices in label files must match `models/class_map.json` (`0` ball … `3` rack). Until you have at least a few images in **both** train and val, Ultralytics may still error; add a minimal pair of images/labels for a smoke train.
+
+## 4) Train (Jetson-friendly command)
+
+From the project root, using the **Nano** path for `data`:
+
+```bash
+cd /home/jdonn/Billiards-AI
+source /home/jdonn/Billiards-AI/.venv/bin/activate
+export PYTHONNOUSERSITE=1
+
+yolo detect train \
+  data=/home/jdonn/Billiards-AI/data/datasets/billiards/billiards-data.yaml \
+  model=/home/jdonn/Billiards-AI/yolov8n.pt \
+  imgsz=640 \
+  epochs=30 \
+  batch=4 \
+  workers=2 \
+  project=/home/jdonn/Billiards-AI/runs/detect
+```
+
+Adjust `epochs` / `batch` for your patience and RAM. New runs create `train`, `train2`, … under `runs/detect/`; use the latest `weights/best.pt`.
+
+## 5) Export ONNX and install for the edge pipeline
+
+```bash
+cd /home/jdonn/Billiards-AI
+source /home/jdonn/Billiards-AI/.venv/bin/activate
+export PYTHONNOUSERSITE=1
+
+# Replace train3 with your latest run directory name under runs/detect/
+yolo export \
+  model=/home/jdonn/Billiards-AI/runs/detect/train3/weights/best.pt \
+  format=onnx \
+  imgsz=640
+
+mkdir -p /home/jdonn/Billiards-AI/models
+cp /home/jdonn/Billiards-AI/runs/detect/train3/weights/best.onnx /home/jdonn/Billiards-AI/models/model.onnx
+ls -lh /home/jdonn/Billiards-AI/models/model.onnx /home/jdonn/Billiards-AI/models/class_map.json
+```
+
+`models/class_map.json` is tracked in git and must stay aligned with your YOLO `names` order.
+
+## 6) Run automated tests on the Nano
+
+```bash
+cd /home/jdonn/Billiards-AI
+source /home/jdonn/Billiards-AI/.venv/bin/activate
+export PYTHONNOUSERSITE=1
+python -m pytest /home/jdonn/Billiards-AI/tests -q --tb=short
+```
+
+## 7) Phase scripts (camera / model where noted)
+
+Still from `/home/jdonn/Billiards-AI` with venv active:
+
+```bash
+export PROJECT_ROOT=/home/jdonn/Billiards-AI
+export MODEL_PATH=/home/jdonn/Billiards-AI/models/model.onnx
+export CLASS_MAP_PATH=/home/jdonn/Billiards-AI/models/class_map.json
+```
+
+Examples:
+
+```bash
+/home/jdonn/Billiards-AI/scripts/run_phase.sh 1
+/home/jdonn/Billiards-AI/scripts/run_phase.sh 3
+```
+
+Phase 3 expects `models/model.onnx` and defaults `CLASS_MAP_PATH` to `models/class_map.json` when unset.
+
+## 8) Quick edge smoke (CSI)
+
+```bash
+cd /home/jdonn/Billiards-AI
+source /home/jdonn/Billiards-AI/.venv/bin/activate
+export PYTHONNOUSERSITE=1
+
+python -m edge.main \
+  --camera csi \
+  --csi-sensor-id 0 \
+  --onnx-model /home/jdonn/Billiards-AI/models/model.onnx \
+  --class-map /home/jdonn/Billiards-AI/models/class_map.json \
+  --calib /home/jdonn/Billiards-AI/calibration.json \
+  --detect-every-n 2 \
+  --mjpeg-port 8080
+```
+
+Calibration path should match where `start_calibration.sh` wrote JSON (often `/home/jdonn/Billiards-AI/calibration.json`).
+
+## 9) Old `class_map.json` in repo root
+
+If `git pull` left you with **only** `models/class_map.json`, use that path. If you still have a stray `/home/jdonn/Billiards-AI/class_map.json`, prefer **`models/class_map.json`** for all commands and delete the duplicate when you are confident nothing references it.

@@ -34,3 +34,6 @@ calibration_invalid.json
 *.engine
 *.trt
 models/checkpoints/
+
+# YOLO data yaml contains an absolute path; generate with scripts/bootstrap_billiards_dataset.sh
+data/datasets/billiards/billiards-data.yaml

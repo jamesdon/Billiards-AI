@@ -14,6 +14,7 @@ Billiards-AI/
     EVENT_DETECTION.md              Pocket/collision/foul/shot detection logic
     CALIBRATION.md                  Homography + coordinate systems
     MODEL_OPTIMIZATION.md           Optional one-time train/tune + ONNX export; normal devices reuse the same model; ONNX→TensorRT on Jetson
+    JETSON_NANO_TRAIN_AND_TEST.md   On-device YOLO train + NumPy fix + pytest + phase scripts using real Nano paths
     DEPLOYMENT_JETSON.md            Jetson setup + systemd service + runbook
     BACKEND.md                      Optional backend API + storage + websockets
     API.md                          Message schemas + endpoints
@@ -104,6 +105,7 @@ Billiards-AI/
     phase7.sh                       Stats event injection checks
     phase8.sh                       Backend persistence checks (SQLite + optional Dynamo)
     phase9.sh                       End-to-end runtime launcher
+    bootstrap_billiards_dataset.sh  YOLO dataset dirs + billiards-data.yaml with expanded absolute path
     calib_click.py                  Interactive calibration: TL/TR/BL/BR at corner-pocket **inner throat**; `_estimate_outside_corners` avoids picking the **largest** hull quad (often the room outline) by scoring quads in an area band and with border inset; `_order_physical_table_corners` tries both kitchen-at-top vs kitchen-at-bottom hypotheses vs image-axis order; Hough + `_pocket_throat_from_seed`; `warpAffine` + `BORDER_CONSTANT` for pan/zoom voids; writes calibration.json; CLI via start_calibration.sh
     start_calibration.sh            One-command local calibration launcher (env + guardrails + GUI); passes CSI_OPEN_RETRIES to calib_click; asserts calib_click.py contains stable view-control hooks (not literal on-screen button text)
     jetson_csi_setup.sh             Jetson camera stack triage (Argus + gst + app smoke)
@@ -118,6 +120,7 @@ Billiards-AI/
 
   pyproject.toml                    Python tooling config (ruff/pytest)
   requirements.txt                  Runtime deps (edge + backend optional)
+  requirements-train.txt              Optional Ultralytics stack; pin numpy<2 for Jetson training
   README.md                         Quickstart
 ```
 

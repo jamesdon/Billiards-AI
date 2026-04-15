@@ -1,8 +1,0 @@
-path: /home/jdonn/Billiards-AI/data/datasets/billiards
-train: images/train
-val: images/val
-names:
-  0: ball
-  1: person
-  2: cue_stick
-  3: rack
