@@ -1131,7 +1131,7 @@ def main() -> None:
         + menu_padding
         + table_title_gap
         + len(TABLE_MENU) * row_spacing
-        + 30
+        + 16
         + menu_gap
         + units_title_gap
         + len(UNIT_MENU) * row_spacing
@@ -1162,7 +1162,7 @@ def main() -> None:
         + menu_padding
         + table_title_gap
         + len(TABLE_MENU) * row_spacing
-        + 30
+        + 16
         + menu_gap
         + units_title_gap
         + len(UNIT_MENU) * row_spacing
@@ -1390,8 +1390,7 @@ def main() -> None:
         table_top = content_top + menu_padding + table_title_gap
         units_left = table_left
         last_table_row_y = table_top + (len(TABLE_MENU) - 1) * row_spacing
-        selected_table_y = last_table_row_y + int(max(20, round(row_spacing * 0.72)))
-        units_top = selected_table_y + int(max(26, round(24 * max(1.0, ui_scale)))) + menu_gap + units_title_gap
+        units_top = last_table_row_y + int(max(14, round(row_spacing * 0.5))) + menu_gap + units_title_gap
         view_left = table_left
         view_top = units_top + len(UNIT_MENU) * row_spacing + menu_gap + view_title_gap
 
@@ -1416,7 +1415,6 @@ def main() -> None:
             "drag_handle_rect": drag_handle_rect,
             "table_left": table_left,
             "table_top": table_top,
-            "selected_table_y": selected_table_y,
             "units_left": units_left,
             "units_top": units_top,
             "view_left": view_left,
@@ -1709,16 +1707,6 @@ def main() -> None:
                 selected=(name == selected_table_size),
                 label=f"{idx}. {_table_size_label(name)} ({_format_dims(dims[0], dims[1], selected_units)}){marker}",
             )
-        cv2.putText(
-            view,
-            f"Selected: {_table_size_label(selected_table_size)}",
-            (table_left, int(layout["selected_table_y"])),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.52,
-            (0, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
 
         cv2.putText(
             view,
