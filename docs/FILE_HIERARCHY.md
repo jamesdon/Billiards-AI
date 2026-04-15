@@ -76,7 +76,7 @@ Billiards-AI/
     overlay/
       __init__.py
       draw.py                       Render IDs, trails, speeds, scoreboard
-      stream_mjpeg.py               MJPEG stream server (very lightweight)
+      stream_mjpeg.py               MJPEG stream server (GET /health, /mjpeg; SO_REUSEADDR on bind for faster restarts)
       stream_webrtc.py              WebRTC streamer (optional)
       stream_rtsp.py                RTSP publisher (optional)
 
@@ -92,7 +92,7 @@ Billiards-AI/
     common.sh                       Shared env/bootstrap helpers (venv + PYTHONNOUSERSITE)
     run_phase.sh                    Entry point for phase scripts
     phase1.sh                       Environment + backend + CSI smoke checks
-    phase2.sh                       Calibration validation (valid/invalid label tests)
+    phase2.sh                       Calibration validation (valid/invalid label tests); camera smoke picks a free localhost MJPEG port in 18080–18255 when MJPEG_PORT is unset (avoids EADDRINUSE if 8080 is already in use); set MJPEG_PORT to pin (e.g. 8080)
     phase3.sh                       Detection/tracking verification sweep (n=1/2/3)
     phase4.sh                       Identity/profile persistence checks
     phase5.sh                       Foul event injection sanity checks

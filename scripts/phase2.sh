@@ -14,9 +14,33 @@ VALID_LOG="${PROJECT_ROOT}/.phase2_valid.log"
 INVALID_LOG="${PROJECT_ROOT}/.phase2_invalid.log"
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
-MJPEG_PORT="${MJPEG_PORT:-8080}"
 EDGE_TIMEOUT_SECONDS="${EDGE_TIMEOUT_SECONDS:-1200}"
 PHASE2_REQUIRE_CAMERA="${PHASE2_REQUIRE_CAMERA:-1}"
+
+# Avoid colliding with a long-running edge (or anything else) on 8080: pick a free
+# localhost port unless MJPEG_PORT is set explicitly (even to 8080).
+if [[ -z "${MJPEG_PORT:-}" ]]; then
+  MJPEG_PORT="$(
+    python - <<'PY'
+import socket
+for p in range(18080, 18256):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("127.0.0.1", p))
+    except OSError:
+        continue
+    finally:
+        s.close()
+    print(p)
+    break
+else:
+    raise SystemExit("no free TCP port in 18080-18255 for phase2 MJPEG smoke")
+PY
+  )"
+  echo "[Phase2] Auto-selected MJPEG_PORT=${MJPEG_PORT} (export MJPEG_PORT=8080 to pin a port)." >&2
+else
+  echo "[Phase2] Using MJPEG_PORT=${MJPEG_PORT} from environment." >&2
+fi
 
 # GNU coreutils timeout is not on all macOS installs; fall back to no timeout.
 run_with_timeout() {

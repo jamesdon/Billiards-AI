@@ -9,6 +9,10 @@ import cv2
 import numpy as np
 
 
+class _ReuseHTTPServer(HTTPServer):
+    allow_reuse_address = True
+
+
 class _Handler(BaseHTTPRequestHandler):
     server_version = "BilliardsAI-MJPEG/0.1"
 
@@ -70,7 +74,7 @@ class MjpegServer:
 
     def start(self) -> None:
         self._stop.clear()
-        httpd = HTTPServer((self.host, self.port), _Handler)
+        httpd = _ReuseHTTPServer((self.host, self.port), _Handler)
         httpd.mjpeg_server = self  # type: ignore[attr-defined]
         self._httpd = httpd
         t = threading.Thread(target=httpd.serve_forever, daemon=True)

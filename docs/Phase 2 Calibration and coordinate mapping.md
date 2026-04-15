@@ -266,3 +266,10 @@ If OpenCV import fails with NumPy ABI errors like:
 then pip likely installed NumPy 2.x while Jetson distro OpenCV was built against
 NumPy 1.x. Pin NumPy `<2` in the venv and rerun Phase 2.
 
+If Phase 2 fails with `OSError: [Errno 98] Address already in use` when binding the
+MJPEG HTTP server, another process (often a previous `edge.main`) is already using
+that port. `scripts/phase2.sh` leaves `MJPEG_PORT` unset by default and chooses the
+first free port in `18080–18255` on `127.0.0.1` for the valid-calibration smoke; the
+invalid-label check uses `MJPEG_PORT+1`. To force a specific port, run with
+`MJPEG_PORT=8080 bash scripts/phase2.sh` (or stop the process holding the port).
+
