@@ -13,7 +13,7 @@ Billiards-AI/
     RULES_ENGINE.md                 Rule engine interfaces and per-game rules
     EVENT_DETECTION.md              Pocket/collision/foul/shot detection logic
     CALIBRATION.md                  Homography + coordinate systems
-    MODEL_OPTIMIZATION.md           ONNX/TensorRT build steps for Jetson
+    MODEL_OPTIMIZATION.md           Optional one-time train/tune + ONNX export; normal devices reuse the same model; ONNX→TensorRT on Jetson
     DEPLOYMENT_JETSON.md            Jetson setup + systemd service + runbook
     BACKEND.md                      Optional backend API + storage + websockets
     API.md                          Message schemas + endpoints

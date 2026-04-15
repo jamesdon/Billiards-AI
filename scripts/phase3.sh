@@ -35,10 +35,13 @@ Missing required file: $MODEL_PATH
 
 Phase 3 requires a detector ONNX model. This repo does not ship model weights.
 
-From-scratch options:
-  1) Train/export your billiards detector model to ONNX and place it at:
+Typical new device: copy your shared team model (no training on device):
+  cp "/path/to/released/model.onnx" "$PROJECT_ROOT/models/model.onnx"
+
+Optional model refresh (train/tune once, reuse everywhere):
+  1) Train/export per $PROJECT_ROOT/docs/MODEL_OPTIMIZATION.md, then place:
      $PROJECT_ROOT/models/model.onnx
-  2) For pipeline smoke only (not accuracy validation), copy any local ONNX file:
+  2) For pipeline smoke only (not accuracy validation), any local ONNX:
      cp "/path/to/some_model.onnx" "$PROJECT_ROOT/models/model.onnx"
 
 See: $PROJECT_ROOT/docs/MODEL_OPTIMIZATION.md

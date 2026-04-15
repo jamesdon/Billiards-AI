@@ -41,13 +41,11 @@ scripts/docker_jetson_up.sh
 
 Required runtime assets:
 
-- `/home/$USER/Billiards-AI/models/model.onnx`
-- `/home/$USER/Billiards-AI/models/class_map.json`
-- `/home/$USER/Billiards-AI/data/calibration.json`
+- Detector: `model.onnx` (commonly `/home/$USER/Billiards-AI/models/model.onnx`; override with `MODEL_PATH`)
+- Class map: `class_map.json` aligned with that model’s class indices (defaults differ by entrypoint: repo root for `scripts/phase*.sh`, `./models/class_map.json` for Jetson Docker compose—set `CLASS_MAP_PATH` if you centralize files under `models/`)
+- `/home/$USER/Billiards-AI/data/calibration.json` (per table / per camera install)
 
-If you are starting from scratch, there is no bundled detector model in this repository.
-You must train/export your own ONNX detector and place it at
-`/home/$USER/Billiards-AI/models/model.onnx` before running phases 3/4/9.
+There is **no bundled detector** in this repository. **Most new devices only copy** a team-approved `model.onnx` and matching `class_map.json` from your build artifacts or an internal release bucket—**training is optional** and done when you need to create or refresh that shared model. See `docs/MODEL_OPTIMIZATION.md` for the one-time train/tune loop vs normal deployment.
 
 Stop:
 
@@ -60,6 +58,7 @@ scripts/docker_jetson_down.sh
 
 - `docs/ARCHITECTURE.md`
 - `docs/FILE_HIERARCHY.md`
+- `docs/MODEL_OPTIMIZATION.md` (optional train/tune; normal deploy reuses ONNX)
 - `docs/CALIBRATION.md`
 - `docs/EVENT_DETECTION.md`
 - `docs/RULES_ENGINE.md`

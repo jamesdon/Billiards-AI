@@ -4,6 +4,8 @@
 
 Verify ONNX detection and multi-track stability.
 
+**Prerequisite note:** Phase 3 assumes a detector ONNX and `class_map.json` are already on the device. **Training that model is a separate, optional step** (see `docs/MODEL_OPTIMIZATION.md`); day-to-day new installs typically **reuse the same exported model** and only run calibration plus this phase as smoke.
+
 ## 1) Prepare class map
 
 ```bash

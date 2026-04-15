@@ -1,5 +1,18 @@
 # Model optimization (ONNX → TensorRT)
 
+## Training vs deploying a new device
+
+**Training and billiards-specific tuning are optional and usually done once** (or occasionally when you want a better shared detector). You build a labeled dataset, train a YOLO-family model, export ONNX, and iterate on hard examples until metrics and Phase 3 runs look good.
+
+**Normal setup of additional tables or Jetsons does not repeat training.** You reuse the same artifacts the project already expects:
+
+- `models/model.onnx` (or `MODEL_PATH` pointing at your copy)
+- `class_map.json` in the same place your runtime expects it (repo root for `scripts/phase*.sh` defaults; `./models/class_map.json` when using `docker-compose.jetson.yml` defaults)
+
+Per-device variation is handled by **calibration** (homography, pocket geometry), not by retraining the detector, unless the camera or scene is radically different from what the model saw.
+
+The sections below describe dataset → train → export → optional TensorRT. Treat that whole path as **model authoring**; treat copying ONNX + class map + running Phase 3 smoke as **device bring-up**.
+
 ## Do I have to train on another machine?
 
 No. You can train on Jetson Nano/Orin directly, but it is usually much slower.
