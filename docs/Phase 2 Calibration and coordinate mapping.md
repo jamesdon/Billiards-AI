@@ -273,3 +273,12 @@ first free port in `18080–18255` on `127.0.0.1` for the valid-calibration smok
 invalid-label check uses `MJPEG_PORT+1`. To force a specific port, run with
 `MJPEG_PORT=8080 bash scripts/phase2.sh` (or stop the process holding the port).
 
+If the log shows Argus / CSI errors such as `Failed to create CaptureSession` or
+`gstnvarguscamerasrc` failures, the HTTP `/health` check may still fail if the edge
+process exits before the listener is bound, or the MJPEG byte probe may fail if the
+pipeline never delivers frames. Stop other consumers of the camera (including
+background `edge.main` or `nvgstcapture`), power-cycle the camera module if needed,
+retry `--csi-flip-method` values `0` and `6`, and confirm `--csi-sensor-id` matches
+your wiring. `edge.main` starts the MJPEG server right after calibration load so
+`/health` is available while the rest of the pipeline initializes.
+

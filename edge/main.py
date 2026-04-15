@@ -141,6 +141,11 @@ def main() -> None:
     # (and phase2 invalid-label checks work on hosts without CSI/GStreamer).
     calib: Calibration | None = Calibration.load(args.calib) if args.calib else None
 
+    # Bind MJPEG immediately so probes like /health can succeed while we build the
+    # pipeline and open the camera (Jetson SD + identity load can take seconds).
+    mjpeg = MjpegServer(port=int(args.mjpeg_port))
+    mjpeg.start()
+
     cam_src: int | str
     use_gstreamer = False
     cam_arg = str(args.camera).strip().lower()
@@ -205,9 +210,6 @@ def main() -> None:
     from .classify.player_stick_id import PlayerStickIdentifier
 
     pipeline.player_stick_id = PlayerStickIdentifier(store=store)
-
-    mjpeg = MjpegServer(port=int(args.mjpeg_port))
-    mjpeg.start()
 
     cam = OpenCVCamera(source=cam_src, width=args.width, height=args.height, use_gstreamer=use_gstreamer)
     last = time.time()

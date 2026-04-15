@@ -39,11 +39,11 @@ Billiards-AI/
 
   edge/
     __init__.py
-    main.py                         Edge entrypoint (camera -> overlay -> stream)
+    main.py                         Edge entrypoint (MJPEG binds soon after calibration load; camera -> overlay -> stream)
     pipeline.py                     Build/run the module graph
     io/
       __init__.py
-      camera_opencv.py              OpenCV/GStreamer camera capture (Jetson CSI primary)
+      camera_opencv.py              OpenCV/GStreamer camera capture (Jetson CSI primary); raises if capture opens but returns no frames
       video_file.py                 Replay from file
       clock.py                      Monotonic clock, fps limiter
     vision/

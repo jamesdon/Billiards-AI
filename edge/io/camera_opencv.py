@@ -83,13 +83,22 @@ class OpenCVCamera:
         if cap is None:
             raise RuntimeError(f"Failed to open camera source={self.source!r}")
 
+        yielded = False
         try:
             while True:
                 ok, frame = cap.read()
                 if not ok or frame is None:
                     break
+                yielded = True
                 ts = cv2.getTickCount() / cv2.getTickFrequency()
                 yield ts, frame
         finally:
             cap.release()
+
+        if not yielded:
+            raise RuntimeError(
+                "Camera capture reported isOpened() but returned no frames (pipeline may have failed). "
+                "On Jetson CSI, check nvarguscamerasrc / Argus errors, sensor-id, flip-method, and that "
+                "no other process is using the camera."
+            )
 

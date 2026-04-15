@@ -103,6 +103,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
+phase2_hint_valid_log() {
+  local log="$1"
+  [[ -f "$log" ]] || return 0
+  if grep -qE "Address already in use|Errno 98" "$log" 2>/dev/null; then
+    echo "[Phase2] Hint: MJPEG port is in use. Pin a free port: MJPEG_PORT=18081 bash scripts/phase2.sh" >&2
+  fi
+  if grep -qE "CaptureSession|nvarguscamerasrc|Failed to open camera|no frames" "$log" 2>/dev/null; then
+    echo "[Phase2] Hint: CSI/Argus camera did not produce frames. Stop other camera apps, try --csi-flip-method 0 or 6," >&2
+    echo "[Phase2]       confirm sensor-id, and see docs/Phase 2 Calibration and coordinate mapping.md (Troubleshooting)." >&2
+  fi
+  if grep -qE "GStreamer=NO|without GStreamer" "$log" 2>/dev/null; then
+    echo "[Phase2] Hint: OpenCV lacks GStreamer; use Jetson distro python3-opencv in a venv with --system-site-packages." >&2
+  fi
+}
+
 if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   echo "[Phase2] Running valid calibration edge startup smoke..."
   echo "[Phase2] Note: /mjpeg never ends; we probe /health first, then one bounded /mjpeg download."
@@ -115,7 +130,8 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
       break
     fi
     if ! kill -0 "$EDGE_PID" 2>/dev/null; then
-      echo "[Phase2] edge exited before listener came up (attempt ${i}). Log: $VALID_LOG" >&2
+      echo "[Phase2] edge exited before /health responded (attempt ${i}). Log: $VALID_LOG" >&2
+      phase2_hint_valid_log "$VALID_LOG"
       break
     fi
     if (( i % 10 == 0 )); then
@@ -125,6 +141,7 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   done
   if [[ "$READY" -ne 1 ]]; then
     echo "Valid calibration startup failed (no /health). Log: $VALID_LOG" >&2
+    phase2_hint_valid_log "$VALID_LOG"
     exit 1
   fi
   MJPEG_PROBE="${PROJECT_ROOT}/.phase2_mjpeg_probe.bin"
