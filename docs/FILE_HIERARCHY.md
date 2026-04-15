@@ -100,7 +100,7 @@ Billiards-AI/
     phase7.sh                       Stats event injection checks
     phase8.sh                       Backend persistence checks (SQLite + optional Dynamo)
     phase9.sh                       End-to-end runtime launcher
-    calib_click.py                  Interactive calibration: TL/TR/BL/BR at corner-pocket **inner throat**; `_estimate_outside_corners` refines Hough quad with `_pocket_throat_from_seed` (parallel-rail edge fit in pocket wedge) before legacy subpixel; live CSI/USB; SETUP/VIEW panel; writes calibration.json; CLI via start_calibration.sh
+    calib_click.py                  Interactive calibration: TL/TR/BL/BR at corner-pocket **inner throat**; `_estimate_outside_corners` refines Hough quad with `_pocket_throat_from_seed` (parallel-rail edge fit in pocket wedge) before legacy subpixel; live CSI/USB; SETUP/VIEW panel; `_render_background` uses `warpAffine` + `BORDER_CONSTANT` so pan/zoom outside the frame shows black (not edge-smear); writes calibration.json; CLI via start_calibration.sh
     start_calibration.sh            One-command local calibration launcher (env + guardrails + GUI); passes CSI_OPEN_RETRIES to calib_click; asserts calib_click.py contains stable view-control hooks (not literal on-screen button text)
     jetson_csi_setup.sh             Jetson camera stack triage (Argus + gst + app smoke)
     docker_jetson_build.sh          Build Jetson runtime image

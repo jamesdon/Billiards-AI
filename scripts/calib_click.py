@@ -1539,12 +1539,17 @@ def main() -> None:
 
     def _render_background() -> np.ndarray:
         m = _view_matrix()
+        # Outside the valid source rectangle, BORDER_REPLICATE smears the image edge
+        # (looks like a stretched band). Use constant fill so panned/zoomed voids are
+        # black — there is no additional live pixels beyond the frame.
+        border_val = 0 if img.ndim == 2 else (0, 0, 0)
         return cv2.warpAffine(
             img,
             m,
             (w_img, h_img),
             flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_REPLICATE,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=border_val,
         )
 
     def _nudge_pan_display(dx_disp: float, dy_disp: float) -> None:

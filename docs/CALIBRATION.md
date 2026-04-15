@@ -137,6 +137,9 @@ In-window workflow (new default):
   - fine/coarse radio selector for zoom/rotate/pan increment size (defaults to `fine`:
     **fine** = 0.5° rotation and 1% pan; **coarse** = 2° and 3% pan)
   - reset view
+  - when pan/zoom would show pixels outside the camera frame, the preview fills
+    that region with **black** (not a smeared copy of the image border); the live
+    frame is still only the sensor rectangle.
   - these are view-only transforms for easier editing after camera moves; saved
     calibration points remain in source image coordinates.
 - Camera source switching controls were removed from the overlay to reduce startup
