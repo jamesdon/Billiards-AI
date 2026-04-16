@@ -153,8 +153,6 @@ class EdgePipeline:
         events += self.pocket.update(state, ts, calib)
         events += self.foul.update(state, ts)
         events += self._rack_events(state, ts)
-        if self.micro_foul_audio is not None:
-            events.extend(self.micro_foul_audio.update(state, ts))
 
         # Shot analyzer needs per-frame state too (for follow/draw distances, rail hits).
         self.shot_analyzer.on_state(state, ts)
@@ -173,6 +171,14 @@ class EdgePipeline:
             summary = self.shot_analyzer.on_event(state, ev)
             if summary is not None:
                 on_event(Event(type=EventType.SHOT_SUMMARY, ts=ev.ts, payload={"shot_summary": summary.__dict__}))
+
+        if self.micro_foul_audio is not None:
+            for ev in self.micro_foul_audio.update(state, ts):
+                on_event(ev)
+                self.stats.on_event(state, ev)
+                summary = self.shot_analyzer.on_event(state, ev)
+                if summary is not None:
+                    on_event(Event(type=EventType.SHOT_SUMMARY, ts=ev.ts, payload={"shot_summary": summary.__dict__}))
 
         self.stats.on_state_update(state)
 
