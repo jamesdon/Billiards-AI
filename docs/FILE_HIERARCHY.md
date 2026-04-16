@@ -91,7 +91,7 @@ Billiards-AI/
       micro_foul_audio.py           Micro-foul audio correlation stub (double-hit/push TBD; optional `SHOT_START` windowing)
     overlay/
       __init__.py
-      draw.py                       Render IDs, trails, scoreboard; projector-layer preview (break box/string, stub shot hints, trajectory polylines when enabled, vision phase when not generic)
+      draw.py                       Render IDs, trails, scoreboard; camera projector-layer preview + optional top-right **projector inset** when `H_projector` is set (mirrors break box/string, hints, trajectory)
       stream_mjpeg.py               MJPEG stream server (GET /health, /mjpeg; threaded server so /mjpeg cannot block /health; SO_REUSEADDR)
       stream_webrtc.py              WebRTC streamer (optional)
       stream_rtsp.py                RTSP publisher (optional)
@@ -100,7 +100,8 @@ Billiards-AI/
     trajectory/
       assist.py                     Cue path history + stub projection (no rules coupling)
     audio/
-      capture.py                    Mic ring-buffer stub for micro-foul audio fusion
+      capture.py                    Thread-safe PCM chunk ring buffer for micro-foul audio fusion
+      mic_stream.py                 Optional `sounddevice` capture → ring buffer (`requirements-audio.txt`)
     game_phase.py                   VisionGamePhase estimator (rack/ball/shot heuristics)
 
   backend/                          Optional offload + history + dashboard API
@@ -152,6 +153,7 @@ Billiards-AI/
 
   pyproject.toml                    Python tooling config (ruff/pytest)
   requirements.txt                  Runtime deps (edge + backend optional)
+  requirements-audio.txt            Optional `sounddevice` + PortAudio for `--mic-device` live capture
   requirements-train.txt              Optional Ultralytics stack; pin numpy<2 for stable OpenCV/Ultralytics ABI on Jetson-family devices
   README.md                         Quickstart
 ```

@@ -4,6 +4,7 @@
 
 - **Baseline**: `edge/voice/intents_en.py` maps **normalized English text** (from future ASR) to `VoiceIntentEN` enums.
 - **Production path**: microphone → ASR (e.g. Whisper small / streaming) → `parse_english_intents(text)` → `apply_voice_intents_to_state(...)`.
+- **On-device today**: `--voice-line` / `--voice-phrases-file` on `edge.main`; optional PCM via `--mic-device` with `--enable-audio-micro-foul` (`sounddevice` in `requirements-audio.txt`) feeds `AudioRingBuffer` for upcoming micro-foul fusion (no ASR in-process yet).
 - **Internationalization**: add sibling modules (`intents_es.py`, …) and a locale router; keep intent enums stable across languages.
 
 ### Trajectory vs overlays

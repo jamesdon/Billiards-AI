@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -26,11 +27,14 @@ class AudioRingBuffer:
     cfg: AudioCaptureConfig = field(default_factory=AudioCaptureConfig)
     _chunks: List[bytes] = field(default_factory=list)
     max_chunks: int = 200
+    _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def push(self, pcm: bytes) -> None:
-        self._chunks.append(pcm)
-        if len(self._chunks) > self.max_chunks:
-            self._chunks.pop(0)
+        with self._lock:
+            self._chunks.append(pcm)
+            if len(self._chunks) > self.max_chunks:
+                self._chunks.pop(0)
 
     def latest(self) -> Optional[bytes]:
-        return self._chunks[-1] if self._chunks else None
+        with self._lock:
+            return self._chunks[-1] if self._chunks else None

@@ -1,0 +1,5 @@
+# Optional: live microphone → AudioRingBuffer for micro-foul fusion.
+# Requires PortAudio. Debian / Jetson example:
+#   sudo apt-get install -y portaudio19-dev
+# Then: pip install -r requirements-audio.txt
+sounddevice>=0.4.6

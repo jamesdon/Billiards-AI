@@ -235,6 +235,7 @@ Calibration is saved to JSON (see `edge/calib/calib_store.py`) containing:
 - `table_width_m`: inferred or configured table width
 - `kitchen_polygon_xy_m`: polygon in table coordinates
 - `break_area_polygon_xy_m`: polygon in table coordinates
+- Optional `H_projector` (or alias `H_table_to_projector` on load): 3×3 overhead **projector** homography using the same `Homography` convention as `H` (see `core/geometry.py`): **`to_pixel(xy_m)`** maps table meters to projector framebuffer pixels. Used for a mirrored inset in `edge/overlay/draw.py` and for a future full projector render target.
 
 ### Pocket labels (standard)
 

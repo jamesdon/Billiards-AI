@@ -14,7 +14,7 @@
 ## Audio (micro-fouls)
 
 - **Goal**: correlate **high-sample-rate audio** with `SHOT_START` and cue-ball contact windows to score **double hit**, **push**, and other **micro-fouls** that pixels alone miss.
-- **Capture**: ALSA device on Jetson (e.g. `hw:1,0`) or USB mic; see stub `edge/audio/capture.py` for a ring-buffer interface.
+- **Capture**: ALSA device on Jetson (e.g. `hw:1,0`) or USB mic; `edge/audio/capture.py` + optional `edge/audio/mic_stream.py` (`sounddevice`, `requirements-audio.txt`) feed the same ring buffer used by `--mic-device` on `edge.main`.
 - **Processing**: short-time energy + transient detection → features fed to a lightweight classifier or rule thresholds; timestamp alignment with `GameState.shot` timeline.
 
 ## Privacy

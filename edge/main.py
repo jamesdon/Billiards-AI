@@ -148,6 +148,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Attach micro-foul audio stub (no live capture yet; correlates with SHOT_START later)",
     )
+    ap.add_argument(
+        "--mic-device",
+        type=str,
+        default=None,
+        help="With --enable-audio-micro-foul, capture device name or index (requires sounddevice; see requirements-audio.txt)",
+    )
     return ap.parse_args()
 
 
@@ -245,6 +251,8 @@ def main() -> None:
         from .events.micro_foul_audio import MicroFoulAudioDetector
 
         pipeline.micro_foul_audio = MicroFoulAudioDetector(audio=AudioRingBuffer())
+    elif str(args.mic_device or "").strip():
+        print("Billiards-AI: --mic-device ignored without --enable-audio-micro-foul")
     if args.onnx_model:
         from .vision.detector_onnxruntime import OnnxRuntimeDetector
 
@@ -265,21 +273,39 @@ def main() -> None:
     cam = OpenCVCamera(source=cam_src, width=args.width, height=args.height, use_gstreamer=use_gstreamer)
     voice_poll = VoicePhraseFilePoller(args.voice_phrases_file)
     last = time.time()
-    for ts, frame in cam.frames():
-        for phrase in voice_poll.poll_new_lines():
-            apply_voice_intents_to_state(state, parse_english_intents(phrase), utterance=phrase)
 
-        def on_event(ev: Event) -> None:
-            rules.on_event(state, ev)
+    mic_ctl = None
+    if args.enable_audio_micro_foul and pipeline.micro_foul_audio is not None:
+        mic_arg = str(args.mic_device or "").strip()
+        if mic_arg:
+            from .audio.mic_stream import MicStreamController, parse_mic_device_arg
 
-        pipeline.step(state=state, frame_bgr=frame, ts=ts, calib=calib, on_event=on_event)
-        out = draw_overlay(frame, state, player_name=state.current_player().name, calib=calib)
-        mjpeg.update(out)
+            buf = pipeline.micro_foul_audio.audio
+            if buf is not None:
+                mic_ctl = MicStreamController()
+                if not mic_ctl.start(buf, device=parse_mic_device_arg(mic_arg)):
+                    print("Billiards-AI: microphone did not start (install PortAudio + sounddevice; see requirements-audio.txt)")
+                    mic_ctl = None
 
-        # lightweight FPS print cadence
-        now = time.time()
-        if now - last > 2.0:
-            last = now
+    try:
+        for ts, frame in cam.frames():
+            for phrase in voice_poll.poll_new_lines():
+                apply_voice_intents_to_state(state, parse_english_intents(phrase), utterance=phrase)
+
+            def on_event(ev: Event) -> None:
+                rules.on_event(state, ev)
+
+            pipeline.step(state=state, frame_bgr=frame, ts=ts, calib=calib, on_event=on_event)
+            out = draw_overlay(frame, state, player_name=state.current_player().name, calib=calib)
+            mjpeg.update(out)
+
+            # lightweight FPS print cadence
+            now = time.time()
+            if now - last > 2.0:
+                last = now
+    finally:
+        if mic_ctl is not None:
+            mic_ctl.stop()
 
 
 if __name__ == "__main__":
