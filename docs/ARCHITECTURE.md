@@ -18,6 +18,21 @@ Camera/Video -> Detection -> Tracking -> Classification -> Motion/Events -> Rule
       +--> (Optional) Backend: state/events upload + persistence + dashboards
 ```
 
+### Trajectory vs rules (product split)
+
+Two **independent** feature lines share state but not code ownership:
+
+| Track | Responsibility | Doc |
+|-------|----------------|-----|
+| **Trajectory prediction** | Path history, aim / rollout overlays, shooter-opt-in via voice | `docs/FEATURE_TRAJECTORY_PREDICTION.md` |
+| **Real-time rules** | Fouls, turns, scoring — pure `Event` → `GameState` | `docs/FEATURE_REALTIME_RULES.md` |
+
+**Voice + projector** layers (`docs/FEATURE_VOICE_OVERLAYS_PROJECTOR.md`) toggle `projector_layers` and `trajectory_assist_enabled` without changing rules internals.
+
+**Vision game phase** (`docs/FEATURE_GAME_PHASE_VISION.md`) adds rack/ball-count heuristics for UX; rules remain authoritative.
+
+**Audio** for micro-fouls: `docs/HARDWARE_IMX477_AUDIO.md`.
+
 ## Play modes (applies to all game types)
 
 - **Singles**: 1v1. Turn rotates between players.

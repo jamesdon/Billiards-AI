@@ -219,7 +219,7 @@ def main() -> None:
             rules.on_event(state, ev)
 
         pipeline.step(state=state, frame_bgr=frame, ts=ts, calib=calib, on_event=on_event)
-        out = draw_overlay(frame, state, player_name=state.current_player().name)
+        out = draw_overlay(frame, state, player_name=state.current_player().name, calib=calib)
         mjpeg.update(out)
 
         # lightweight FPS print cadence

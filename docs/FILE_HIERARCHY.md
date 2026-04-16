@@ -8,6 +8,11 @@ This project is split into **edge** (Jetson Orin Nano real-time pipeline, JetPac
 Billiards-AI/
   docs/
     ARCHITECTURE.md                 System overview + data flow
+    FEATURE_TRAJECTORY_PREDICTION.md  Trajectory assist module (isolated from rules)
+    FEATURE_REALTIME_RULES.md       Rules engine contract (isolated from trajectory)
+    FEATURE_VOICE_OVERLAYS_PROJECTOR.md  Voice (EN first), projector layers, projector homography notes
+    FEATURE_GAME_PHASE_VISION.md    Vision-derived match phase (rack/balls/shot)
+    HARDWARE_IMX477_AUDIO.md        IMX477 + low-distortion lens; microphone fouls roadmap
     FILE_HIERARCHY.md               This file
     EDGE_PIPELINE.md                Edge runtime details + FPS/latency knobs
     RULES_ENGINE.md                 Rule engine interfaces and per-game rules
@@ -25,6 +30,7 @@ Billiards-AI/
     model.onnx                      Exported detector weights (not in git; copy or export here)
 
   core/                             Shared logic (no OpenCV/YOLO dependency)
+    overlay_state.py              Projector layer toggles + highlight labels (voice-driven)
     __init__.py
     config.py                       Typed config objects
     types.py                        Dataclasses: Ball, Player, GameState, Events
@@ -81,10 +87,17 @@ Billiards-AI/
       foul_detector.py              Scratch/no-contact/wrong-first (rule-aware)
     overlay/
       __init__.py
-      draw.py                       Render IDs, trails, speeds, scoreboard
+      draw.py                       Render IDs, trails, scoreboard; projector-layer preview (break box/string, …)
       stream_mjpeg.py               MJPEG stream server (GET /health, /mjpeg; threaded server so /mjpeg cannot block /health; SO_REUSEADDR)
       stream_webrtc.py              WebRTC streamer (optional)
       stream_rtsp.py                RTSP publisher (optional)
+    voice/
+      intents_en.py                 English phrase → intent; applies to GameState.projector_layers
+    trajectory/
+      assist.py                     Cue path history + stub projection (no rules coupling)
+    audio/
+      capture.py                    Mic ring-buffer stub for micro-foul audio fusion
+    game_phase.py                   VisionGamePhase estimator (rack/ball/shot heuristics)
 
   backend/                          Optional offload + history + dashboard API
     __init__.py

@@ -39,3 +39,13 @@ class Homography:
         q[:2, :] /= (q[2:3, :] + 1e-9)
         return q[:2, :].T
 
+    def to_pixel(self, xy_m: Tuple[float, float]) -> Tuple[float, float]:
+        """Map table-plane meters → pixel coordinates (inverse homography)."""
+        H_inv = np.linalg.inv(self.H)
+        x, y = xy_m
+        p = np.array([x, y, 1.0], dtype=np.float64)
+        q = H_inv @ p
+        if abs(float(q[2])) < 1e-9:
+            return (0.0, 0.0)
+        return (float(q[0] / q[2]), float(q[1] / q[2]))
+

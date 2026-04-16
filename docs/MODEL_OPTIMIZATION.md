@@ -30,6 +30,19 @@ This is a **project default**, not a hard limit of YOLO.
 
 **You can still train more ball types in YOLO** if you want: extend `names` / labels / `models/class_map.json` (e.g. `cue_ball`, `solid`, `stripe`, `eight_ball`) and widen `ball_dets` filtering in `edge/pipeline.py` so those labels enter the ball tracker. That is extra integration and dataset work, not a merge of “phases” by itself.
 
+## Optional: one multiclass detector (train your own)
+
+For **per-ball identity from the detector** (instead of ROI heuristics), train a **single YOLO head** with one index per class you care about, for example:
+
+- `ball_1` … `ball_15`, `ball_cue`, `eight`, `nine` (game-specific), plus existing `person`, `cue_stick`, `rack`.
+
+Steps:
+
+1. Label in YOLO with **contiguous** class indices; keep `models/class_map.json` as the **authoritative** `index → label string` map (same strings the ONNX postprocess emits).
+2. Expand `ball_dets` filtering in `edge/pipeline.py` so every label that should participate in **ball tracking** is included (today it whitelists generic names).
+3. Decide whether **Phase 4** `BallClassifier` runs only when `detector_hint` is missing, or is skipped entirely when the detector already emits ball type.
+4. Expect **more labeling work** and stricter train/val splits by session; gains are fewer ROI mistakes and cleaner **voice “highlight the 8 ball”** hooks tied to detections.
+
 **Merging Phase 3 and Phase 4:** the **phase documents** are delivery checkpoints (detection vs identity), not two incompatible algorithms. You might *personally* combine work into one training push (richer detector + less ROI classifier), but the repo keeps them separate so you can ship **tracking without** perfect type classification, and upgrade types later without retraining the whole detector if you choose the two-stage design.
 
 ## Billiards detector: training walkthrough

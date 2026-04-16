@@ -1,3 +1,4 @@
+from .overlay_state import ProjectorOverlayState
 from .rules import (
     EightBallRules,
     NineBallRules,
@@ -22,6 +23,7 @@ from .types import (
 )
 
 __all__ = [
+    "ProjectorOverlayState",
     "Ball",
     "BallClass",
     "BallId",

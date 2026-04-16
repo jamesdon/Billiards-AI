@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
+from .overlay_state import ProjectorOverlayState
+
 
 BallId = int
 
@@ -299,6 +301,10 @@ class GameState:
     stick_profiles: Dict[str, StickProfile] = field(default_factory=dict)
     shot_history: List[ShotSummary] = field(default_factory=list)
     shot_count: int = 0
+    # Projector / voice-driven HUD layers (edge + projector; not persisted by default)
+    projector_layers: ProjectorOverlayState = field(default_factory=ProjectorOverlayState)
+    # When True, shooter requested trajectory / aim assistance (voice); see docs/FEATURE_TRAJECTORY_PREDICTION.md
+    trajectory_assist_enabled: bool = False
     # transient UI hint for overlays (edge-only; not persisted)
     _ui_banner: Optional[str] = None
 
