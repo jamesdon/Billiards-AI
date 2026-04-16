@@ -101,6 +101,12 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
   --mjpeg-port 8080
 ```
 
+## Tuning notes (tracker, shot detector, detector cadence)
+
+- **`IoUTracker`**: associations use IoU against a **constant-velocity predicted bbox** (px/s). If IoU is still weak right after a large jump (no velocity estimate yet), a **center-distance fallback** (`center_match_max_dist_px` on `IoUTrackerConfig`) can still lock the same track ID.
+- **`ShotDetector`**: shot start uses **true** cue-ball acceleration, \(|\\Delta \\mathbf{v}| / \\Delta t\) in **m/s²**, not per-frame speed change mislabeled as m/s². Default `cue_accel_thres` is set for ~30 FPS-style timing; retune if your clocking or `detect_every_n` differs.
+- **`detect_every_n`**: the detector may run every N frames while the pipeline still steps every frame. Ball **positions and finite-difference velocities** therefore update on detection frames; kinematic detectors (shot, collision, rail) still run every frame and can see **stale** velocities for up to N−1 frames. See `EdgePipelineConfig` docstring in `edge/pipeline.py`.
+
 ## Pass criteria
 
 - no detector/tracker crashes

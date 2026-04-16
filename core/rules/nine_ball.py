@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from ..types import BallClass, BallId, Event, EventType, FoulType, GameState, NineBallRuleSet
 from .base import RuleEngine
@@ -9,13 +9,14 @@ from .base import RuleEngine
 
 @dataclass
 class NineBallRules(RuleEngine):
-    _consecutive_fouls: Dict[int, int] = field(default_factory=dict)
-
     """
     Baseline 9-ball rules:
     - Must hit lowest-numbered ball first.
     - Win if 9-ball is pocketed on a legal shot (no foul).
     """
+
+    # Keys are ("team", idx) or ("player", idx) so team 0 and player 0 never collide.
+    _consecutive_fouls: Dict[Tuple[str, int], int] = field(default_factory=dict)
 
     def legal_first_contact_ball_id(self, state: GameState) -> Optional[BallId]:
         # Find lowest numbered ball still on table.
@@ -57,15 +58,17 @@ class NineBallRules(RuleEngine):
 
         # Ruleset-specific three-foul loss.
         # Enabled for WPA/USAPL style; disabled for APA style by default.
-        team_or_player = state.current_team_idx if state.teams else state.current_player_idx
+        foul_key: Tuple[str, int] = (
+            ("team", state.current_team_idx) if state.teams else ("player", state.current_player_idx)
+        )
         had_foul = bool(state.shot.fouls_this_shot)
         if had_foul:
-            self._consecutive_fouls[team_or_player] = self._consecutive_fouls.get(team_or_player, 0) + 1
+            self._consecutive_fouls[foul_key] = self._consecutive_fouls.get(foul_key, 0) + 1
         else:
-            self._consecutive_fouls[team_or_player] = 0
+            self._consecutive_fouls[foul_key] = 0
 
         if state.config.nine_ball_ruleset in (NineBallRuleSet.WPA, NineBallRuleSet.USAPL):
-            if self._consecutive_fouls.get(team_or_player, 0) >= 3 and state.winner_team is None:
+            if self._consecutive_fouls.get(foul_key, 0) >= 3 and state.winner_team is None:
                 if state.teams:
                     state.winner_team = (state.current_team_idx + 1) % len(state.teams)
                 else:

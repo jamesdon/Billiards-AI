@@ -61,7 +61,7 @@ Billiards-AI/
     tracking/
       __init__.py
       tracker_base.py               Tracker interface
-      iou_tracker.py                Lightweight IoU-based tracker (baseline)
+      iou_tracker.py                IoU tracker + constant-velocity bbox prediction + center-distance fallback for fast motion
       bytetrack_like.py             ByteTrack-style association (optional)
     classify/
       __init__.py
@@ -72,10 +72,10 @@ Billiards-AI/
       __init__.py
       table_geometry.py             Homography from 4 outside corners + default pockets/kitchen geometry
       table_layout.py               Kitchen/break polygons; infer table size from pocket labels
-      calib_store.py                Load/save calibration json
+      calib_store.py                Load/save calibration json (homography, pockets, table size, kitchen/break polygons)
     events/
       __init__.py
-      shot_detector.py              Shot start/stop using cue-ball accel/energy
+      shot_detector.py              Shot start/stop: cue-ball |Δv|/dt threshold (m/s²); rest-speed shot end
       pocket_detector.py            Pocketing from disappearance + pocket zones
       collision_detector.py          Collision from velocity change proximity
       foul_detector.py              Scratch/no-contact/wrong-first (rule-aware)

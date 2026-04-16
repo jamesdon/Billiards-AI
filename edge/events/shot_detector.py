@@ -8,7 +8,9 @@ from core.types import BallClass, BallId, Event, EventType, GameState
 
 @dataclass
 class ShotDetectorConfig:
-    cue_accel_thres: float = 2.5  # m/s^2
+    # True acceleration threshold (m/s^2) after dividing |Δv| by wall-clock dt
+    # between updates. Legacy configs treated ~2.5 as |Δv| in m/s per frame (~75 m/s^2 at 30 FPS).
+    cue_accel_thres: float = 72.0
     rest_speed_thres: float = 0.03  # m/s
     rest_time_s: float = 0.8
 
@@ -18,6 +20,7 @@ class ShotDetector:
     cfg: ShotDetectorConfig = field(default_factory=ShotDetectorConfig)
     _rest_start_ts: Optional[float] = None
     _last_vel: Dict[BallId, Tuple[float, float]] = field(default_factory=dict)
+    _last_ts: Optional[float] = None
 
     def update(self, state: GameState, ts: float) -> list[Event]:
         cue_id = self._cue_id(state)
@@ -26,10 +29,15 @@ class ShotDetector:
         cue = state.balls[cue_id]
         vx, vy = cue.vel_xy
         pvx, pvy = self._last_vel.get(cue_id, (vx, vy))
-        ax = vx - pvx
-        ay = vy - pvy
-        accel = (ax * ax + ay * ay) ** 0.5  # assumes ~1s dt; upstream should scale if needed
+        dvx = vx - pvx
+        dvy = vy - pvy
+        dvel = (dvx * dvx + dvy * dvy) ** 0.5
+        dt = 1e-3
+        if self._last_ts is not None:
+            dt = max(1e-3, ts - self._last_ts)
+        accel = dvel / dt  # m/s^2 (velocities are in m/s from homography pipeline)
         self._last_vel[cue_id] = (vx, vy)
+        self._last_ts = ts
 
         events: list[Event] = []
 
@@ -58,4 +66,3 @@ class ShotDetector:
             if t.best_class() == BallClass.CUE:
                 return bid
         return None
-

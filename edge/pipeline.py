@@ -25,6 +25,13 @@ from .vision.detector_base import Detector
 
 @dataclass
 class EdgePipelineConfig:
+    """`detect_every_n` throttles the *detector*; the tracker still runs every frame when dets exist.
+
+    Ball positions (and finite-difference velocities) update on detection frames only unless you
+    add motion prediction upstream. Event detectors (shot/collision/rail) run every frame and
+    therefore see velocities that may be stale for up to N−1 frames — tune thresholds accordingly.
+    """
+
     detect_every_n: int = 2
     track_max_age_s: float = 0.5  # mirrored in tracker
 
@@ -88,8 +95,9 @@ class EdgePipeline:
         rack_tracks = self._rack_tracker.update(rack_dets, ts)
 
         H = calib.H if calib is not None else None
-        self._update_ball_tracks(state, frame_bgr, tracks_px, ts, H)
         self._update_rack_tracks(rack_tracks, ts)
+        rack_boxes = [rt.bbox_xyxy for rt in self._rack_tracks.values()]
+        self._update_ball_tracks(state, frame_bgr, tracks_px, ts, H, rack_boxes)
 
         # Identity: players and sticks
         if self.player_stick_id is not None:
@@ -217,6 +225,7 @@ class EdgePipeline:
         tracks_px: Dict[BallId, Tuple[Tuple[float, float], Tuple[float, float, float, float], str]],
         ts: float,
         H: Optional[Homography],
+        rack_bboxes_xyxy: List[Tuple[float, float, float, float]],
     ) -> None:
         # Update existing and create new ball tracks in table coords.
         for tid, (center, bbox, det_label) in tracks_px.items():
@@ -242,6 +251,7 @@ class EdgePipeline:
                 state.balls[tid] = BallTrack(
                     id=tid, pos_xy=(x, y), vel_xy=(vx, vy), last_seen_ts=ts, last_bbox_px=bbox
                 )
+                self.ball_classifier.reset_track(state.balls[tid])
             else:
                 bt = state.balls[tid]
                 bt.pos_xy = (x, y)
@@ -256,6 +266,7 @@ class EdgePipeline:
                 track=state.balls[tid],
                 game_type=state.config.game_type,
                 detector_hint=None,
+                rack_bboxes_xyxy=rack_bboxes_xyxy or None,
             )
 
         # Remove stale tracks from state (so pocket detector can infer disappearance)

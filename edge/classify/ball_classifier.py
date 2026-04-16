@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
 
 from core.types import BallClass, BallTrack, GameType
+
+from ..tracking.iou_tracker import iou_xyxy
 
 
 def _crop(frame_bgr: np.ndarray, bbox: Tuple[float, float, float, float], pad: int = 2) -> np.ndarray:
@@ -40,11 +42,18 @@ def _white_ratio(roi_bgr: np.ndarray) -> float:
 @dataclass
 class BallClassifierConfig:
     ema: float = 0.85
+    # Skip cue-ball shortcut when ball ROI overlaps a rack bbox (IoU) above this.
+    rack_iou_suppress_cue: float = 0.12
 
 
 @dataclass
 class BallClassifier:
     cfg: BallClassifierConfig = field(default_factory=BallClassifierConfig)
+
+    @staticmethod
+    def reset_track(track: BallTrack) -> None:
+        """Clear accumulated class probabilities (e.g. new track id after a re-rack)."""
+        track.class_probs.clear()
 
     def update_track(
         self,
@@ -52,11 +61,13 @@ class BallClassifier:
         track: BallTrack,
         game_type: GameType,
         detector_hint: Optional[BallClass] = None,
+        rack_bboxes_xyxy: Optional[List[Tuple[float, float, float, float]]] = None,
     ) -> None:
         """
         Update `track.class_probs` in-place using a fast ROI heuristic.
 
         - `detector_hint` can be used when your model already labels cue/8/9/specific colors.
+        - `rack_bboxes_xyxy` suppresses the cue-ball heuristic when the ball sits on the rack.
         """
         if detector_hint is not None and detector_hint != BallClass.UNKNOWN:
             self._ema_set(track, detector_hint, 1.0)
@@ -68,8 +79,15 @@ class BallClassifier:
         h, s, v = _mean_hsv(roi)
         white = _white_ratio(roi)
 
+        overlap_rack = False
+        if rack_bboxes_xyxy:
+            for rb in rack_bboxes_xyxy:
+                if iou_xyxy(track.last_bbox_px, rb) >= self.cfg.rack_iou_suppress_cue:
+                    overlap_rack = True
+                    break
+
         # Cue ball heuristic: low saturation + high value
-        if white >= 0.55 and s < 50 and v > 160:
+        if white >= 0.55 and s < 50 and v > 160 and not overlap_rack:
             self._ema_set(track, BallClass.CUE, 1.0)
             return
 

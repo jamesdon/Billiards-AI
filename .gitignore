@@ -28,6 +28,7 @@ htmlcov/
 .phase2_*.log
 calibration.json
 calibration_invalid.json
+scripts/*.bak.*
 
 # Local runtime / large artifacts (adjust if you need to version samples)
 *.onnx

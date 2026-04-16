@@ -1,3 +1,6 @@
+# Edge / Jetson Orin Nano (aarch64): use NVIDIA's onnxruntime-gpu wheel for your JetPack
+# (CUDA + TensorRT execution providers). The PyPI `onnxruntime` package is CPU-only on device.
+# See docs/MODEL_OPTIMIZATION.md and docs/DEPLOYMENT_JETSON.md.
 numpy<2; platform_machine == "aarch64" or platform_machine == "arm64"
 numpy; platform_machine != "aarch64" and platform_machine != "arm64"
 opencv-python; platform_machine != "aarch64" and platform_machine != "arm64"

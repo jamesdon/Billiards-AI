@@ -27,6 +27,9 @@ class SnookerRules(RuleEngine):
     """
 
     expected: BallClass = BallClass.SNOOKER_RED
+    # After potting a red, the next stroke may legally contact any color (not a red) first.
+    # Kept separate from BallClass.UNKNOWN so "unknown ball identity" is never confused with rules state.
+    expect_any_colored_ball: bool = False
 
     def _on_shot_start(self, state: GameState, event: Event) -> None:
         super()._on_shot_start(state, event)
@@ -110,10 +113,12 @@ class SnookerRules(RuleEngine):
                 if bid in state.balls
             ]
             if BallClass.SNOOKER_RED in potted_classes:
-                self.expected = BallClass.UNKNOWN  # represent "any color"
+                self.expect_any_colored_ball = True
             else:
+                self.expect_any_colored_ball = False
                 self.expected = BallClass.SNOOKER_RED
         else:
+            self.expect_any_colored_ball = False
             # Colors in order once reds gone.
             order = [
                 BallClass.SNOOKER_YELLOW,
@@ -134,8 +139,7 @@ class SnookerRules(RuleEngine):
             # all done -> winner by score (not handled here)
 
     def _is_legal_target(self, state: GameState, bc: BallClass) -> bool:
-        if self.expected == BallClass.UNKNOWN:
-            # "any color" allowed (not red), while reds remain.
+        if self.expect_any_colored_ball:
             return bc != BallClass.SNOOKER_RED and bc in SNOOKER_POINTS
         return bc == self.expected
 

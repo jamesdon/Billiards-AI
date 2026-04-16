@@ -39,11 +39,30 @@ class Calibration:
             )
             for p in d.get("pockets", [])
         ]
-        return Calibration(H=H, pockets=pockets)
+        kitchen: List[Tuple[float, float]] = []
+        for pt in d.get("kitchen_polygon_xy_m", []) or []:
+            if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+                kitchen.append((float(pt[0]), float(pt[1])))
+        brk: List[Tuple[float, float]] = []
+        for pt in d.get("break_area_polygon_xy_m", []) or []:
+            if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+                brk.append((float(pt[0]), float(pt[1])))
+        return Calibration(
+            H=H,
+            pockets=pockets,
+            table_length_m=float(d.get("table_length_m", 2.84)),
+            table_width_m=float(d.get("table_width_m", 1.42)),
+            kitchen_polygon_xy_m=kitchen,
+            break_area_polygon_xy_m=brk,
+        )
 
     def save(self, path: str) -> None:
         d: Dict[str, Any] = {
             "H": self.H.H.tolist(),
+            "table_length_m": self.table_length_m,
+            "table_width_m": self.table_width_m,
+            "kitchen_polygon_xy_m": [[float(x), float(y)] for x, y in self.kitchen_polygon_xy_m],
+            "break_area_polygon_xy_m": [[float(x), float(y)] for x, y in self.break_area_polygon_xy_m],
             "pockets": [
                 {
                     "label": p.label.value,
@@ -55,4 +74,3 @@ class Calibration:
         }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(d, f, indent=2)
-

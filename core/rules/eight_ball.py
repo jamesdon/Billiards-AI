@@ -80,9 +80,13 @@ class EightBallRules(RuleEngine):
             self._foul(state, FoulType.NO_CONTACT.value)
         else:
             player_group = state.current_player().group
+            first_class = state.balls.get(cue_first).best_class() if cue_first in state.balls else None
             if player_group is not None:
-                first_class = state.balls.get(cue_first).best_class() if cue_first in state.balls else None
                 if first_class not in (player_group, BallClass.EIGHT):
+                    self._foul(state, FoulType.WRONG_BALL_FIRST.value)
+            else:
+                # Open table (groups not yet assigned): any object ball may be hit first except the 8.
+                if first_class == BallClass.EIGHT:
                     self._foul(state, FoulType.WRONG_BALL_FIRST.value)
 
         super()._on_shot_end(state, event)
