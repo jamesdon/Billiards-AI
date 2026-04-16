@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -19,6 +19,20 @@ class OverlayConfig:
 def _put_text(img: np.ndarray, text: str, xy: Tuple[int, int], color: Tuple[int, int, int]) -> None:
     cv2.putText(img, text, xy, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3, cv2.LINE_AA)
     cv2.putText(img, text, xy, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+
+
+def _draw_polyline_table_m(
+    out: np.ndarray,
+    calib: Calibration,
+    poly_m: List[Tuple[float, float]],
+    *,
+    color: Tuple[int, int, int],
+    thickness: int = 2,
+) -> None:
+    if len(poly_m) < 2:
+        return
+    pts = np.array([[int(calib.H.to_pixel(xy)[0]), int(calib.H.to_pixel(xy)[1])] for xy in poly_m], dtype=np.int32)
+    cv2.polylines(out, [pts], isClosed=False, color=color, thickness=thickness, lineType=cv2.LINE_AA)
 
 
 def _draw_table_polygon(
@@ -94,9 +108,25 @@ def draw_overlay(
         _put_text(out, f"Shots: {p.shots_taken} Fouls: {p.fouls}", (10, 280), (200, 220, 255))
 
     if layers.show_best_next_shot:
-        _put_text(out, "Best next: (solver TBD)", (10, 300), (180, 255, 180))
+        hint_best = getattr(state, "_hint_best_table_m", []) or []
+        _put_text(
+            out,
+            "Best next: stub aim" if hint_best else "Best next: (no cue)",
+            (10, 300),
+            (180, 255, 180),
+        )
+        if calib is not None and hint_best:
+            _draw_polyline_table_m(out, calib, hint_best, color=(80, 220, 80), thickness=2)
     if layers.show_alt_next_shot:
-        _put_text(out, f"Alt #{layers.alt_shot_variant_index}: (solver TBD)", (10, 320), (180, 200, 255))
+        hint_alt = getattr(state, "_hint_alt_table_m", []) or []
+        _put_text(
+            out,
+            f"Alt #{layers.alt_shot_variant_index}: stub" if hint_alt else f"Alt #{layers.alt_shot_variant_index}: (no cue)",
+            (10, 320),
+            (180, 200, 255),
+        )
+        if calib is not None and hint_alt:
+            _draw_polyline_table_m(out, calib, hint_alt, color=(200, 100, 255), thickness=2)
 
     if layers.highlighted_ball_labels:
         lab = ",".join(layers.highlighted_ball_labels)
@@ -104,5 +134,16 @@ def draw_overlay(
 
     if state.trajectory_assist_enabled:
         _put_text(out, "Trajectory assist: ON", (10, 360), (100, 255, 255))
+        if calib is not None:
+            hist = getattr(state, "_traj_history_table_m", []) or []
+            proj = getattr(state, "_traj_projection_table_m", []) or []
+            if hist:
+                _draw_polyline_table_m(out, calib, hist, color=(60, 200, 120), thickness=2)
+            if proj:
+                _draw_polyline_table_m(out, calib, proj, color=(100, 255, 255), thickness=2)
+
+    vp = getattr(state, "_vision_phase", None)
+    if vp and vp not in ("unknown", "in_progress"):
+        _put_text(out, f"Vision phase: {vp}", (10, 380), (200, 200, 200))
 
     return out

@@ -51,8 +51,8 @@ Billiards-AI/
 
   edge/
     __init__.py
-    main.py                         Edge entrypoint (MJPEG binds right after CLI parse; calibration load; camera -> overlay -> stream)
-    pipeline.py                     Build/run the module graph
+    main.py                         Edge entrypoint (MJPEG binds right after CLI parse; calibration load; optional `--voice-line` / `--voice-phrases-file` / `--enable-audio-micro-foul`; camera -> overlay -> stream)
+    pipeline.py                     Build/run the module graph; wires trajectory assist, vision phase, shot-hint stubs, optional micro-foul detector
     io/
       __init__.py
       camera_opencv.py              OpenCV/GStreamer camera capture (NVIDIA CSI primary on Jetson); raises if capture opens but returns no frames
@@ -74,20 +74,24 @@ Billiards-AI/
       ball_classifier.py            Color/pattern/number heuristics (fast)
       player_stick_id.py            Appearance signatures + profile matching
       ocr_number.py                 Optional OCR (pluggable)
+    assist/
+      __init__.py
+      shot_hints.py                 Stub “best / alt” aim polylines in table meters (replace with solver)
     calib/
       __init__.py
       table_geometry.py             Homography from 4 outside corners + default pockets/kitchen geometry
       table_layout.py               Kitchen/break polygons; infer table size from pocket labels
-      calib_store.py                Load/save calibration json (homography, pockets, table size, kitchen/break polygons)
+      calib_store.py                Load/save calibration json (H camera, optional H_projector table→projector px, pockets, table size, kitchen/break polygons)
     events/
       __init__.py
       shot_detector.py              Shot start/stop: cue-ball |Δv|/dt threshold (m/s²); rest-speed shot end
       pocket_detector.py            Pocketing from disappearance + pocket zones
       collision_detector.py          Collision from velocity change proximity
       foul_detector.py              Scratch/no-contact/wrong-first (rule-aware)
+      micro_foul_audio.py           Micro-foul audio correlation stub (double-hit/push TBD; optional `SHOT_START` windowing)
     overlay/
       __init__.py
-      draw.py                       Render IDs, trails, scoreboard; projector-layer preview (break box/string, …)
+      draw.py                       Render IDs, trails, scoreboard; projector-layer preview (break box/string, stub shot hints, trajectory polylines when enabled, vision phase when not generic)
       stream_mjpeg.py               MJPEG stream server (GET /health, /mjpeg; threaded server so /mjpeg cannot block /health; SO_REUSEADDR)
       stream_webrtc.py              WebRTC streamer (optional)
       stream_rtsp.py                RTSP publisher (optional)

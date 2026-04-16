@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 
 from core.rules.eight_ball import EightBallRules
@@ -18,6 +19,7 @@ from .io.camera_opencv import OpenCVCamera, jetson_csi_gstreamer_pipeline, openc
 from .overlay.draw import draw_overlay
 from .overlay.stream_mjpeg import MjpegServer
 from .pipeline import EdgePipeline
+from .voice.intents_en import apply_voice_intents_to_state, parse_english_intents
 
 TABLE_SIZE_PRESETS: dict[str, tuple[float, float]] = {
     "6ft": (1.829, 0.914),  # bar box
@@ -55,6 +57,28 @@ def _rules_for(game_type: GameType):
     if game_type == GameType.SNOOKER:
         return SnookerRules()
     raise ValueError(f"Unsupported game_type={game_type}")
+
+
+class VoicePhraseFilePoller:
+    """Re-read phrases when the file mtime changes (demo / operator control without ASR)."""
+
+    def __init__(self, path: str | None) -> None:
+        self.path = path.strip() if path else None
+        self._mtime: float = -1.0
+
+    def poll_new_lines(self) -> list[str]:
+        if not self.path:
+            return []
+        try:
+            m = os.path.getmtime(self.path)
+        except OSError:
+            return []
+        if m <= self._mtime:
+            return []
+        self._mtime = m
+        with open(self.path, "r", encoding="utf-8") as f:
+            text = f.read()
+        return [ln.strip() for ln in text.splitlines() if ln.strip()]
 
 
 def parse_args() -> argparse.Namespace:
@@ -107,6 +131,23 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--class-map", type=str, default=None, help="JSON mapping class_id->label; convention: models/class_map.json")
     ap.add_argument("--identities", type=str, default="./identities.json", help="Persisted player/stick profiles")
     ap.add_argument("--detect-every-n", type=int, default=2)
+    ap.add_argument(
+        "--voice-phrases-file",
+        type=str,
+        default=None,
+        help="One English phrase per line; reapplied when file mtime changes (no microphone/ASR)",
+    )
+    ap.add_argument(
+        "--voice-line",
+        type=str,
+        default=None,
+        help="Apply a single English phrase once at startup (overlay / trajectory toggles)",
+    )
+    ap.add_argument(
+        "--enable-audio-micro-foul",
+        action="store_true",
+        help="Attach micro-foul audio stub (no live capture yet; correlates with SHOT_START later)",
+    )
     return ap.parse_args()
 
 
@@ -191,10 +232,19 @@ def main() -> None:
     state = GameState(config=cfg, players=players)
     state.resolve_rotation()
 
+    vl = str(args.voice_line or "").strip()
+    if vl:
+        apply_voice_intents_to_state(state, parse_english_intents(vl), utterance=vl)
+
     rules = _rules_for(cfg.game_type)
 
     pipeline = EdgePipeline()
     pipeline.cfg.detect_every_n = int(args.detect_every_n)
+    if args.enable_audio_micro_foul:
+        from .audio.capture import AudioRingBuffer
+        from .events.micro_foul_audio import MicroFoulAudioDetector
+
+        pipeline.micro_foul_audio = MicroFoulAudioDetector(audio=AudioRingBuffer())
     if args.onnx_model:
         from .vision.detector_onnxruntime import OnnxRuntimeDetector
 
@@ -213,8 +263,12 @@ def main() -> None:
     pipeline.player_stick_id = PlayerStickIdentifier(store=store)
 
     cam = OpenCVCamera(source=cam_src, width=args.width, height=args.height, use_gstreamer=use_gstreamer)
+    voice_poll = VoicePhraseFilePoller(args.voice_phrases_file)
     last = time.time()
     for ts, frame in cam.frames():
+        for phrase in voice_poll.poll_new_lines():
+            apply_voice_intents_to_state(state, parse_english_intents(phrase), utterance=phrase)
+
         def on_event(ev: Event) -> None:
             rules.on_event(state, ev)
 

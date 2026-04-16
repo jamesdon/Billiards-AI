@@ -16,7 +16,11 @@ from .events.pocket_detector import PocketDetector
 from .events.shot_detector import ShotDetector
 from .events.shot_analyzer import ShotAnalyzer
 from .events.rail_hit_detector import RailHitDetector
+from .events.micro_foul_audio import MicroFoulAudioDetector
 from .tracking.iou_tracker import IoUTracker
+from .trajectory.assist import TrajectoryAssistController
+from .game_phase import estimate_vision_game_phase
+from .assist.shot_hints import stub_alt_shot_polyline_table_m, stub_best_shot_polyline_table_m
 from .classify.ball_classifier import BallClassifier
 from .classify.player_stick_id import PlayerStickIdentifier
 from core.identity_store import IdentityStore
@@ -53,6 +57,8 @@ class EdgePipeline:
     foul: FoulDetector = field(default_factory=FoulDetector)
     stats: StatsAggregator = field(default_factory=StatsAggregator)
     cfg: EdgePipelineConfig = field(default_factory=EdgePipelineConfig)
+    trajectory: TrajectoryAssistController = field(default_factory=TrajectoryAssistController)
+    micro_foul_audio: Optional[MicroFoulAudioDetector] = None
 
     _frame_idx: int = 0
     _last_table_pos: Dict[BallId, Tuple[float, float]] = field(default_factory=dict)
@@ -147,6 +153,8 @@ class EdgePipeline:
         events += self.pocket.update(state, ts, calib)
         events += self.foul.update(state, ts)
         events += self._rack_events(state, ts)
+        if self.micro_foul_audio is not None:
+            events.extend(self.micro_foul_audio.update(state, ts))
 
         # Shot analyzer needs per-frame state too (for follow/draw distances, rail hits).
         self.shot_analyzer.on_state(state, ts)
@@ -154,6 +162,10 @@ class EdgePipeline:
         # Deliver events to rules and stats through callback
         for ev in events:
             if ev.type == EventType.SHOT_START:
+                cue_id = ev.payload.get("cue_ball_id") if ev.payload else None
+                self.trajectory.on_shot_start(ev.ts, cue_id)
+                if self.micro_foul_audio is not None:
+                    self.micro_foul_audio.on_shot_start(ev.ts)
                 # Stick association is per-shot and intentionally NOT tied to player identity.
                 state.shot.stick_profile_id = self._pick_stick_for_shot(state)
             on_event(ev)
@@ -163,6 +175,36 @@ class EdgePipeline:
                 on_event(Event(type=EventType.SHOT_SUMMARY, ts=ev.ts, payload={"shot_summary": summary.__dict__}))
 
         self.stats.on_state_update(state)
+
+        phase = estimate_vision_game_phase(
+            rack_track_count=len(self._rack_tracks),
+            ball_track_count=len(state.balls),
+            in_shot=state.shot.in_shot,
+        )
+        setattr(state, "_vision_phase", phase.value)
+
+        if state.trajectory_assist_enabled:
+            self.trajectory.append_cue_sample(ts, state)
+            setattr(state, "_traj_history_table_m", self.trajectory.history_polyline_table_m())
+            setattr(state, "_traj_projection_table_m", self.trajectory.projected_stub_table_m())
+        else:
+            self.trajectory.clear()
+            setattr(state, "_traj_history_table_m", [])
+            setattr(state, "_traj_projection_table_m", [])
+
+        layers = state.projector_layers
+        setattr(
+            state,
+            "_hint_best_table_m",
+            stub_best_shot_polyline_table_m(state) if layers.show_best_next_shot else [],
+        )
+        setattr(
+            state,
+            "_hint_alt_table_m",
+            stub_alt_shot_polyline_table_m(state, int(layers.alt_shot_variant_index))
+            if layers.show_alt_next_shot
+            else [],
+        )
 
         # Emit end-of-game event once (so backend can persist final stats).
         if state.winner_team is not None and not self._game_over_emitted:

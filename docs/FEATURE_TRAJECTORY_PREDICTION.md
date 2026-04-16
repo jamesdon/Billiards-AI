@@ -24,6 +24,11 @@ At **gameplay time**, the default UX is:
 - `edge/voice/intents_en.py` — toggles `trajectory_assist_enabled` from parsed English phrases.
 - Future: rail–cushion integrator, spin model, multi-ball propagation.
 
+## Wiring (edge)
+
+- `EdgePipeline` holds one `TrajectoryAssistController`. On each `SHOT_START` event it calls `on_shot_start` (clears history). While `trajectory_assist_enabled` is true, every frame calls `append_cue_sample` and stores polylines on `GameState` as `_traj_history_table_m` / `_traj_projection_table_m` for `draw_overlay` (camera pixels via table homography `H`).
+- `edge.main` can toggle layers from `--voice-line` or `--voice-phrases-file` (mtime-based re-read); no ASR in-process yet.
+
 ## Non-goals
 
 - Do not fold foul detection into trajectory math.

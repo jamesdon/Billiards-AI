@@ -27,6 +27,11 @@ class TrajectoryAssistController:
     _cue_positions_m: List[Tuple[float, float, float]] = field(default_factory=list)  # (t, x, y)
 
     def on_shot_start(self, ts: float, cue_ball_id: Optional[BallId] = None) -> None:
+        _ = ts
+        _ = cue_ball_id
+        self._cue_positions_m.clear()
+
+    def clear(self) -> None:
         self._cue_positions_m.clear()
 
     def append_cue_sample(self, ts: float, state: GameState) -> None:
