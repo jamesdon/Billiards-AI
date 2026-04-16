@@ -77,7 +77,7 @@ cd "/home/$USER/Billiards-AI"
 ```
 
 `start_calibration.sh` now includes a NumPy/OpenCV ABI guard. If local
-packages drift (for example NumPy 2.x with Jetson distro OpenCV built against
+packages drift (for example NumPy 2.x with distro OpenCV on Jetson built against
 NumPy 1.x), it automatically repairs the venv by reinstalling `numpy<2` before
 launching the GUI.
 
@@ -199,13 +199,13 @@ Controls:
 - `g`: keyboard toggle for view step mode (`fine`/`coarse`)
 - `0`: reset view transform
 
-### Jetson camera orientation (repeatable)
+### Jetson-family CSI camera orientation (repeatable)
 
 If the live view is upside down and you want a vertical flip, use:
 
 - `--csi-flip-method 6` (vertical mirror)
 
-Common Jetson `nvvidconv` values used in this project:
+Common `nvvidconv` values on Jetson CSI pipelines in this project:
 
 - `0`: no transform
 - `2`: rotate 180 degrees

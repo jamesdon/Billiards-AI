@@ -1,6 +1,6 @@
-# Jetson-targeted edge container.
-# Default base is set to a current JetPack 6 / L4T r36 family image.
-# Override with --build-arg JETSON_BASE=<image> if your Nano uses a different stack.
+# Jetson Orin-family edge container (Orin Nano baseline).
+# Default base is L4T JetPack r36 (JP 6) — also suitable for Orin Nano on newer stacks.
+# Override with --build-arg JETSON_BASE=<image> if your L4T image differs.
 ARG JETSON_BASE=nvcr.io/nvidia/l4t-jetpack:r36.4.0
 FROM ${JETSON_BASE}
 
@@ -26,6 +26,6 @@ COPY edge /app/edge
 
 EXPOSE 8080
 
-# Default to CSI camera on Jetson.
+# Default to CSI camera on Jetson-family hardware.
 CMD ["python3", "-m", "edge.main", "--camera", "csi", "--mjpeg-port", "8080"]
 

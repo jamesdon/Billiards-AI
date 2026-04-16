@@ -1,9 +1,12 @@
-# Jetson Nano deployment
+# Jetson Orin Nano deployment
 
 ## Baseline target
 
-- JetPack 4.x (Nano) or JetPack 5.x (if supported by your image)
-- Python 3.8+ recommended (match JetPack constraints)
+- **Hardware:** NVIDIA Jetson Orin Nano (Ampere GPU; Jetson Nano / Maxwell is **not** the reference board for this repo).
+- **OS stack:** JetPack **5.x** (L4T based on Ubuntu 20.04 or 22.04 depending on image).
+- **Python:** 3.8–3.10 typical on JetPack 5; **3.10** is common on newer images—match your venv to `/usr/bin/python3`.
+
+Orin Nano vs older Jetson Nano (JetPack 4.x): more headroom for ONNX Runtime and TensorRT, a more mature GStreamer CSI path, and generally fewer wheel surprises—but **distro OpenCV + pip NumPy 2.x** can still break imports. This doc keeps **`numpy<2`** when mixing pip packages with `python3-opencv` until you have verified a clean stack.
 
 ## OS prerequisites (Debian/Ubuntu-based Jetson images)
 
@@ -34,12 +37,12 @@ cd "/home/$USER/Billiards-AI"
 /usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 # Prevent Python from loading user-site packages like ~/.local/lib/pythonX.Y/site-packages
-# that can shadow Jetson system OpenCV with a non-GStreamer build.
+# that can shadow distro OpenCV with a non-GStreamer pip build.
 export PYTHONNOUSERSITE=1
 /usr/bin/python3 -m pip install -U pip wheel
-# IMPORTANT: install Jetson-compatible numeric stack first.
+# IMPORTANT: pin NumPy before other deps if your distro OpenCV was built against NumPy 1.x.
 python -m pip install "numpy<2"
-# IMPORTANT: prevent pip from pulling opencv-python wheel on Jetson.
+# IMPORTANT: prevent pip from pulling opencv-python wheel on the device.
 python -m pip install --no-cache-dir --upgrade --ignore-installed --no-deps -r "/home/$USER/Billiards-AI/requirements.txt"
 python -m pip install --no-cache-dir --upgrade --ignore-installed onnxruntime fastapi uvicorn pydantic orjson pytest pytest-timeout ruff boto3
 # Quick verification: "GStreamer: YES" is required for --camera csi
@@ -97,16 +100,16 @@ source .venv/bin/activate
 python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "./calibration.json" --mjpeg-port 8080
 ```
 
-`--csi-flip-method` is passed directly to Jetson `nvvidconv`:
+`--csi-flip-method` is passed through the GStreamer pipeline to **`nvvidconv`** `flip-method` on Jetson:
 
 - `0`: no flip
 - `6`: vertical flip (typical "camera mounted upside down" fix)
 - `2`: 180 degree rotate (if both vertical and horizontal appear inverted)
 
-## CSI troubleshooting (Jetson)
+## CSI troubleshooting (Jetson / Argus)
 
 If startup fails with `RuntimeError: Failed to open camera source=...`, validate
-the Jetson camera stack before retrying the app:
+the camera stack before retrying the app:
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -139,4 +142,3 @@ Notes:
 ## systemd (optional)
 
 Create a service that runs `edge.main` on boot, binds to MJPEG port, and logs to journald.
-

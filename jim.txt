@@ -4,4 +4,4 @@ cd ~/Billiards-AI && bash scripts/jetson_capture_training_frames.sh --count 300 
 
 Then label → move images + matching .txt into images/train & labels/train (and a val split) → jetson_yolo_train.sh.
 
-Docs: docs/JETSON_NANO_TRAIN_AND_TEST.md (“Live table → same training pipeline”) and docs/MODEL_OPTIMIZATION.md. Shipped in commit 49b1080.
+Docs: docs/ORIN_NANO_TRAIN_AND_TEST.md (“Live table → same training pipeline”) and docs/MODEL_OPTIMIZATION.md. Shipped in commit 49b1080.

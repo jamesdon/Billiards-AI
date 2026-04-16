@@ -1,6 +1,6 @@
 # Billiards-AI (edge-first)
 
-Real-time billiards perception + rules engine designed for constrained edge hardware (Jetson Nano) with optional backend offload.
+Real-time billiards perception + rules engine designed for **NVIDIA Jetson Orin Nano** edge hardware (JetPack 5.x) with optional backend offload.
 
 ## Quickstart (dev)
 
@@ -13,9 +13,9 @@ python -m pip install -r requirements.txt
 python -m edge.main --help
 ```
 
-## Jetson-only assumptions
+## Jetson-family edge assumptions
 
-- **Target platform**: NVIDIA Jetson Nano (JetPack 4.x baseline).
+- **Target platform**: NVIDIA Jetson **Orin Nano** (JetPack **5.x**; Ampere GPU). Older Jetson Nano + JetPack 4.x notes are legacy; behavior differs (Python versions, CUDA arch, wheel availability).
 - **Project path**: expected at `"/home/$USER/Billiards-AI"` on device.
 - **Camera source**:
   - CSI camera is the default: `--camera csi`
@@ -24,7 +24,7 @@ python -m edge.main --help
   - setup helper script: `scripts/jetson_csi_setup.sh`
 - **Acceleration**:
   - ONNXRuntime is baseline runtime.
-  - TensorRT/FP16 optimization is the preferred production path on Jetson (see `docs/MODEL_OPTIMIZATION.md`).
+  - TensorRT/FP16 optimization is the preferred production path on Orin-class Jetson (see `docs/MODEL_OPTIMIZATION.md`).
 - **No Raspberry Pi target**:
   - scripts and docs in this repo are authored for Jetson/Linux conventions only.
 
@@ -58,7 +58,7 @@ scripts/docker_jetson_down.sh
 - `docs/ARCHITECTURE.md`
 - `docs/FILE_HIERARCHY.md`
 - `docs/MODEL_OPTIMIZATION.md` (optional train/tune; normal deploy reuses ONNX)
-- `docs/JETSON_NANO_TRAIN_AND_TEST.md` (train + pytest + phases **on the Nano**; `/home/$USER/Billiards-AI` paths)
+- `docs/ORIN_NANO_TRAIN_AND_TEST.md` (train + pytest + phases **on the Orin Nano**; `/home/$USER/Billiards-AI` paths; legacy alias `docs/JETSON_NANO_TRAIN_AND_TEST.md`)
 - `docs/CALIBRATION.md`
 - `docs/EVENT_DETECTION.md`
 - `docs/RULES_ENGINE.md`

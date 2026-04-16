@@ -52,14 +52,14 @@ Expected labels in dataset should align with your class map:
 yolo export model="runs/detect/train/weights/best.pt" format=onnx imgsz=640
 ```
 
-Copy the exported ONNX to Jetson:
+Copy the exported ONNX to the Orin Nano:
 
 ```bash
 mkdir -p "/home/$USER/Billiards-AI/models"
 cp "/ABSOLUTE/PATH/TO/best.onnx" "/home/$USER/Billiards-AI/models/model.onnx"
 ```
 
-### 2c) Verify model file exists on Jetson
+### 2c) Verify model file exists on device
 
 ```bash
 /usr/bin/ls -lh "/home/$USER/Billiards-AI/models/model.onnx"

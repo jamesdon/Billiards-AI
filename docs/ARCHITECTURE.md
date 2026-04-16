@@ -41,7 +41,7 @@ The edge pipeline maintains a lightweight **identity layer**:
 
 ### Edge-first philosophy
 
-The edge pipeline is designed to run *fully standalone* on Jetson Nano:
+The edge pipeline is designed to run *fully standalone* on Jetson Orin Nano (JetPack 5.x class hardware):
 
 - **Detector** runs as ONNXRuntime (baseline) or TensorRT (optimized).
 - **Tracker** is lightweight IoU/velocity association by default (no embedding model).
@@ -89,7 +89,7 @@ Calibration is described in `docs/CALIBRATION.md`.
 
 ## Performance model
 
-Key knobs for Jetson Nano:
+Key knobs for Orin Nano (same ideas apply to other Jetson-family boards; Orin has more headroom):
 
 - detector input size (e.g., 416×416)
 - detector interval (e.g., every 2–3 frames)

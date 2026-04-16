@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Save frames from the Jetson CSI camera (same GStreamer path as edge.main) for YOLO labeling.
+Save frames from the Jetson-family CSI camera (same GStreamer path as edge.main) for YOLO labeling.
 
 Training still runs on image files + .txt labels; this tool only fills the images/ side from live view.
 Run from repo root:  python scripts/capture_csi_training_frames.py --help
@@ -52,8 +52,8 @@ def main() -> None:
 
     if not opencv_gstreamer_enabled():
         raise SystemExit(
-            "OpenCV must be built with GStreamer for CSI. On Jetson use distro python3-opencv "
-            "and a venv with --system-site-packages (see docs/JETSON_NANO_TRAIN_AND_TEST.md)."
+            "OpenCV must be built with GStreamer for CSI. On L4T use distro python3-opencv "
+            "and a venv with --system-site-packages (see docs/ORIN_NANO_TRAIN_AND_TEST.md)."
         )
 
     out = (_REPO / args.out_dir).resolve()

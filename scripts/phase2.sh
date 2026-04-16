@@ -7,7 +7,7 @@ activate_venv
 
 echo "[Phase2] Headless validation only (no GUI). For interactive calibration run:" >&2
 echo "       bash \"$PROJECT_ROOT/scripts/start_calibration.sh\"" >&2
-echo "[Phase2] (Requires a desktop session on the Nano, or X11 forwarding.)" >&2
+echo "[Phase2] (Requires a desktop session on the Orin Nano, or X11 forwarding.)" >&2
 
 python -m pip install -U pip
 python -m pip install -r "$PROJECT_ROOT/requirements.txt"
@@ -118,7 +118,7 @@ phase2_hint_valid_log() {
     echo "[Phase2]       confirm sensor-id, and see docs/Phase 2 Calibration and coordinate mapping.md (Troubleshooting)." >&2
   fi
   if grep -qE "GStreamer=NO|without GStreamer" "$log" 2>/dev/null; then
-    echo "[Phase2] Hint: OpenCV lacks GStreamer; use Jetson distro python3-opencv in a venv with --system-site-packages." >&2
+    echo "[Phase2] Hint: OpenCV lacks GStreamer; use distro python3-opencv in a venv with --system-site-packages." >&2
   fi
 }
 
@@ -127,7 +127,7 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   echo "[Phase2] Note: /mjpeg never ends; we probe /health first, then one bounded /mjpeg download."
   PYTHONUNBUFFERED=1 run_with_timeout "${EDGE_TIMEOUT_SECONDS}" python -u -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
   EDGE_PID="$!"
-  echo "[Phase2] Waiting for MJPEG TCP on 127.0.0.1:${MJPEG_PORT} (first import can be slow on Jetson)..." >&2
+  echo "[Phase2] Waiting for MJPEG TCP on 127.0.0.1:${MJPEG_PORT} (first import can be slow on device)..." >&2
   TCP_READY=0
   for i in $(seq 1 300); do
     if ! kill -0 "$EDGE_PID" 2>/dev/null; then

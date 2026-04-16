@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Save live CSI frames into the dataset tree for later labeling (see docs/JETSON_NANO_TRAIN_AND_TEST.md).
+# Save live CSI frames into the dataset tree for later labeling (see docs/ORIN_NANO_TRAIN_AND_TEST.md).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh

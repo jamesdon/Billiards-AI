@@ -17,7 +17,7 @@ require_file() {
 activate_venv() {
   if [[ ! -d "$VENV_PATH" ]]; then
     if [[ "$(/usr/bin/uname -m)" == "aarch64" ]]; then
-      # Jetson CSI requires distro OpenCV with GStreamer support.
+      # NVIDIA CSI on Jetson requires distro OpenCV with GStreamer support.
       python3 -m venv --system-site-packages "$VENV_PATH"
     else
       python3 -m venv "$VENV_PATH"
@@ -25,8 +25,8 @@ activate_venv() {
   fi
   # shellcheck disable=SC1090
   source "$VENV_PATH/bin/activate"
-  # Ensure user-site Python packages (e.g. ~/.local) do not override Jetson
-  # distro OpenCV with a non-GStreamer pip build.
+  # Ensure user-site Python packages (e.g. ~/.local) do not override distro
+  # OpenCV with a non-GStreamer pip build.
   export PYTHONNOUSERSITE=1
 }
 
@@ -36,7 +36,7 @@ ensure_numpy_cv2_compat() {
     py_bin="python3"
   fi
 
-  # Detect Jetson/OpenCV ABI mismatch: cv2 built against NumPy 1.x while
+  # Detect OpenCV/NumPy ABI mismatch: cv2 built against NumPy 1.x while
   # environment has NumPy 2.x.
   set +e
   "$py_bin" - <<'PY'

@@ -1,5 +1,7 @@
 # Edge pipeline (real-time)
 
+Baseline device: **Jetson Orin Nano** (JetPack 5.x class stack). The pipeline is **CSI-first** (GStreamer / `nvarguscamerasrc`), **ONNX Runtime** by default, and **TensorRT FP16** as the recommended production detector backend when you need maximum FPS.
+
 ## Module graph
 
 ```text

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Block 3: Ultralytics train (Jetson-friendly defaults; override with env vars).
+# Block 3: Ultralytics train (edge-friendly defaults for Orin Nano; override with env vars).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh

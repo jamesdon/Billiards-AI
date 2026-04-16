@@ -91,7 +91,7 @@ PY
     return 0
   fi
 
-  echo "OpenCV/NumPy import failed; attempting Jetson-safe NumPy repair (numpy<2)..."
+  echo "OpenCV/NumPy import failed; attempting NumPy repair (numpy<2) for distro OpenCV compatibility..."
   python -m pip install --upgrade --force-reinstall "numpy<2"
 
   if /usr/bin/python3 - <<'PY'

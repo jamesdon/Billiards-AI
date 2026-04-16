@@ -8,7 +8,7 @@ try:
     import cv2
 except Exception as exc:  # pragma: no cover - import-time environment issue
     raise RuntimeError(
-        "Failed to import OpenCV (cv2). On Jetson this is commonly caused by a NumPy/OpenCV ABI mismatch.\n"
+        "Failed to import OpenCV (cv2). On Jetson-family devices this is commonly caused by a NumPy/OpenCV ABI mismatch.\n"
         "Use distro OpenCV with a NumPy<2 runtime in your venv:\n"
         "  python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless\n"
         "  python -m pip install \"numpy<2\"\n"
@@ -57,8 +57,8 @@ class OpenCVCamera:
     def frames(self) -> Iterator[Tuple[float, np.ndarray]]:
         if self.use_gstreamer and not opencv_gstreamer_enabled():
             raise RuntimeError(
-                "OpenCV was built without GStreamer support, so Jetson CSI sources cannot be opened. "
-                "Use a GStreamer-enabled OpenCV build on Jetson (for example the distro python3-opencv package), "
+                "OpenCV was built without GStreamer support, so NVIDIA CSI (nvarguscamerasrc) sources cannot be opened. "
+                "Use a GStreamer-enabled OpenCV build (for example the distro python3-opencv package on L4T), "
                 "and avoid venv-only opencv-python wheels that lack GStreamer."
             )
 
@@ -98,7 +98,7 @@ class OpenCVCamera:
         if not yielded:
             raise RuntimeError(
                 "Camera capture reported isOpened() but returned no frames (pipeline may have failed). "
-                "On Jetson CSI, check nvarguscamerasrc / Argus errors, sensor-id, flip-method, and that "
+                "On Jetson CSI pipelines, check nvarguscamerasrc / Argus errors, sensor-id, flip-method, and that "
                 "no other process is using the camera."
             )
 

@@ -4,7 +4,7 @@
 
 Validate calibration schema, pocket labels, and coordinate mapping assumptions.
 
-`scripts/phase2.sh` is **headless** (writes a baseline JSON, runs `edge.main` smoke checks). It does **not** open the OpenCV calibration GUI. For the click-to-calibrate window, run `scripts/start_calibration.sh` (on the Nano desktop, or with X11 forwarding over SSH).
+`scripts/phase2.sh` is **headless** (writes a baseline JSON, runs `edge.main` smoke checks). It does **not** open the OpenCV calibration GUI. For the click-to-calibrate window, run `scripts/start_calibration.sh` (on the Orin Nano desktop, or with X11 forwarding over SSH).
 
 ## What is automated vs manual today
 
@@ -46,7 +46,7 @@ This launcher:
 - exports `PYTHONNOUSERSITE=1`
 - runs a local script self-check for required GUI features (flip/zoom/rotate/pan)
 - runs an OpenCV/NumPy ABI guard; if it detects `_ARRAY_API` / `multiarray`
-  import mismatch on Jetson-style setups, it auto-reinstalls `numpy<2` in the
+  import mismatch on Jetson-family setups (distro OpenCV + pip NumPy drift), it auto-reinstalls `numpy<2` in the
   active venv before launching
 - starts `scripts/calib_click.py` from local disk
 - writes `calibration.json` to `/home/$USER/Billiards-AI/calibration.json` by default
@@ -133,7 +133,7 @@ If your local `edge.main` is older and does not support `--auto-calib-out`, the
 updated `scripts/calib_click.py` still writes `calibration.json` directly (no
 `edge.main` auto-calibration CLI needed).
 
-`--csi-flip-method` is passed directly to Jetson `nvvidconv flip-method`:
+`--csi-flip-method` is passed through the GStreamer pipeline to **`nvvidconv` `flip-method`** on Jetson:
 
 - `0`: no rotation/flip
 - `6`: vertical mirror (use this for vertically flipped view)
@@ -228,7 +228,7 @@ python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "
 - invalid label is rejected
 - derived table geometry (kitchen + break area) is present when calibration includes corners
 
-## Troubleshooting note from field run (Jetson Orin Nano)
+## Troubleshooting note from field run (Orin Nano)
 
 If Phase 2 fails at edge startup with:
 
@@ -259,7 +259,7 @@ If OpenCV import fails with NumPy ABI errors like:
 - `AttributeError: _ARRAY_API not found`
 - `ImportError: numpy.core.multiarray failed to import`
 
-then pip likely installed NumPy 2.x while Jetson distro OpenCV was built against
+then pip likely installed NumPy 2.x while distro OpenCV was built against
 NumPy 1.x. Pin NumPy `<2` in the venv and rerun Phase 2.
 
 If Phase 2 fails with `OSError: [Errno 98] Address already in use` when binding the
@@ -277,7 +277,7 @@ power-cycle the camera module if needed, retry `--csi-flip-method` values `0` an
 `6`, and confirm `--csi-sensor-id` matches your wiring. `edge.main` binds MJPEG at the start of `main()` (before calibration load) and
 uses a threaded HTTP server so a long-lived `/mjpeg` connection cannot block
 `/health`. Note that Python still imports `edge.main` and its dependencies before
-`main()` runs, so the port may not open instantly on a cold Jetson; `scripts/phase2.sh`
+`main()` runs, so the port may not open instantly on a cold device; `scripts/phase2.sh`
 waits for the MJPEG TCP port to accept connections (up to about 60 seconds) before
 curling `/health`.
 

@@ -13,7 +13,7 @@ try:
     import numpy as np
 except Exception:
     print(
-        "Failed to import cv2/numpy. On Jetson this usually means a NumPy/OpenCV ABI mismatch.\n"
+        "Failed to import cv2/numpy. On Jetson-family devices this usually means a NumPy/OpenCV ABI mismatch.\n"
         "Fix by running:\n"
         "  cd \"/home/$USER/Billiards-AI\"\n"
         "  source \"/home/$USER/Billiards-AI/.venv/bin/activate\"\n"
@@ -44,7 +44,7 @@ UNIT_MENU: list[str] = ["imperial", "metric"]
 CORNER_LABELS: list[str] = ["TL", "TR", "BL", "BR"]
 
 _JETSON_CSI_HINT = (
-    "Jetson CSI / Argus (nvarguscamerasrc) often prints 'Failed to create CaptureSession' when no frame arrives.\n"
+    "Jetson-family CSI / Argus (nvarguscamerasrc) often prints 'Failed to create CaptureSession' when no frame arrives.\n"
     "Try, in order:\n"
     "  • Close other camera users (another calib_click, edge.main, nvgstcapture). Then:\n"
     "      sudo systemctl restart nvargus-daemon\n"
@@ -1317,7 +1317,7 @@ def main() -> None:
     selected_table_size = _detected_default_table_size(out_path)
     selected_units = str(args.units)
     live_capture: Optional[cv2.VideoCapture] = None
-    # Backward compatibility for direct invocation snippets on Nano:
+    # Backward compatibility for direct invocation snippets on Orin Nano:
     # newer script expects --csi-flip-method, older snippets may pass --flip.
     # argparse already aliases --flip, so nothing else is needed besides keeping
     # this code path explicit and stable.

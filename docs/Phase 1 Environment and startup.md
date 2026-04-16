@@ -4,15 +4,15 @@
 
 Bring up edge + backend reliably and verify core services.
 
-## Phase 1 status notes (Jetson CSI)
+## Phase 1 status notes (NVIDIA CSI on Jetson Orin Nano)
 
 - Backend and software integrity checks can pass independently of camera bring-up.
-- For this project, a **CSI camera is always intended** for edge runtime validation on Jetson.
+- For this project, a **CSI camera is always intended** for edge runtime validation on the Orin Nano (JetPack 5.x).
 - If CSI camera open fails (`RuntimeError: Failed to open camera source='nvarguscamerasrc ...'`), treat Phase 1 as blocked on device camera stack readiness.
 
 ## 1) Create and activate environment
 
-Install venv support first (required on minimal Ubuntu/Jetson images):
+Install venv support first (required on minimal Ubuntu / L4T images):
 
 ```bash
 sudo /usr/bin/apt-get update
@@ -34,7 +34,7 @@ cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 export PYTHONNOUSERSITE=1
 python -m pip install -U pip
-# Install non-OpenCV deps first on Jetson, then force-remove any pip OpenCV wheel.
+# Install non-OpenCV deps first on device, then force-remove any pip OpenCV wheel.
 python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
 python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless || true
 # Also clean user-site packages that can shadow system cv2.
@@ -43,8 +43,8 @@ python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-hea
 python -m pip install --upgrade "numpy<2"
 ```
 
-Jetson note: this project expects the Jetson OS OpenCV (`python3-opencv`) for CSI/GStreamer support.
-Avoid installing `opencv-python` from pip on-device.
+Edge note: this project expects **distro** OpenCV (`python3-opencv`) with GStreamer for CSI on Jetson.
+Avoid installing `opencv-python` from pip on-device (wheel builds typically lack the CSI pipeline).
 
 ## 2) Quick integrity checks
 
@@ -133,7 +133,7 @@ PY
 export PYTHONNOUSERSITE=1
 ```
 
-- if GStreamer shows `NO`, rebuild the venv without pip OpenCV and install Jetson OpenCV:
+- if GStreamer shows `NO`, rebuild the venv without pip OpenCV and install distro OpenCV:
 
 ```bash
 sudo /usr/bin/apt-get install -y python3-opencv
@@ -147,7 +147,7 @@ python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-hea
 # Also clean user-site packages that can shadow system cv2.
 /usr/bin/python3 -m pip uninstall -y --break-system-packages opencv-python opencv-contrib-python opencv-python-headless || true
 ```
-- note: some pip resolver runs on Jetson/aarch64 can still select `opencv-python`; always verify with:
+- note: some pip resolver runs on aarch64 can still select `opencv-python`; always verify with:
 
 ```bash
 python - <<'PY'
@@ -175,7 +175,7 @@ python -m pip install --upgrade --force-reinstall "numpy<2"
   fakesink
 ```
 
-## Docker alternative (Jetson recommended)
+## Docker alternative (recommended on Orin Nano)
 
 ```bash
 cd "/home/$USER/Billiards-AI"

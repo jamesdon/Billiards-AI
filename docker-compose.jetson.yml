@@ -35,7 +35,7 @@ services:
       - ./models:/models
       - /tmp/argus_socket:/tmp/argus_socket
       - /dev:/dev
-    # host networking and privileged mode simplify camera access on Jetson.
+    # host networking and privileged mode simplify camera access on Jetson / L4T.
     network_mode: host
     privileged: true
     runtime: nvidia

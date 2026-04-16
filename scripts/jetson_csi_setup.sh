@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Jetson Nano CSI camera setup/check"
-echo "This script targets NVIDIA Jetson Nano (JetPack)."
+echo "Jetson Orin Nano CSI camera setup/check"
+echo "This script targets NVIDIA Jetson-family boards with nvarguscamerasrc (JetPack 5.x baseline: Orin Nano)."
 
 echo
 echo "[1/6] Verify project path"
@@ -49,5 +49,5 @@ wait "$PID" || true
 echo
 echo "Jetson CSI setup/check complete."
 echo "csi-flip-method used: $CSI_FLIP_METHOD"
-echo "If failures occurred, re-check ribbon cable orientation, camera enablement, and JetPack camera stack."
+echo "If failures occurred, re-check ribbon cable orientation, camera enablement, and L4T/Argus camera stack."
 

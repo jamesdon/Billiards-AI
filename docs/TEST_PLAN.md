@@ -11,12 +11,12 @@ This plan is organized by major delivery phases. Each phase has:
 
 ### Objective
 
-Verify the system boots reliably on dev hardware and Jetson-style targets.
+Verify the system boots reliably on dev hardware and Jetson Orin–class targets.
 
 ### Entry criteria
 
 - dependencies installed
-- CSI camera available and recognized by Jetson camera stack (`nvargus-daemon`)
+- CSI camera available and recognized by the NVIDIA Argus stack (`nvargus-daemon`)
 - optional backend env vars set
 
 ### Test cases

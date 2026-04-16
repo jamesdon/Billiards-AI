@@ -4,12 +4,12 @@
 
 **Training and billiards-specific tuning are optional and usually done once** (or occasionally when you want a better shared detector). You build a labeled dataset, train a YOLO-family model, export ONNX, and iterate on hard examples until metrics and Phase 3 runs look good.
 
-**Normal setup of additional tables or Jetsons does not repeat training.** You reuse the same artifacts under a **single directory**:
+**Normal setup of additional tables or edge devices does not repeat training.** You reuse the same artifacts under a **single directory**:
 
 - `models/model.onnx` — detector weights (not committed; override with `MODEL_PATH` / Docker `MODEL_PATH`)
 - `models/class_map.json` — same class indices as training (`0..3` → `ball`, `person`, `cue_stick`, `rack`; committed template in repo)
 
-`scripts/phase3.sh`, `phase4.sh`, and `phase9.sh` default `CLASS_MAP_PATH` to `$PROJECT_ROOT/models/class_map.json`. Jetson Docker mounts `./models` at `/models` and uses the same filenames by default.
+`scripts/phase3.sh`, `phase4.sh`, and `phase9.sh` default `CLASS_MAP_PATH` to `$PROJECT_ROOT/models/class_map.json`. Jetson-family Docker (Orin Nano compose) mounts `./models` at `/models` and uses the same filenames by default.
 
 Per-device variation is handled by **calibration** (homography, pocket geometry), not by retraining the detector, unless the camera or scene is radically different from what the model saw.
 
@@ -26,7 +26,7 @@ This is a **project default**, not a hard limit of YOLO.
 - **Labeling cost** — every frame needs tight boxes; adding 6–16 ball *types* multiplies annotation and review time.
 - **Full-frame difficulty** — at 720p table-wide views, balls are small and visually similar; a single “ball” head is usually easier to stabilize than many sibling classes fighting the same anchors.
 - **Iteration speed** — get reliable **presence + motion** first (rules, pockets, collisions care about geometry); refine **appearance** once crops are trustworthy.
-- **Runtime** — one detector pass + small ROI work scales better on Nano than pushing all semantics into the largest model.
+- **Runtime** — one detector pass + small ROI work scales better on edge SoCs (Orin Nano included) than pushing all semantics into the largest model.
 
 **You can still train more ball types in YOLO** if you want: extend `names` / labels / `models/class_map.json` (e.g. `cue_ball`, `solid`, `stripe`, `eight_ball`) and widen `ball_dets` filtering in `edge/pipeline.py` so those labels enter the ball tracker. That is extra integration and dataset work, not a merge of “phases” by itself.
 
@@ -42,11 +42,11 @@ Follow this once (or when refreshing the shared model). All paths use `"/home/$U
 
 3. **Label quality** — Start with balls; add people, cue sticks, and rack frames as in the checklist later in this doc. Split train/val by **session** where possible.
 
-4. **Environment** — In the project venv: install **`requirements-train.txt`** after `requirements.txt` so NumPy stays pinned with `numpy<2` on Jetson and matplotlib is venv-local (avoids Ultralytics importing system matplotlib against NumPy 2). On a desktop GPU you can still use the same file. See `docs/JETSON_NANO_TRAIN_AND_TEST.md` for the full Nano sequence.
+4. **Environment** — In the project venv: install **`requirements-train.txt`** after `requirements.txt` so NumPy stays pinned with `numpy<2` alongside distro OpenCV on Jetson-family devices and matplotlib is venv-local (avoids Ultralytics importing system matplotlib against NumPy 2). On a desktop GPU you can still use the same file. JetPack 5 (Orin) is usually less brittle than JetPack 4 Maxwell stacks, but the pin avoids surprise ABI drift. See `docs/ORIN_NANO_TRAIN_AND_TEST.md` for the full on-device sequence.
 
 5. **Train** — From the project root (paths as in **Option A** / **Option B** below), e.g.  
    `yolo detect train data=".../billiards-data.yaml" model=yolov8n.pt imgsz=640 epochs=100 batch=16`  
-   Adjust `batch` and `workers` if you train on Jetson.
+   Adjust `batch` and `workers` if you train on the Orin Nano (or any smaller edge GPU).
 
 6. **Export ONNX** —  
    `yolo export model="runs/detect/train/weights/best.pt" format=onnx imgsz=640`  
@@ -62,9 +62,9 @@ Follow this once (or when refreshing the shared model). All paths use `"/home/$U
 
 ## Do I have to train on another machine?
 
-No. You can train on Jetson Nano/Orin directly, but it is usually much slower.
+No. You can train on Jetson Orin Nano directly, but it is usually much slower than a desktop/datacenter GPU.
 
-- **Train on Nano/Orin**: acceptable for small datasets and early iteration.
+- **Train on Orin Nano**: acceptable for small datasets and early iteration (much more comfortable than old Nano).
 - **Train on a stronger GPU machine**: recommended for faster iteration and larger datasets.
 - In both cases, the runtime artifact consumed by this project is the same:
   - `"/home/$USER/Billiards-AI/models/model.onnx"`
@@ -110,7 +110,7 @@ names:
 EOF
 ```
 
-Jetson-only checklist: `docs/JETSON_NANO_TRAIN_AND_TEST.md` (paths like `/home/$USER/Billiards-AI`, NumPy/matplotlib fixes, `yolo` + pytest + phases).
+On-device checklist: `docs/ORIN_NANO_TRAIN_AND_TEST.md` (paths like `/home/$USER/Billiards-AI`, NumPy/OpenCV guardrails, `yolo` + pytest + phases).
 
 ## Minimal dataset bootstrap checklist (zero to first model)
 
@@ -205,13 +205,13 @@ To build a dataset **from the live table** (no pre-recorded video), save frames 
 
 `cd ~/Billiards-AI && bash scripts/jetson_capture_training_frames.sh --count 300 --stride 20 --prefix session1`
 
-See `docs/JETSON_NANO_TRAIN_AND_TEST.md` (live table → training). You still add YOLO `.txt` labels and split train/val before `yolo train`.
+See `docs/ORIN_NANO_TRAIN_AND_TEST.md` (live table → training). You still add YOLO `.txt` labels and split train/val before `yolo train`.
 
 ## Helpful frame extraction tip
 
 If you capture long videos, extract frames at low frequency first (for diversity):
 
-Install ffmpeg first (Jetson/Ubuntu):
+Install ffmpeg first (Ubuntu / Jetson image):
 
 ```bash
 sudo /usr/bin/apt-get update || true
@@ -223,7 +223,7 @@ mkdir -p "/home/$USER/Billiards-AI/data/datasets/billiards/images/raw"
 ffmpeg -i "/absolute/path/to/session.mp4" -vf "fps=2" "/home/$USER/Billiards-AI/data/datasets/billiards/images/raw/%06d.jpg"
 ```
 
-## Option A: Train directly on Jetson Nano/Orin
+## Option A: Train directly on Jetson Orin Nano
 
 Use this if you do not have another GPU machine available.
 
@@ -235,7 +235,7 @@ python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
 python -m pip install -r "/home/$USER/Billiards-AI/requirements-train.txt"
 ```
 
-Train (Jetson-friendly defaults):
+Train (edge-friendly defaults; increase `batch` on Orin if memory allows):
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -260,7 +260,7 @@ cp "/home/$USER/Billiards-AI/runs/detect/train/weights/best.onnx" "/home/$USER/B
 ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
 ```
 
-## Option B: Train on another machine, run on Nano
+## Option B: Train on another machine, run on Orin Nano
 
 This is usually the fastest path overall.
 
@@ -272,14 +272,14 @@ yolo detect train data="/ABSOLUTE/PATH/TO/billiards-data.yaml" model="yolov8n.pt
 yolo export model="/ABSOLUTE/PATH/TO/runs/detect/train/weights/best.pt" format=onnx imgsz=640
 ```
 
-Copy artifact to Nano:
+Copy artifact to Orin Nano:
 
 ```bash
 mkdir -p "/home/$USER/Billiards-AI/models"
-scp "/ABSOLUTE/PATH/TO/best.onnx" "$USER@<NANO_IP>:/home/$USER/Billiards-AI/models/model.onnx"
+scp "/ABSOLUTE/PATH/TO/best.onnx" "$USER@<ORIN_NANO_IP>:/home/$USER/Billiards-AI/models/model.onnx"
 ```
 
-Verify on Nano:
+Verify on Orin Nano:
 
 ```bash
 ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
@@ -345,13 +345,13 @@ Preferred: export with static input shape (e.g., 416×416) and FP16 when availab
 
 ## ONNXRuntime baseline
 
-ONNXRuntime is the default runtime in this repo for portability. On Jetson you’ll want the Jetson-compatible build.
+ONNXRuntime is the default runtime in this repo for portability. On Orin Nano use a Jetson **aarch64** build with CUDA/TensorRT EPs when you want GPU acceleration without converting engines yourself.
 
-## TensorRT (recommended on Jetson)
+## TensorRT (recommended on Jetson Orin)
 
 Convert ONNX to TensorRT engine:
 
-- FP16 is usually the best trade-off on Nano.
+- FP16 is usually the best trade-off on Orin-class hardware (ample headroom vs old Maxwell Nano).
 - INT8 requires calibration and can be fragile; use only if needed.
 
 ## Runtime knobs

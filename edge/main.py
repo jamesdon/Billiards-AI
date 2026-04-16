@@ -62,7 +62,7 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument(
         "--camera",
         default="csi",
-        help="Camera source: csi (Jetson default), usb, numeric index, file path, or explicit gstreamer string",
+        help="Camera source: csi (Jetson-family default), usb, numeric index, file path, or explicit gstreamer string",
     )
     ap.add_argument("--usb-index", type=int, default=0, help="USB camera index used when --camera usb")
     ap.add_argument("--csi-sensor-id", type=int, default=0)
@@ -156,7 +156,7 @@ def main() -> None:
         if not opencv_gstreamer_enabled():
             raise RuntimeError(
                 "CSI camera mode requires OpenCV with GStreamer support, but current cv2 build has "
-                "GStreamer=NO. On Jetson, remove pip OpenCV wheels and use system OpenCV.\n"
+                "GStreamer=NO. On Jetson / L4T, remove pip OpenCV wheels and use distro OpenCV.\n"
                 "Suggested fix:\n"
                 "  /usr/bin/python3 -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless\n"
                 "  sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools\n"
