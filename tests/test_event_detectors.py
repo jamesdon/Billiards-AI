@@ -22,6 +22,9 @@ from core.types import (
 )
 from edge.calib.calib_store import Calibration, PocketDef
 from edge.classify.ball_classifier import BallClassifier
+from edge.events.collision_detector import CollisionDetector, CollisionDetectorConfig
+from edge.events.pocket_detector import PocketDetector, PocketDetectorConfig
+from edge.events.rail_hit_detector import RailHitDetector, RailHitDetectorConfig
 from edge.events.shot_detector import ShotDetector, ShotDetectorConfig
 from edge.tracking.iou_tracker import IoUTracker
 
@@ -93,6 +96,48 @@ def test_ball_classifier_reset_clears_class_probs():
     t = BallTrack(id=1, pos_xy=(0.0, 0.0), class_probs={BallClass.SOLID: 0.9})
     BallClassifier.reset_track(t)
     assert t.class_probs == {}
+
+
+def test_pocket_detector_emits_when_track_disappears_near_pocket():
+    H = np.eye(3, dtype=np.float64)
+    pockets = [
+        PocketDef(label=PocketLabel.TOP_LEFT_CORNER, center_xy_m=(0.03, 0.03), radius_m=0.07),
+    ]
+    calib = Calibration(H=Homography(H=H), pockets=pockets)
+    det = PocketDetector(PocketDetectorConfig(missing_time_s=0.1, pocket_margin_m=0.05))
+    cfg = GameConfig(game_type=GameType.EIGHT_BALL)
+    st = GameState(config=cfg, players=[PlayerState("A"), PlayerState("B")])
+    st.balls[1] = BallTrack(id=1, pos_xy=(0.03, 0.03), vel_xy=(0.0, 0.0))
+    assert det.update(st, 0.0, calib) == []
+    st.balls.pop(1, None)
+    evs = det.update(st, 0.5, calib)
+    assert len(evs) == 1
+    assert evs[0].type == EventType.BALL_POCKETED
+    assert 1 in st.pocketed
+
+
+def test_collision_detector_emits_on_close_approach_with_relative_speed():
+    det = CollisionDetector(CollisionDetectorConfig(contact_dist_m=0.10, min_rel_speed_mps=0.05, cooldown_s=0.0))
+    cfg = GameConfig(game_type=GameType.EIGHT_BALL)
+    st = GameState(config=cfg, players=[PlayerState("A"), PlayerState("B")])
+    st.balls[1] = BallTrack(id=1, pos_xy=(0.0, 0.0), vel_xy=(0.5, 0.0))
+    st.balls[2] = BallTrack(id=2, pos_xy=(0.05, 0.0), vel_xy=(0.0, 0.0))
+    evs = det.update(st, 0.0)
+    assert len(evs) == 1
+    assert evs[0].type == EventType.BALL_COLLISION
+
+
+def test_rail_hit_detector_emits_on_velocity_reversal_near_left_rail():
+    det = RailHitDetector(RailHitDetectorConfig(rail_band_m=0.05, min_speed_mps=0.05, cooldown_s=0.0))
+    cfg = GameConfig(game_type=GameType.EIGHT_BALL, table_length_m=2.0, table_width_m=1.0)
+    st = GameState(config=cfg, players=[PlayerState("A"), PlayerState("B")])
+    st.balls[1] = BallTrack(id=1, pos_xy=(0.02, 0.5), vel_xy=(-0.3, 0.0))
+    assert det.update(st, 0.0) == []
+    st.balls[1].vel_xy = (0.15, 0.0)
+    evs = det.update(st, 0.2)
+    assert len(evs) == 1
+    assert evs[0].type == EventType.RAIL_HIT
+    assert evs[0].payload.get("rail") == "left"
 
 
 def test_nine_ball_consecutive_foul_keys_distinguish_team_and_player_index_zero():

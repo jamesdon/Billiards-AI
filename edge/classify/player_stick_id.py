@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 import cv2
 import numpy as np
 
 from core.identity_store import IdentityStore
-from core.types import PlayerProfile, StickProfile
+from core.types import GameState, PlayerProfile, StickProfile
 
 
 def hsv_hist_signature(bgr: np.ndarray, bins: int = 16) -> List[float]:
@@ -44,6 +44,53 @@ class IdentityMatcherConfig:
 class PlayerStickIdentifier:
     store: IdentityStore
     cfg: IdentityMatcherConfig = field(default_factory=IdentityMatcherConfig)
+
+    def assign_profile_to_players(
+        self,
+        state: GameState,
+        prof: PlayerProfile,
+        *,
+        center_x_px: Optional[float] = None,
+        frame_width_px: Optional[int] = None,
+    ) -> None:
+        """
+        Attach a matched profile to the first open `PlayerState` slot.
+
+        For **two** players, if `center_x_px` and `frame_width_px` are provided, prefer the
+        left half of the frame for player index 0 and the right half for index 1 so
+        physical left/right does not always map to "who was detected first".
+        """
+        if any(p.profile_id == prof.id for p in state.players):
+            return
+        if not any(p.profile_id is None for p in state.players):
+            return
+        idx = self._first_open_player_slot(state, center_x_px=center_x_px, frame_width_px=frame_width_px)
+        p = state.players[idx]
+        if p.profile_id is None:
+            p.profile_id = prof.id
+            p.name = prof.display_name
+
+    @staticmethod
+    def _first_open_player_slot(
+        state: GameState,
+        *,
+        center_x_px: Optional[float],
+        frame_width_px: Optional[int],
+    ) -> int:
+        if (
+            len(state.players) == 2
+            and center_x_px is not None
+            and frame_width_px is not None
+            and frame_width_px > 1
+        ):
+            preferred = 0 if float(center_x_px) < float(frame_width_px) * 0.5 else 1
+            for i in (preferred, 1 - preferred):
+                if state.players[i].profile_id is None:
+                    return i
+        for i, p in enumerate(state.players):
+            if p.profile_id is None:
+                return i
+        return 0
 
     def match_or_create_player(self, roi_bgr: np.ndarray, default_name: str = "Player") -> PlayerProfile:
         sig = hsv_hist_signature(roi_bgr)

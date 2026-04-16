@@ -110,12 +110,10 @@ class EdgePipeline:
                 cx = (bbox[0] + bbox[2]) * 0.5
                 cy = (bbox[1] + bbox[3]) * 0.5
                 self._player_centers_px[prof.id] = (float(cx), float(cy))
-                # Assign player profiles to player slots if unset (baseline "seat" assignment).
-                for p in state.players:
-                    if p.profile_id is None:
-                        p.profile_id = prof.id
-                        p.name = prof.display_name
-                        break
+                fw = int(frame_bgr.shape[1]) if frame_bgr.ndim >= 2 else 0
+                self.player_stick_id.assign_profile_to_players(
+                    state, prof, center_x_px=float(cx), frame_width_px=fw if fw > 0 else None
+                )
                 on_event(Event(type=EventType.PLAYER_SEEN, ts=ts, payload={"track_id": tid, "profile_id": prof.id, "display_name": prof.display_name}))
             for tid, (_, bbox, _) in stick_tracks.items():
                 x1, y1, x2, y2 = [int(v) for v in bbox]

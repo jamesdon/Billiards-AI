@@ -1,3 +1,11 @@
+from .rules import (
+    EightBallRules,
+    NineBallRules,
+    RuleEngine,
+    SnookerRules,
+    StraightPoolRules,
+    UKPoolRules,
+)
 from .types import (
     Ball,
     BallClass,
@@ -26,5 +34,10 @@ __all__ = [
     "GameType",
     "PlayerState",
     "ShotState",
+    "RuleEngine",
+    "EightBallRules",
+    "NineBallRules",
+    "StraightPoolRules",
+    "UKPoolRules",
+    "SnookerRules",
 ]
-

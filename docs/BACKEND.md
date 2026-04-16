@@ -12,6 +12,11 @@
 - SQLite storage: `backend/store.py`
 - WebSocket hub: `backend/ws.py`
 - DynamoDB (optional): `backend/aws_store.py`
+- Live reducer: `backend/reducer.py` (`LiveGameReducer`)
+
+## Live state (`GET /live/state`)
+
+`POST /event` feeds the reducer incremental edge events (`shot_start`, `shot_end`, `ball_pocketed`, `ball_collision`, `rail_hit`, `foul`, `shot_summary`, `game_over`). For **accurate** inning / current player / scores, the edge (or a bridge process) should also **`POST /state`** with periodic `GameState` snapshots; the reducer merges overlapping keys from those snapshots so dashboards stay coherent during Phase 9-style monitoring.
 
 ## Run
 

@@ -36,6 +36,8 @@ python -m edge.main \
 watch -n 1 curl -s "http://127.0.0.1:8000/live/state"
 ```
 
+The reducer ingests **events** automatically when you `POST /event`. For **turn order and scoreboard** fields to stay authoritative, also **`POST /state`** with a JSON snapshot of `GameState` (or a compatible subset) on a steady cadence from the edge or a small bridge—see `docs/BACKEND.md`.
+
 ## 4) Inject manual fouls if needed during match
 
 ```bash

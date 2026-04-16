@@ -88,9 +88,13 @@ Billiards-AI/
 
   backend/                          Optional offload + history + dashboard API
     __init__.py
-    app.py                          FastAPI app
+    app.py                          FastAPI app (`/event`, `/state`, `/live/state`, WebSocket hub)
+    reducer.py                      LiveGameReducer: merges snapshots + shot/pocket/collision/rail/foul events for `GET /live/state`
     ws.py                           WebSocket broadcast of live state/events
     store.py                        SQLite storage
+    aws_store.py                    Optional DynamoDB shot/stick stats
+    fouls.py                        Manual foul injection helper
+    profiles.py                     Profile routes
     models.py                       Pydantic models for API
     routes.py                       REST endpoints
 
