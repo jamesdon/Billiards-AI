@@ -28,9 +28,9 @@ python -m edge.main --help
 - **No Raspberry Pi target**:
   - scripts and docs in this repo are authored for Jetson/Linux conventions only.
 
-## Docker on Jetson (recommended)
+## Docker on L4T / Orin Nano (recommended)
 
-Use the Jetson compose stack to minimize dependency drift:
+Use the Jetson-family compose stack to minimize dependency drift:
 
 ```bash
 cd "/home/$USER/Billiards-AI"
