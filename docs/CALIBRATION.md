@@ -125,6 +125,8 @@ bash "/home/$USER/Billiards-AI/scripts/start_calibration.sh" --camera 0
 
 `--camera 0` selects **V4L2** device index 0 (`/dev/video0`), which on many Jetson images is a usable path when the raw nvargus pipeline string fails from OpenCV.
 
+**Calibration is not YOLO training.** Setting table corners and saving `calibration.json` only requires a working camera + `calib_click` / `start_calibration.sh`. The YOLO folder `data/datasets/billiards/images/train` is for **detector training** (`jetson_yolo_train.sh`) later; you can ignore it until you intentionally train a model.
+
 In-window workflow (new default):
 
 - The helper proposes initial corners from the current frame, then **refines each
