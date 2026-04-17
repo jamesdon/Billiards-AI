@@ -51,7 +51,12 @@ _JETSON_CSI_HINT = (
     "    (service name can differ slightly by L4T; reboot if Argus stays wedged.)\n"
     "  • Wrong module index: CSI_SENSOR_ID=1 bash scripts/start_calibration.sh\n"
     "  • Wrong orientation: CSI_FLIP_METHOD=0 bash scripts/start_calibration.sh (also try 2 or 6)\n"
-    "  • Lighter mode: add --width 640 --height 480 --csi-framerate 15 to calib_click.py args\n"
+    "  • Lighter CSI mode (extra args after start_calibration.sh; last flags win):\n"
+    "      bash scripts/start_calibration.sh --width 640 --height 480 --csi-framerate 15\n"
+    "  • V4L2 instead of the nvargus GStreamer string (often /dev/video0 on Jetson):\n"
+    "      bash scripts/start_calibration.sh --camera 0\n"
+    "  • Sanity-check Argus outside OpenCV (adjust sensor-id / caps as needed):\n"
+    "      gst-launch-1.0 nvarguscamerasrc sensor-id=0 num-buffers=1 ! nvvidconv ! xvimagesink\n"
 )
 
 

@@ -39,6 +39,10 @@ Environment overrides (optional):
 
 Example:
   bash /home/$USER/Billiards-AI/scripts/start_calibration.sh
+
+Optional extra arguments are forwarded to calib_click.py (later flags override earlier ones), e.g.:
+  bash /home/$USER/Billiards-AI/scripts/start_calibration.sh --width 640 --height 480 --csi-framerate 15
+  bash /home/$USER/Billiards-AI/scripts/start_calibration.sh --camera 0
 EOF
 }
 
@@ -143,7 +147,8 @@ main() {
     --height "$FRAME_HEIGHT" \
     --units "$UNITS" \
     --pocket-radius-m "$POCKET_RADIUS_M" \
-    --out "$CALIB_OUT"
+    --out "$CALIB_OUT" \
+    "$@"
 }
 
 main "$@"

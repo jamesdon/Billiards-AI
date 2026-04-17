@@ -111,6 +111,20 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
 If your local `edge.main` is also older and does not support `--auto-calib-out`,
 the helper now writes `calibration.json` directly without calling `edge.main`.
 
+### Jetson CSI: `Failed to open camera` / Argus
+
+The default path uses `nvarguscamerasrc` (GStreamer). If OpenCV cannot open it:
+
+1. Stop other camera users, then `sudo systemctl restart nvargus-daemon` (reboot if it stays wedged).
+2. Try another sensor or mode via **environment** (`CSI_SENSOR_ID`, `CSI_FLIP_METHOD`, `FRAME_WIDTH`, etc.) or by appending **extra CLI args** (they override the script’s defaults because they are passed last):
+
+```bash
+bash "/home/$USER/Billiards-AI/scripts/start_calibration.sh" --width 640 --height 480 --csi-framerate 15
+bash "/home/$USER/Billiards-AI/scripts/start_calibration.sh" --camera 0
+```
+
+`--camera 0` selects **V4L2** device index 0 (`/dev/video0`), which on many Jetson images is a usable path when the raw nvargus pipeline string fails from OpenCV.
+
 In-window workflow (new default):
 
 - The helper proposes initial corners from the current frame, then **refines each

@@ -140,7 +140,7 @@ Billiards-AI/
     jetson_capture_training_frames.sh  Wrapper: live CSI → JPEGs for YOLO labeling
     capture_csi_training_frames.py     Saves frames from CSI (same pipeline as edge.main)
     calib_click.py                  Interactive calibration: TL/TR/BL/BR at corner-pocket **inner throat**; `_estimate_outside_corners` avoids picking the **largest** hull quad (often the room outline) by scoring quads in an area band and with border inset; `_order_physical_table_corners` tries both kitchen-at-top vs kitchen-at-bottom hypotheses vs image-axis order; Hough + `_pocket_throat_from_seed`; `warpAffine` + `BORDER_CONSTANT` for pan/zoom voids; writes calibration.json; CLI via start_calibration.sh
-    start_calibration.sh            One-command local calibration launcher (env + guardrails + GUI); passes CSI_OPEN_RETRIES to calib_click; asserts calib_click.py contains stable view-control hooks (not literal on-screen button text)
+    start_calibration.sh            One-command calibration launcher (venv + NumPy/OpenCV ABI guard + GUI); forwards extra CLI args to calib_click (e.g. --width 640 --camera 0); env overrides for CSI/USB; asserts stable view-control hooks in calib_click.py
     jetson_csi_setup.sh             Jetson-family CSI triage (Argus + gst + app smoke)
     docker_jetson_build.sh          Build Jetson runtime image
     docker_jetson_up.sh             Start Jetson runtime container
