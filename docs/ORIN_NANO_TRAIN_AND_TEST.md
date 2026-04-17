@@ -10,6 +10,27 @@ This repo targets **NVIDIA Jetson Orin Nano** on **JetPack 5.x** (Ubuntu 20.04 /
 
 ---
 
+## How to test (what to run, in order)
+
+Use **`~/Billiards-AI`** (or `cd "$PROJECT_ROOT"`). Plain one-liners also live in `scripts/JETSON_ONE_LINERS.txt`. Full phase objectives: `docs/TEST_PLAN.md`.
+
+| What you want to verify | Command / action |
+|-------------------------|-------------------|
+| **Unit tests (no camera)** | `cd ~/Billiards-AI && bash scripts/jetson_pytest.sh` — or: `source .venv/bin/activate && python -m pytest tests -q --tb=short` |
+| **Env + deps** | `cd ~/Billiards-AI && bash scripts/jetson_train_env.sh` — ends with `jetson_train_env.sh: OK` |
+| **Dataset YAML paths** | `cd ~/Billiards-AI && bash scripts/jetson_prepare_yolo_dataset.sh` — prints a `path:` line under `/home/` |
+| **Calibration (interactive)** | `cd ~/Billiards-AI && ./scripts/start_calibration.sh` — writes `calibration.json` (or set `CALIB_OUT`) |
+| **Calibration (headless check)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 2` |
+| **Backend + CSI smoke (Phase 1)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 1` |
+| **Detector + tracking (Phase 3)** | Requires `models/model.onnx`. Then: `cd ~/Billiards-AI && bash scripts/run_phase.sh 3` — or `bash scripts/jetson_phases_1_3.sh` (runs 1 then 3) |
+| **Live app + MJPEG** | With calib + ONNX in place: `cd ~/Billiards-AI && bash scripts/jetson_edge_smoke_csi.sh` — open `http://<device-ip>:8080/mjpeg` until Ctrl+C |
+| **YOLO train → ONNX → smoke again** | After labeled images exist: `jetson_yolo_train.sh` → `jetson_yolo_export_latest.sh` → Phase 3 or `jetson_edge_smoke_csi.sh` again |
+| **Capture frames from table (no train yet)** | `cd ~/Billiards-AI && bash scripts/jetson_capture_training_frames.sh --count 50 --stride 30 --prefix testroll` — check JPEGs under `data/datasets/billiards/images/capture/` |
+
+**Minimum “it works on the table” path:** `jetson_train_env.sh` → `start_calibration.sh` → place or export `models/model.onnx` → `jetson_edge_smoke_csi.sh` (confirm overlay/stream).
+
+---
+
 ## Why “nothing happened” when you pasted from this file
 
 Markdown **code fences** are the lines that look like three backticks (often shown as ` ```bash ` at the start and ` ``` ` at the end). **Those backtick lines are not shell commands.** If you paste them into the terminal, bash does not run `git pull` or `pip`.
