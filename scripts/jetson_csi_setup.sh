@@ -15,7 +15,15 @@ echo "Project root: $PROJECT_ROOT"
 
 echo
 echo "[2/6] Install camera tooling (requires sudo)"
-sudo apt-get update
+# Do not abort the whole script if a third-party apt repo (e.g. GitHub CLI) breaks `apt-get update`.
+set +e
+sudo apt-get -o Acquire::Retries=3 update
+upd_rc=$?
+set -e
+if [[ "$upd_rc" -ne 0 ]]; then
+  echo "WARNING: apt-get update exited $upd_rc (often a broken /etc/apt/sources.list.d entry)." >&2
+  echo "  Fix or remove that source, then: sudo apt-get update && sudo apt-get install -y v4l-utils gstreamer1.0-tools" >&2
+fi
 sudo apt-get install -y v4l-utils gstreamer1.0-tools
 
 echo
@@ -49,5 +57,12 @@ wait "$PID" || true
 echo
 echo "Jetson CSI setup/check complete."
 echo "csi-flip-method used: $CSI_FLIP_METHOD"
-echo "If failures occurred, re-check ribbon cable orientation, camera enablement, and L4T/Argus camera stack."
+echo
+echo "How to read results:"
+echo "  • dmesg: use 'sudo dmesg' if plain dmesg says Operation not permitted."
+echo "  • No /dev/video* and nvargus 'No cameras available': no sensor is exposed to Argus/V4L2."
+echo "    Re-seat the CSI ribbon (correct orientation), try the other CSI port (sensor-id=1),"
+echo "    confirm a supported camera module is installed, and check carrier docs / jetson-io."
+echo "  • No 'imx' (or similar) lines in sudo dmesg after boot: kernel likely never probed a camera."
+echo "If failures occurred, re-check ribbon cable, camera module model vs carrier, and L4T/Argus stack."
 
