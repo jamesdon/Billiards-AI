@@ -20,6 +20,24 @@ CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
 EDGE_TIMEOUT_SECONDS="${EDGE_TIMEOUT_SECONDS:-1200}"
 PHASE2_REQUIRE_CAMERA="${PHASE2_REQUIRE_CAMERA:-1}"
+# Camera for the *valid-calibration* MJPEG smoke only. Invalid-label check never opens a camera.
+# Examples: PHASE2_CAMERA=csi (default), PHASE2_CAMERA=usb, PHASE2_CAMERA=0 (V4L index).
+PHASE2_CAMERA="${PHASE2_CAMERA:-csi}"
+PHASE2_USB_INDEX="${PHASE2_USB_INDEX:-0}"
+
+phase2_build_cam_args() {
+  local lcam
+  lcam="$(printf '%s' "${PHASE2_CAMERA:-csi}" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$lcam" == "csi" ]]; then
+    PHASE2_CAM_ARGS=(--camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}")
+  elif [[ "$lcam" == "usb" ]]; then
+    PHASE2_CAM_ARGS=(--camera usb --usb-index "${PHASE2_USB_INDEX}")
+  elif [[ "${PHASE2_CAMERA}" =~ ^[0-9]+$ ]]; then
+    PHASE2_CAM_ARGS=(--camera "${PHASE2_CAMERA}")
+  else
+    PHASE2_CAM_ARGS=(--camera "${PHASE2_CAMERA}")
+  fi
+}
 
 # Avoid colliding with a long-running edge (or anything else) on 8080: pick a free
 # localhost port unless MJPEG_PORT is set explicitly (even to 8080).
@@ -113,6 +131,11 @@ phase2_hint_valid_log() {
   if grep -qE "Address already in use|Errno 98" "$log" 2>/dev/null; then
     echo "[Phase2] Hint: MJPEG port is in use. Pin a free port: MJPEG_PORT=18081 bash scripts/phase2.sh" >&2
   fi
+  if grep -qE "No cameras available" "$log" 2>/dev/null; then
+    echo "[Phase2] Hint: Argus reports no CSI sensors (ribbon, wrong CSI port, or unsupported module)." >&2
+    echo "[Phase2]       Run: bash \"$PROJECT_ROOT/scripts/jetson_csi_setup.sh\"  try CSI_SENSOR_ID=1  cold boot." >&2
+    echo "[Phase2]       Partial Phase 2 without CSI: PHASE2_CAMERA=usb bash \"$PROJECT_ROOT/scripts/phase2.sh\" (or PHASE2_CAMERA=0)." >&2
+  fi
   if grep -qE "CaptureSession|nvarguscamerasrc|Failed to open camera|no frames" "$log" 2>/dev/null; then
     echo "[Phase2] Hint: CSI/Argus camera did not produce frames. Stop other camera apps, try --csi-flip-method 0 or 6," >&2
     echo "[Phase2]       confirm sensor-id, and see docs/Phase 2 Calibration and coordinate mapping.md (Troubleshooting)." >&2
@@ -123,9 +146,11 @@ phase2_hint_valid_log() {
 }
 
 if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
-  echo "[Phase2] Running valid calibration edge startup smoke..."
+  phase2_build_cam_args
+  echo "[Phase2] Running valid calibration edge startup smoke (camera=${PHASE2_CAMERA:-csi})..."
   echo "[Phase2] Note: /mjpeg never ends; we probe /health first, then one bounded /mjpeg download."
-  PYTHONUNBUFFERED=1 run_with_timeout "${EDGE_TIMEOUT_SECONDS}" python -u -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
+  PYTHONUNBUFFERED=1 run_with_timeout "${EDGE_TIMEOUT_SECONDS}" python -u -m edge.main \
+    "${PHASE2_CAM_ARGS[@]}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
   EDGE_PID="$!"
   echo "[Phase2] Waiting for MJPEG TCP on 127.0.0.1:${MJPEG_PORT} (first import can be slow on device)..." >&2
   TCP_READY=0

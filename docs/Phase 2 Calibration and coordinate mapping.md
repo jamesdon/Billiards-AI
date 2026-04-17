@@ -286,6 +286,23 @@ first free port in `18080–18255` on `127.0.0.1` for the valid-calibration smok
 invalid-label check uses `MJPEG_PORT+1`. To force a specific port, run with
 `MJPEG_PORT=8080 bash scripts/phase2.sh` (or stop the process holding the port).
 
+If Argus logs **`No cameras available`** (often from `gstnvarguscamerasrc`), the
+kernel/Argus stack does not see any CSI sensor. That is not an OpenCV bug: check
+the ribbon orientation and latch, try the other CSI connector with
+`CSI_SENSOR_ID=1`, run `bash scripts/jetson_csi_setup.sh`, and
+`sudo dmesg | grep -iE 'imx|tegracam|nv_camera'` after a cold boot. Some desks use
+only a USB camera; you can still smoke-test Phase 2 MJPEG with a UVC device:
+
+```bash
+PHASE2_CAMERA=usb PHASE2_USB_INDEX=0 bash "/home/$USER/Billiards-AI/scripts/phase2.sh"
+# or V4L index (often the same as /dev/video0 on Jetson):
+PHASE2_CAMERA=0 bash "/home/$USER/Billiards-AI/scripts/phase2.sh"
+```
+
+Interactive calibration then uses the same idea:
+`CAMERA_SOURCE=usb bash scripts/start_calibration.sh` or
+`bash scripts/start_calibration.sh --camera 0`.
+
 If the log shows Argus / CSI errors such as `Failed to create CaptureSession` or
 `gstnvarguscamerasrc` failures, the MJPEG byte probe may fail if the pipeline never
 delivers frames (and the process may exit once the capture error is surfaced). Stop
