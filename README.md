@@ -63,4 +63,5 @@ scripts/docker_jetson_down.sh
 - `docs/EVENT_DETECTION.md`
 - `docs/RULES_ENGINE.md`
 - `docs/DEPLOYMENT_JETSON.md`
+- `docs/TEST_PLAN.md` (phase gates; includes **live CSI capture** for YOLO dataset build)
 

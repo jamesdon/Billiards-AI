@@ -49,6 +49,30 @@ Validate homography correctness and pocket zone alignment.
 - mapping error within acceptable tolerance
 - no pocket label/schema failures
 
+## Dataset: live CSI captures for YOLO training (before first `jetson_yolo_train.sh`)
+
+This is **not** a numbered phase in the original sequence, but it is part of the **on-device training plan**: you need labeled table imagery before Phase 3 training runs.
+
+### Objective
+
+Record still frames from the **same CSI camera and framing** you use in production, so you can label balls / people / cue / rack and train `models/model.onnx`.
+
+### Entry criteria
+
+- Phase 1 camera smoke passes (CSI opens reliably).
+- `jetson_train_env.sh` has been run so the venv can run the capture script.
+
+### Test cases
+
+- Run `cd ~/Billiards-AI && bash scripts/jetson_capture_training_frames.sh --count 50 --stride 30 --prefix smoke`
+- Confirm new JPEGs under `data/datasets/billiards/images/capture/` (default `--out-dir`).
+- Repeat with different ball sets or lighting using a new `--prefix` (or `--out-dir`) per session.
+
+### Gate
+
+- JPEGs open in an image viewer, full table visible, timestamps/prefixes distinguish sessions.
+- After labeling, a subset of images + matching YOLO `.txt` files are copied into `images/train`, `labels/train`, `images/val`, and `labels/val` (see `docs/ORIN_NANO_TRAIN_AND_TEST.md` and `docs/MODEL_OPTIMIZATION.md`).
+
 ## Phase 3: Detection and tracking
 
 ### Objective
