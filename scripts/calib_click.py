@@ -59,8 +59,11 @@ _JETSON_CSI_HINT = (
     "      gst-launch-1.0 nvarguscamerasrc sensor-id=0 num-buffers=1 ! nvvidconv ! xvimagesink\n"
     "  • If nvarguscamerasrc prints **No cameras available**: Argus sees no CSI module.\n"
     "      Re-seat the ribbon cable (correct side/orientation), try sensor-id=1, check\n"
-    "      `dmesg | grep -i imx` after boot, run `bash scripts/jetson_csi_setup.sh`, or use a\n"
-    "      USB camera: bash scripts/start_calibration.sh --camera usb\n"
+    "      `sudo dmesg | grep -iE 'imx|tegracam|nv_camera'` after a cold boot.\n"
+    "      If it used to work unchanged: JetPack/L4T updates, overlays, or power mode can\n"
+    "      drop enumeration—try cold boot, `sudo systemctl restart nvargus-daemon`,\n"
+    "      `bash scripts/jetson_csi_setup.sh`, and compare kernel/JetPack to a known-good image.\n"
+    "  • USB fallback only helps if a UVC device exists: `ls /dev/video*` — use `--camera csi` for CSI.\n"
     "  • If you pass `--width 640` but the error text still shows 1280x720, `git pull`\n"
     "      so `start_calibration.sh` includes forwarding of extra args to calib_click.py.\n"
 )
@@ -73,6 +76,40 @@ def _csi_troubleshoot_footer(args: argparse.Namespace) -> str:
         f"flip-method={args.csi_flip_method} {args.width}x{args.height}@{args.csi_framerate} "
         f"open-retries={args.csi_open_retries}.\n"
     )
+
+
+def _usb_v4l_troubleshoot_footer(args: argparse.Namespace) -> str:
+    return (
+        "Video open failed for V4L2 (--camera usb or a numeric index).\n"
+        f"Active settings: camera={args.camera!r} usb-index={args.usb_index} "
+        f"{args.width}x{args.height}.\n"
+        "OpenCV opens /dev/video<index>; it is not the Jetson CSI (Argus) path.\n"
+        "  • Run: ls -la /dev/video*  and  v4l2-ctl --list-devices  (needs: sudo apt-get install -y v4l-utils)\n"
+        "  • If there are no /dev/video* nodes, no USB UVC camera is present—or CSI is not exposed as V4L2 on this image.\n"
+        "For the built-in CSI module use: --camera csi  (not usb).\n"
+    )
+
+
+def _capture_troubleshoot_footer(args: argparse.Namespace) -> str:
+    cam_raw = str(args.camera).strip()
+    cam = cam_raw.lower()
+    if cam == "csi" or "nvarguscamerasrc" in cam_raw or "!" in cam_raw:
+        return _csi_troubleshoot_footer(args)
+    if cam == "usb" or cam.isdigit():
+        return _usb_v4l_troubleshoot_footer(args)
+    return _csi_troubleshoot_footer(args)
+
+
+def _camera_cli_type(value: str) -> str:
+    """Reject common typos so we do not treat 'cs1' as an opaque V4L device name."""
+    v = str(value).strip()
+    vl = v.lower()
+    if vl in ("cs1", "csl", "cis", "sci"):
+        raise argparse.ArgumentTypeError(
+            f"Invalid --camera {value!r}. Use 'csi' for Jetson CSI (Argus), 'usb' for /dev/video<usb-index>, "
+            "or a single digit like 0 for V4L2 device index."
+        )
+    return v
 
 
 try:
@@ -95,9 +132,9 @@ def _parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--camera",
-        type=str,
+        type=_camera_cli_type,
         default="csi",
-        help="Camera source for capture mode: csi, usb, numeric index, or explicit source string.",
+        help="Camera source: csi (Jetson Argus), usb (V4L2 /dev/video<usb-index>), integer index, or a full GStreamer pipeline string.",
     )
     p.add_argument("--usb-index", type=int, default=0)
     p.add_argument("--csi-sensor-id", type=int, default=0)
@@ -1345,7 +1382,7 @@ def main() -> None:
         )
         img = _read_frame_from_capture(live_capture, camera_mode=str(args.camera))
     except Exception as exc:
-        raise RuntimeError(f"{exc}\n\n{_csi_troubleshoot_footer(args)}") from exc
+        raise RuntimeError(f"{exc}\n\n{_capture_troubleshoot_footer(args)}") from exc
 
     win = "calib-click"
     try:
