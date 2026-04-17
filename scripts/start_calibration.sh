@@ -81,42 +81,68 @@ PY
 }
 
 ensure_cv2_numpy_abi() {
-  if /usr/bin/python3 - <<'PY'
+  # Must probe the same interpreter as `exec python "$CALIB_SCRIPT"` (venv).
+  # System python3 can load distro cv2 while the venv still has a pip opencv-python
+  # wheel (GStreamer=NO), which breaks CSI pipelines and confuses Phase 2.
+  if python - <<'PY'
 import sys
+
 try:
     import numpy  # noqa: F401
-    import cv2  # noqa: F401
+    import cv2
 except Exception:
     sys.exit(1)
+
+try:
+    import numpy as np
+
+    if int(str(np.__version__).split(".")[0]) >= 2:
+        sys.exit(2)
+except Exception:
+    sys.exit(2)
+
+info = cv2.getBuildInformation()
+if "GStreamer:                   YES" not in info:
+    sys.exit(3)
 sys.exit(0)
 PY
   then
-    echo "OpenCV/NumPy ABI check: OK"
+    echo "OpenCV/NumPy ABI check: OK (venv cv2, GStreamer enabled)"
     return 0
   fi
 
   echo "OpenCV/NumPy import failed; attempting NumPy repair (numpy<2) for distro OpenCV compatibility..."
   python -m pip install --upgrade --force-reinstall "numpy<2"
 
-  if /usr/bin/python3 - <<'PY'
+  if python - <<'PY'
 import sys
+
 try:
     import numpy as np
-    import cv2  # noqa: F401
-    major = int(str(np.__version__).split('.')[0])
+    import cv2
 except Exception:
     sys.exit(1)
-if major >= 2:
-    sys.exit(1)
+
+if int(str(np.__version__).split(".")[0]) >= 2:
+    sys.exit(2)
+
+info = cv2.getBuildInformation()
+if "GStreamer:                   YES" not in info:
+    sys.exit(3)
 sys.exit(0)
 PY
   then
-    echo "OpenCV/NumPy ABI check after repair: OK"
+    echo "OpenCV/NumPy ABI check after repair: OK (venv cv2, GStreamer enabled)"
     return 0
   fi
 
-  echo "ERROR: OpenCV/NumPy ABI remains broken after automatic repair." >&2
-  echo "Run manually:" >&2
+  echo "ERROR: venv OpenCV/NumPy check failed after repair." >&2
+  echo "If the log mentioned GStreamer, remove pip OpenCV from the venv and use distro packages:" >&2
+  echo "  source \"$VENV_PATH/bin/activate\"" >&2
+  echo "  python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless" >&2
+  echo "  sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools" >&2
+  echo "Ensure the venv was created with: python3 -m venv --system-site-packages \"$VENV_PATH\"" >&2
+  echo "NumPy-only repair:" >&2
   echo "  cd \"$PROJECT_ROOT\"" >&2
   echo "  source \"$VENV_PATH/bin/activate\"" >&2
   echo "  python -m pip install --upgrade --force-reinstall \"numpy<2\"" >&2

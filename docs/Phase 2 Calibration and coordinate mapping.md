@@ -230,6 +230,23 @@ python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "
 
 ## Troubleshooting note from field run (Orin Nano)
 
+If `start_calibration.sh` prints **OpenCV/NumPy ABI check: OK** but `edge.main` or
+`scripts/phase2.sh` still reports **GStreamer=NO**, the venv likely has a **pip**
+`opencv-python` wheel shadowing distro `python3-opencv`. The launcher used to
+probe `/usr/bin/python3` while running the GUI with the venv interpreter; it now
+checks the **venv** `python` and requires GStreamer for CSI. Fix:
+
+```bash
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless
+sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools
+python - <<'PY'
+import cv2
+print(cv2.__file__)
+print("GStreamer:", "YES" if "GStreamer:                   YES" in cv2.getBuildInformation() else "NO")
+PY
+```
+
 If Phase 2 fails at edge startup with:
 
 `RuntimeError: Failed to open camera source='nvarguscamerasrc ...'`
