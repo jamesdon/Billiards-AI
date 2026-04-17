@@ -21,6 +21,16 @@ if [[ -f "$PROJECT_ROOT/$YOLO_MODEL" ]]; then
   YOLO_MODEL="$PROJECT_ROOT/$YOLO_MODEL"
 fi
 
+TRAIN_IMG_DIR="$PROJECT_ROOT/data/datasets/billiards/images/train"
+train_n="$(find "$TRAIN_IMG_DIR" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) 2>/dev/null | wc -l | tr -d '[:space:]')"
+if [[ "${train_n:-0}" -eq 0 ]]; then
+  echo "ERROR: No training images under: $TRAIN_IMG_DIR" >&2
+  echo "Create JPEGs/PNGs there (and val/ split) before training. Example:" >&2
+  echo "  bash \"$PROJECT_ROOT/scripts/jetson_capture_training_frames.sh\" --count 300 --stride 20 --prefix session1" >&2
+  echo "Then label/split into images/train and images/val per Ultralytics layout." >&2
+  exit 1
+fi
+
 yolo detect train \
   data="$DATA_YAML" \
   model="$YOLO_MODEL" \

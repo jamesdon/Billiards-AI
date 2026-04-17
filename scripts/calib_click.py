@@ -57,6 +57,12 @@ _JETSON_CSI_HINT = (
     "      bash scripts/start_calibration.sh --camera 0\n"
     "  • Sanity-check Argus outside OpenCV (adjust sensor-id / caps as needed):\n"
     "      gst-launch-1.0 nvarguscamerasrc sensor-id=0 num-buffers=1 ! nvvidconv ! xvimagesink\n"
+    "  • If nvarguscamerasrc prints **No cameras available**: Argus sees no CSI module.\n"
+    "      Re-seat the ribbon cable (correct side/orientation), try sensor-id=1, check\n"
+    "      `dmesg | grep -i imx` after boot, run `bash scripts/jetson_csi_setup.sh`, or use a\n"
+    "      USB camera: bash scripts/start_calibration.sh --camera usb\n"
+    "  • If you pass `--width 640` but the error text still shows 1280x720, `git pull`\n"
+    "      so `start_calibration.sh` includes forwarding of extra args to calib_click.py.\n"
 )
 
 

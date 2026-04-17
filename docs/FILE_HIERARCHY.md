@@ -131,7 +131,7 @@ Billiards-AI/
     bootstrap_billiards_dataset.sh  YOLO dataset dirs + billiards-data.yaml with expanded absolute path
     jetson_train_env.sh             Orin Nano: git pull + venv + requirements + requirements-train
     jetson_prepare_yolo_dataset.sh  Orin Nano: chmod + run bootstrap + grep path line
-    jetson_yolo_train.sh            Orin Nano: Ultralytics train (env: YOLO_EPOCHS, YOLO_BATCH, …)
+    jetson_yolo_train.sh            Orin Nano: Ultralytics train (env: YOLO_EPOCHS, YOLO_BATCH, …); exits early if `data/datasets/billiards/images/train` has no JPEG/PNG
     jetson_yolo_export_latest.sh    Orin Nano: export newest best.pt to models/model.onnx
     jetson_pytest.sh                Orin Nano: pytest tests/
     jetson_phases_1_3.sh            Orin Nano: run_phase 1 then 3

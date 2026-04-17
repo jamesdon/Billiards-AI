@@ -20,7 +20,7 @@ Use **`~/Billiards-AI`** (or `cd "$PROJECT_ROOT"`). Plain one-liners also live i
 | **Env + deps** | `cd ~/Billiards-AI && bash scripts/jetson_train_env.sh` — ends with `jetson_train_env.sh: OK` |
 | **Dataset YAML paths** | `cd ~/Billiards-AI && bash scripts/jetson_prepare_yolo_dataset.sh` — prints a `path:` line under `/home/` |
 | **Save photos from CSI for training** | `cd ~/Billiards-AI && bash scripts/jetson_capture_training_frames.sh --count 300 --stride 20 --prefix session1` — JPEGs in `data/datasets/billiards/images/capture/` (see `scripts/capture_csi_training_frames.py --help` for `--out-dir`, `--csi-flip-method`, etc.) |
-| **Calibration (interactive)** | `cd ~/Billiards-AI && ./scripts/start_calibration.sh` — writes `calibration.json` (or set `CALIB_OUT`) |
+| **Calibration (interactive)** | `cd ~/Billiards-AI && bash scripts/start_calibration.sh` — writes `calibration.json` (or set `CALIB_OUT`). If `gst-launch-1.0 nvarguscamerasrc ...` reports **No cameras available**, Argus does not see a CSI module (cable/port/driver); use USB: `bash scripts/start_calibration.sh --camera usb`, or fix CSI then retry. |
 | **Calibration (headless check)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 2` |
 | **Backend + CSI smoke (Phase 1)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 1` |
 | **Detector + tracking (Phase 3)** | Requires `models/model.onnx`. Then: `cd ~/Billiards-AI && bash scripts/run_phase.sh 3` — or `bash scripts/jetson_phases_1_3.sh` (runs 1 then 3) |
