@@ -123,6 +123,29 @@ def _count_classes(label_files: list[Path]) -> Counter[int]:
     return c
 
 
+def _readme_title(root: Path) -> str | None:
+    p = root / "README.roboflow.txt"
+    if not p.is_file():
+        return None
+    for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
+        s = line.strip()
+        if s and not s.startswith("=") and "roboflow.com" not in s.lower():
+            return s[:200]
+    return None
+
+
+def _yaml_class_label_suspicious(names: dict[int, str], nc: int | None) -> bool:
+    """True when data.yaml's human-readable class name looks truncated or wrong."""
+    if nc != 1 or not names or 0 not in names:
+        return False
+    s = str(names[0]).strip().lower()
+    if len(s) <= 4 and s not in ("ball", "balls", "rack", "cue", "nine", "eight"):
+        return True
+    if _suggest_canonical(str(names[0])) == "MANUAL_REVIEW" and len(s) < 12:
+        return True
+    return False
+
+
 def _suggest_canonical(label: str) -> str:
     s = label.lower().strip()
     if not s:
@@ -188,6 +211,17 @@ def _report_one(root: Path) -> None:
         else:
             print("  names: (none parseable — use Universe class list or inspect images)")
 
+    readme_title = _readme_title(root)
+    if readme_title:
+        print(f"  README.roboflow.txt (title): {readme_title!r}")
+    if names and _yaml_class_label_suspicious(names, nc):
+        print(
+            "  WARNING: `names` in data.yaml does not look like a real class label (truncated export"
+        )
+        print(
+            "            or bad metadata on Universe). Trust README + sample images, not that string."
+        )
+
     print(f"  label files scanned: {len(label_files)}")
     if not ids_seen:
         print("  No YOLO boxes found (no labels under train|valid|val|test?).\n")
@@ -199,10 +233,18 @@ def _report_one(root: Path) -> None:
         print(f"    {cid:>3}  {counts[cid]:>6}  {n!r}")
 
     print("  Heuristic -> Billiards-AI (verify before merging):")
-    for cid in ids_seen:
-        label = names.get(cid, "")
-        hint = _suggest_canonical(label) if label and label != "?" else "MANUAL_REVIEW (no label string)"
-        print(f"    source {cid} -> {hint}")
+    single_ball = nc == 1 and ids_seen == [0]
+    if single_ball:
+        print("    source 0 -> 0 ball (single-class YOLO head: entire dataset is one detection class)")
+        if names.get(0) and names[0] != "?":
+            print(f"      (yaml calls it {names[0]!r} — often wrong; README/images define intent)")
+    else:
+        for cid in ids_seen:
+            label = names.get(cid, "")
+            hint = (
+                _suggest_canonical(label) if label and label != "?" else "MANUAL_REVIEW (no label string)"
+            )
+            print(f"    source {cid} -> {hint}")
     if not names and ids_seen and max(ids_seen) < 16:
         print(
             "  NOTE: Unreliable or missing `names:` in data.yaml. Confirm semantics on the Universe"
