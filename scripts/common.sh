@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="${PROJECT_ROOT:-/home/$USER/Billiards-AI}"
+# Default repo root: parent of this file's directory (works on laptop + Jetson).
+# Override with PROJECT_ROOT=/path/to/Billiards-AI when needed.
+_common_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_default_root="$(cd "$_common_dir/.." && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT:-$_default_root}"
+unset _common_dir _default_root
 VENV_PATH="${VENV_PATH:-$PROJECT_ROOT/.venv}"
 BACKEND_HOST="${BACKEND_HOST:-0.0.0.0}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"

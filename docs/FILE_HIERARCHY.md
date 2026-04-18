@@ -139,6 +139,9 @@ Billiards-AI/
     JETSON_ONE_LINERS.txt           Plain-text paste list for bash (no Markdown fences)
     jetson_capture_training_frames.sh  Wrapper: live CSI → JPEGs for YOLO labeling
     capture_csi_training_frames.py     Saves frames from CSI (same pipeline as edge.main)
+    roboflow_universe_manifest.example.yaml  Template for batch Universe downloads (copy to `roboflow_universe_manifest.yaml`, gitignored)
+    roboflow_universe_pull.py       Batch-download Roboflow Universe YOLOv8 exports from a manifest (`ROBOFLOW_API_KEY` env)
+    yolo_import_class_report.py    Scan `_imports/...` (or given paths): per-class box counts, parseable `names:` from `data.yaml`, heuristic hints → Billiards-AI class ids
     calib_click.py                  Interactive calibration: TL/TR/BL/BR at corner-pocket **inner throat**; `_estimate_outside_corners` avoids picking the **largest** hull quad (often the room outline) by scoring quads in an area band and with border inset; `_order_physical_table_corners` tries both kitchen-at-top vs kitchen-at-bottom hypotheses vs image-axis order; Hough + `_pocket_throat_from_seed`; `warpAffine` + `BORDER_CONSTANT` for pan/zoom voids; writes calibration.json; CLI via start_calibration.sh
     start_calibration.sh            One-command calibration launcher (venv + NumPy/OpenCV ABI guard on **venv python** including GStreamer=YES for CSI + GUI); forwards extra CLI args to calib_click (e.g. --width 640 --camera 0); env overrides for CSI/USB; asserts stable view-control hooks in calib_click.py
     jetson_csi_setup.sh             Jetson-family CSI triage: tolerant `apt-get update`, v4l-utils + gst tools, Argus restart, device list, gst smoke, edge.main probe

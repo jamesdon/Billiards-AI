@@ -205,6 +205,8 @@ Good sources to explore:
 - Roboflow Universe billiards/pool datasets (various projects and label schemas)
 - public billiards/snooker academic datasets and GitHub repos
 
+**Batch download + class audit (this repo):** copy `scripts/roboflow_universe_manifest.example.yaml` to `scripts/roboflow_universe_manifest.yaml`, add `imports:` rows (workspace, project, version, dirname), set `ROBOFLOW_API_KEY`, then run `python3 scripts/roboflow_universe_pull.py --manifest scripts/roboflow_universe_manifest.yaml`. Summarize labels and heuristic mapping hints with `python3 scripts/yolo_import_class_report.py --imports-dir data/datasets/_imports` (or pass explicit import paths).
+
 Best practice:
 
 1. Normalize classes to your schema (`ball/person/cue_stick`).

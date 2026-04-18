@@ -1,0 +1,21 @@
+# Copy to roboflow_universe_manifest.yaml (gitignored) and edit.
+# Download with:
+#   export ROBOFLOW_API_KEY='your-key'
+#   python3 scripts/roboflow_universe_pull.py --manifest scripts/roboflow_universe_manifest.yaml
+#
+# Each entry becomes: data/datasets/_imports/<dirname>/
+
+imports:
+  - workspace: pool-table
+    project: pool-v2
+    version: 1
+    dirname: pool-table_pool-v2
+
+  - workspace: billiard-ball
+    project: billiard-ball
+    version: 1
+    dirname: billiard-ball_billiard-ball
+
+  # Add more rows from Universe URLs:
+  #   https://universe.roboflow.com/<workspace>/<project>
+  # Use the dataset version number shown when you export (API: project.version(N)).

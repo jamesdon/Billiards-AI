@@ -10,4 +10,4 @@ activate_venv
 chmod +x "$PROJECT_ROOT/scripts/bootstrap_billiards_dataset.sh"
 PROJECT_ROOT="$PROJECT_ROOT" "$PROJECT_ROOT/scripts/bootstrap_billiards_dataset.sh"
 /usr/bin/grep '^path:' "$PROJECT_ROOT/data/datasets/billiards/billiards-data.yaml"
-echo "jetson_prepare_yolo_dataset.sh: OK (verify path: line above is under /home/)"
+echo "jetson_prepare_yolo_dataset.sh: OK (verify path: line above is an absolute directory on this machine)"
