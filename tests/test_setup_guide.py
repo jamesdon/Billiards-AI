@@ -21,6 +21,7 @@ def test_setup_page_and_api():
     assert isinstance(data["project_root"], str)
     assert "launch_enabled" in data
     assert data["launch_enabled"] is False
+    assert isinstance(data.get("markdown_installed"), bool)
 
     r = client.get("/api/setup/steps")
     assert r.status_code == 200

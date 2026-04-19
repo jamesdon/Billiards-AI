@@ -9,13 +9,13 @@ Optional local script launch: POST /api/setup/launch (requires SETUP_ALLOW_LAUNC
 """
 from __future__ import annotations
 
+import html
 import json
 import os
 import subprocess
 from pathlib import Path
 from typing import Any
 
-import markdown
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -24,6 +24,24 @@ from pydantic import BaseModel, Field
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _PROGRESS_PATH = _PROJECT_ROOT / "data" / "setup_wizard_progress.json"
 _STATIC = Path(__file__).resolve().parent / "static"
+
+try:
+    import markdown as _markdown  # type: ignore[import-not-found]
+
+    _HAS_MARKDOWN = True
+except ImportError:
+    _markdown = None  # type: ignore[assignment]
+    _HAS_MARKDOWN = False
+
+
+def _markdown_to_html(text: str) -> str:
+    if _HAS_MARKDOWN and _markdown is not None:
+        return _markdown.markdown(
+            text,
+            extensions=["fenced_code", "tables", "nl2br"],
+        )
+    return f"<pre class=\"fallback-md\">{html.escape(text)}</pre>"
+
 
 # Each checklist line: item (required), verify (how to prove it), record (what to save).
 # Commands may include optional "editor_path" (repo-relative) for IDE deep links.
@@ -421,6 +439,7 @@ def build_router() -> APIRouter:
         return {
             "project_root": str(_PROJECT_ROOT),
             "launch_enabled": os.environ.get("SETUP_ALLOW_LAUNCH", "").strip() == "1",
+            "markdown_installed": _HAS_MARKDOWN,
         }
 
     @router.get("/api/setup/steps")
@@ -431,12 +450,17 @@ def build_router() -> APIRouter:
     def setup_doc(path: str) -> HTMLResponse:
         p = _safe_doc_path(path)
         text = p.read_text(encoding="utf-8")
-        title = p.stem.replace("_", " ")
-        body_html = markdown.markdown(
-            text,
-            extensions=["fenced_code", "tables", "nl2br"],
-        )
-        html = f"""<!DOCTYPE html>
+        title = html.escape(p.stem.replace("_", " "))
+        body_html = _markdown_to_html(text)
+        warn = ""
+        if not _HAS_MARKDOWN:
+            warn = (
+                '<p style="background:#2a1f1f;border:1px solid #5c2a2a;padding:0.65rem 0.85rem;border-radius:6px;">'
+                "Install the <code>markdown</code> package for formatted docs: "
+                "<code>.venv/bin/python3 -m pip install markdown</code></p>"
+            )
+        esc_path = html.escape(path)
+        page = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>{title}</title>
 <style>
@@ -448,10 +472,11 @@ pre code{{background:transparent;padding:0;}}
 h1,h2,h3{{margin-top:1.4em;}}
 .article{{font-size:0.95rem;}}
 </style></head><body>
-<p><a href="/setup">← Setup wizard</a> · <code>{path}</code></p>
+<p><a href="/setup">← Setup wizard</a> · <code>{esc_path}</code></p>
+{warn}
 <article class="article">{body_html}</article>
 </body></html>"""
-        return HTMLResponse(html)
+        return HTMLResponse(page)
 
     @router.post("/api/setup/launch")
     def setup_launch(request: Request, body: dict[str, Any]) -> dict[str, Any]:
