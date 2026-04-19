@@ -26,9 +26,16 @@ htmlcov/
 
 # Phase scripts / local calibration outputs
 .phase2_*.log
+.phase3_*.log
 calibration.json
 calibration_invalid.json
 scripts/*.bak.*
+
+# Ultralytics training runs (local)
+runs/
+
+# Local YOLO datasets under data/datasets/ (see also specific lines below)
+data/datasets/
 
 # Local runtime / large artifacts (adjust if you need to version samples)
 *.onnx
@@ -36,10 +43,8 @@ scripts/*.bak.*
 *.trt
 models/checkpoints/
 
-# YOLO data yaml contains an absolute path; generate with scripts/bootstrap_billiards_dataset.sh
-data/datasets/billiards/billiards-data.yaml
+# (data/datasets/ ignored above — billiards-data.yaml, _imports/, images/, labels/, etc.)
 
-# Roboflow Universe downloads (large); manifest may contain workspace names only
-data/datasets/_imports/
+# Roboflow Universe: local manifest copies (example *.yaml stays tracked)
 scripts/roboflow_universe_manifest.yaml
 scripts/roboflow_merge_batch.yaml
