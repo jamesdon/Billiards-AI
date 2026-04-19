@@ -5,7 +5,8 @@ Exact duplicate detection for a YOLO dataset layout (images + labels per split).
 Duplicates are defined by SHA-256 of raw file bytes (same image file copied under
 different names counts as one group).
 
-Default mode is dry-run: print groups and suggested removals, delete nothing.
+Analysis only: prints duplicate groups, cross-split hash overlap, and label warnings.
+Does not delete or modify any files.
 
 Example:
   python3 scripts/dedup_yolo_dataset_exact.py
@@ -104,18 +105,14 @@ def _analyze_split(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="YOLO dataset exact-duplicate report (dry-run by default).")
+    parser = argparse.ArgumentParser(
+        description="YOLO dataset exact-duplicate analysis (SHA-256); no deletes."
+    )
     parser.add_argument(
         "--dataset-root",
         type=Path,
         default=_repo_root() / "data" / "datasets" / "billiards",
         help="Dataset root containing images/{train,val} and labels/{train,val}",
-    )
-    parser.add_argument(
-        "--apply",
-        action="store_true",
-        help="Remove duplicate images (keeps lexicographically first path per hash) and orphan labels. "
-        "Default is dry-run only.",
     )
     args = parser.parse_args()
     root: Path = args.dataset_root.resolve()
@@ -124,17 +121,13 @@ def main() -> None:
         print(f"ERROR: dataset root does not exist: {root}", file=sys.stderr)
         raise SystemExit(1)
 
-    if args.apply:
-        print("ERROR: --apply is not enabled yet; run without --apply for a dry-run report.", file=sys.stderr)
-        raise SystemExit(2)
-
     splits = ["train", "val"]
     total_images = 0
     total_dup_files = 0
     total_groups = 0
 
     print(f"dedup_yolo_dataset_exact.py: dataset_root={root}")
-    print("Mode: dry-run (no files deleted)")
+    print("Mode: analysis only (no files deleted or modified)")
     print()
 
     for split in splits:
@@ -199,9 +192,9 @@ def main() -> None:
     print("Summary")
     print(f"  Images scanned (train+val): {total_images}")
     print(f"  Duplicate groups:           {total_groups}")
-    print(f"  Redundant files (would remove in --apply): {total_dup_files}")
+    print(f"  Redundant files in duplicate groups (count only): {total_dup_files}")
     print()
-    print("Next: review warnings; when satisfied, ask to enable --apply or delete manually.")
+    print("This script never deletes files; remove duplicates manually if you choose.")
 
 
 if __name__ == "__main__":
