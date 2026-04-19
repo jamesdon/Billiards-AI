@@ -172,6 +172,8 @@ def _suggest_canonical(label: str) -> str:
         return "1 person"
     if any(x in s for x in ("cue", "stick", "pool cue")):
         return "2 cue_stick"
+    if s == "rod" or re.match(r"^rod\d*$", s):
+        return "2 cue_stick (pool cue as 'rod' in some datasets)"
     if any(
         x in s
         for x in (

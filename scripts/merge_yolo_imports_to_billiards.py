@@ -124,6 +124,8 @@ def _label_to_billiards_target(name: str | None, nc: int | None) -> int | None:
         return 0
     if any(x in s for x in ("cue", "stick")):
         return 2
+    if s == "rod" or re.match(r"^rod\d*$", s):
+        return 2
     if any(x in s for x in ("person", "player", "human")):
         return 1
     if any(x in s for x in ("rack", "triangle", "diamond")):
