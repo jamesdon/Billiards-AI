@@ -144,6 +144,7 @@ Billiards-AI/
     roboflow_universe_pull.py       Batch-download Roboflow Universe YOLOv8 exports from a manifest (`ROBOFLOW_API_KEY` env)
     yolo_import_class_report.py    Scan `_imports/...` (or given paths): per-class box counts, parseable `names:` from `data.yaml`, heuristic hints → Billiards-AI class ids
     merge_yolo_imports_to_billiards.py  Merge Roboflow imports into `data/datasets/billiards/` (prefixed stems; `--map-json`, `--only-source-ids`, or `--batch-yaml` + auto remap)
+    dedup_yolo_dataset_exact.py     Dry-run (default) SHA-256 duplicate report for `images/{train,val}`; warns on label mismatch; `--apply` reserved for future deletes
     roboflow_merge_batch.example.yaml  Example batch merge config (copy to `roboflow_merge_batch.yaml`) for many Universe exports at once
     universe_dataset_pipeline.sh    One-shot: `jetson_prepare_yolo_dataset.sh` + `roboflow_universe_pull.py` + `merge_yolo_imports_to_billiards.py` (uses `*.yaml` if present, else `*.example.yaml`)
     calib_click.py                  Interactive calibration: TL/TR/BL/BR at corner-pocket **inner throat**; `_estimate_outside_corners` avoids picking the **largest** hull quad (often the room outline) by scoring quads in an area band and with border inset; `_order_physical_table_corners` tries both kitchen-at-top vs kitchen-at-bottom hypotheses vs image-axis order; Hough + `_pocket_throat_from_seed`; `warpAffine` + `BORDER_CONSTANT` for pan/zoom voids; writes calibration.json; CLI via start_calibration.sh
