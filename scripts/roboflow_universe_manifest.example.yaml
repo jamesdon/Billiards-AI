@@ -1,4 +1,11 @@
 # Copy to roboflow_universe_manifest.yaml (gitignored) and edit versions if download fails.
+#
+# How to set `version:` (the URL bar often does NOT show it):
+#   1) Universe → left sidebar "Dataset" → Download Dataset → "Show download code"
+#      → use the number in project.version(N). That N is `version:` here.
+#   2) Or open data.yaml inside any ZIP you already have → roboflow: version: N
+#   See docs/MODEL_OPTIMIZATION.md → "Finding the Roboflow dataset version".
+#
 # Download with:
 #   export ROBOFLOW_API_KEY='your-key'
 #   python3 scripts/roboflow_universe_pull.py --manifest scripts/roboflow_universe_manifest.yaml
@@ -47,4 +54,4 @@ imports:
     version: 1
     dirname: pool-table_pool-v2
 
-  # If a version fails, open https://universe.roboflow.com/<workspace>/<project> and set `version:` to .../dataset/N
+  # If a version fails: use Universe → Dataset → Show download code (see header comment), not the URL bar.

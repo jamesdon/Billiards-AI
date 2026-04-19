@@ -209,6 +209,18 @@ Good sources to explore:
 
 **Batch download + class audit (this repo):** copy `scripts/roboflow_universe_manifest.example.yaml` to `scripts/roboflow_universe_manifest.yaml`, add `imports:` rows (workspace, project, version, dirname), set `ROBOFLOW_API_KEY`, then run `python3 scripts/roboflow_universe_pull.py --manifest scripts/roboflow_universe_manifest.yaml`. Summarize labels and heuristic mapping hints with `python3 scripts/yolo_import_class_report.py --imports-dir data/datasets/_imports` (or pass explicit import paths).
 
+### Finding the Roboflow dataset `version:` (what to put in the manifest)
+
+Universe **landing URLs** (e.g. `https://universe.roboflow.com/workspace/project`) often **do not** show a reliable version in the address bar, and the UI changes over time—so “look at `/dataset/N` in the URL” is **not** guaranteed.
+
+**What works (in order of reliability):**
+
+1. **Show download code (matches the Python API exactly)** — Per [Roboflow’s own steps](https://docs.roboflow.com/universe/download-a-universe-dataset): open the project on Universe → left sidebar **Dataset** → **Download Dataset** → **Show download code**. The generated snippet includes `project.version(N)` (or `dataset.version(N)` in some templates). The integer **`N`** is the `version:` value for `roboflow_universe_pull.py` / your manifest.
+2. **`data.yaml` inside an export you already downloaded** — Under the `roboflow:` block, `version:` is the dataset version (same as the API).
+3. **Try `version: 1` first** — Many public snapshots are still version `1`; if the API errors, use **Show download code** on that project to read the real `N`.
+
+If `pull.py` fails on a row, fix **`version:`** for that row only; workspace and project slugs must match the Universe URL path (`/workspace-slug/project-slug`).
+
 **Merge several imports into training data:** after `jetson_prepare_yolo_dataset.sh`, run `python3 scripts/merge_yolo_imports_to_billiards.py data/datasets/_imports/<dir1> data/datasets/_imports/<dir2> ...` — prefixes filenames per import to avoid collisions; default remaps all classes to `0` (ball). Re-run training after adding data; avoid merging the same import twice (duplicate images).
 
 **Imports with pockets (`bag1`…`bag6`) + per-ball ids** (e.g. Universe `jdq/table2-kfsub`): map **bags → class `4` `pockets`** (not `ball`). Use `python3 scripts/merge_yolo_imports_to_billiards.py --batch-yaml …` with `auto_remap_from_yaml: true`, or explicit `--map-json` / `--only-source-ids` as before. Roboflow often names pockets `bag*`; your runtime label is **`pockets`** per `class_map.json`.
