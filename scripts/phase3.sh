@@ -5,8 +5,9 @@ source "$(dirname "$0")/common.sh"
 cd_root
 activate_venv
 
-python -m pip install -U pip
-python -m pip install -r "$PROJECT_ROOT/requirements.txt"
+PYTHON_BIN="$(python_bin)"
+"$PYTHON_BIN" -m pip install -U pip
+"$PYTHON_BIN" -m pip install -r "$PROJECT_ROOT/requirements.txt"
 
 MODEL_PATH="${MODEL_PATH:-$PROJECT_ROOT/models/model.onnx}"
 CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/models/class_map.json}"
@@ -68,7 +69,7 @@ run_case() {
   local label="$5"
 
   echo "[Phase3] Starting ${label} detect_every_n=${detect_n} port=${port}"
-  /usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" python -m edge.main \
+  /usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" "$PYTHON_BIN" -m edge.main \
     --camera csi \
     --csi-sensor-id "${CSI_SENSOR_ID}" \
     --csi-flip-method "${CSI_FLIP_METHOD}" \

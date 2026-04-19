@@ -7,5 +7,6 @@ source "$SCRIPT_DIR/common.sh"
 
 cd_root
 activate_venv
-python -m pytest "$PROJECT_ROOT/tests" -q --tb=short
+PYTHON_BIN="$(python_bin)"
+"$PYTHON_BIN" -m pytest "$PROJECT_ROOT/tests" -q --tb=short
 echo "jetson_pytest.sh: OK"

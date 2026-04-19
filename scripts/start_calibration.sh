@@ -81,10 +81,12 @@ PY
 }
 
 ensure_cv2_numpy_abi() {
-  # Must probe the same interpreter as `exec python "$CALIB_SCRIPT"` (venv).
+  local py
+  py="$(python_bin)"
+  # Must probe the same interpreter as `exec` below (venv).
   # System python3 can load distro cv2 while the venv still has a pip opencv-python
   # wheel (GStreamer=NO), which breaks CSI pipelines and confuses Phase 2.
-  if python - <<'PY'
+  if "$py" - <<'PY'
 import sys
 
 try:
@@ -112,9 +114,9 @@ PY
   fi
 
   echo "OpenCV/NumPy import failed; attempting NumPy repair (numpy<2) for distro OpenCV compatibility..."
-  python -m pip install --upgrade --force-reinstall "numpy<2"
+  "$py" -m pip install --upgrade --force-reinstall "numpy<2"
 
-  if python - <<'PY'
+  if "$py" - <<'PY'
 import sys
 
 try:
@@ -163,7 +165,7 @@ main() {
 
   echo "Launching calibration GUI from: $CALIB_SCRIPT"
   echo "Output calibration path: $CALIB_OUT"
-  exec python "$CALIB_SCRIPT" \
+  exec "$(python_bin)" "$CALIB_SCRIPT" \
     --camera "$CAMERA_SOURCE" \
     --csi-sensor-id "$CSI_SENSOR_ID" \
     --csi-framerate "$CSI_FRAMERATE" \

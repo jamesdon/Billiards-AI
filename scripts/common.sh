@@ -24,6 +24,18 @@ yolo_bin() {
   echo "${VENV_PATH}/bin/yolo"
 }
 
+# Repo venv interpreter: use `python3` explicitly. Some venvs omit a `python` shim; pyenv then
+# intercepts `python` and fails with "command not found".
+python_bin() {
+  if [[ -x "${VENV_PATH}/bin/python3" ]]; then
+    echo "${VENV_PATH}/bin/python3"
+  elif [[ -x "${VENV_PATH}/bin/python" ]]; then
+    echo "${VENV_PATH}/bin/python"
+  else
+    echo "python3"
+  fi
+}
+
 activate_venv() {
   if [[ ! -d "$VENV_PATH" ]]; then
     if [[ "$(/usr/bin/uname -m)" == "aarch64" ]]; then
@@ -41,7 +53,8 @@ activate_venv() {
 }
 
 ensure_numpy_cv2_compat() {
-  local py_bin="python"
+  local py_bin
+  py_bin="$(python_bin)"
   if ! command -v "$py_bin" >/dev/null 2>&1; then
     py_bin="python3"
   fi

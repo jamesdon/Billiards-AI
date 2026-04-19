@@ -7,6 +7,7 @@ source "$SCRIPT_DIR/common.sh"
 
 cd_root
 activate_venv
+PYTHON_BIN="$(python_bin)"
 
 CALIB_PATH="${CALIB_PATH:-$PROJECT_ROOT/calibration.json}"
 MODEL_PATH="${MODEL_PATH:-$PROJECT_ROOT/models/model.onnx}"
@@ -19,7 +20,7 @@ require_file "$CLASS_MAP_PATH"
 require_file "$CALIB_PATH"
 
 echo "Starting edge.main (CSI); press Ctrl+C to stop." >&2
-python -m edge.main \
+"$PYTHON_BIN" -m edge.main \
   --camera csi \
   --csi-sensor-id "$CSI_SENSOR_ID" \
   --onnx-model "$MODEL_PATH" \

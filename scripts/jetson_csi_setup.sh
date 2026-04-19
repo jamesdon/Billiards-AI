@@ -47,8 +47,11 @@ timeout 10s gst-launch-1.0 -e nvarguscamerasrc sensor-id=0 ! \
 echo
 echo "[6/6] Run app camera smoke test"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
-source "$PROJECT_ROOT/.venv/bin/activate"
-python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method "$CSI_FLIP_METHOD" --width 1280 --height 720 --mjpeg-port 8080 &
+# shellcheck source=common.sh
+source "$PROJECT_ROOT/scripts/common.sh"
+activate_venv
+PYTHON_BIN="$(python_bin)"
+"$PYTHON_BIN" -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method "$CSI_FLIP_METHOD" --width 1280 --height 720 --mjpeg-port 8080 &
 PID=$!
 sleep 5
 kill "$PID" || true

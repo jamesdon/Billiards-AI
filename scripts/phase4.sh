@@ -4,6 +4,7 @@ source "$(dirname "$0")/common.sh"
 
 cd_root
 activate_venv
+PYTHON_BIN="$(python_bin)"
 MODEL_PATH="${MODEL_PATH:-}"
 CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/models/class_map.json}"
 IDENTITIES_PATH="${IDENTITIES_PATH:-$PROJECT_ROOT/identities.json}"
@@ -14,7 +15,7 @@ if [[ -z "$MODEL_PATH" ]]; then
   exit 1
 fi
 
-python -m edge.main \
+"$PYTHON_BIN" -m edge.main \
   --camera "${CAMERA_SOURCE:-csi}" \
   --csi-sensor-id "${CSI_SENSOR_ID}" \
   --csi-flip-method "${CSI_FLIP_METHOD}" \

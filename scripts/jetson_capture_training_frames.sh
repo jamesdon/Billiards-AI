@@ -7,5 +7,6 @@ source "$SCRIPT_DIR/common.sh"
 
 cd_root
 activate_venv
+PYTHON_BIN="$(python_bin)"
 
-exec python "$PROJECT_ROOT/scripts/capture_csi_training_frames.py" "$@"
+exec "$PYTHON_BIN" "$PROJECT_ROOT/scripts/capture_csi_training_frames.py" "$@"

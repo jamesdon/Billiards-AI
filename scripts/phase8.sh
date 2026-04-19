@@ -4,9 +4,10 @@ source "$(dirname "$0")/common.sh"
 
 cd_root
 activate_venv
+PYTHON_BIN="$(python_bin)"
 
 echo "SQLite counts:"
-python - <<'PY'
+"$PYTHON_BIN" - <<'PY'
 import sqlite3, os
 db=os.path.join("/Home", os.environ.get("USER",""), "Billiards-AI", "billiards.db")
 con=sqlite3.connect(db)

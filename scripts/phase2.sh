@@ -4,13 +4,14 @@ source "$(dirname "$0")/common.sh"
 
 cd_root
 activate_venv
+PYTHON_BIN="$(python_bin)"
 
 echo "[Phase2] Headless validation only (no GUI). For interactive calibration run:" >&2
 echo "       bash \"$PROJECT_ROOT/scripts/start_calibration.sh\"" >&2
 echo "[Phase2] (Requires a desktop session on the Orin Nano, or X11 forwarding.)" >&2
 
-python -m pip install -U pip
-python -m pip install -r "$PROJECT_ROOT/requirements.txt"
+"$PYTHON_BIN" -m pip install -U pip
+"$PYTHON_BIN" -m pip install -r "$PROJECT_ROOT/requirements.txt"
 
 CALIB_PATH="${CALIB_PATH:-$PROJECT_ROOT/calibration.json}"
 CALIB_INVALID_PATH="${CALIB_INVALID_PATH:-$PROJECT_ROOT/calibration_invalid.json}"
@@ -43,7 +44,7 @@ phase2_build_cam_args() {
 # localhost port unless MJPEG_PORT is set explicitly (even to 8080).
 if [[ -z "${MJPEG_PORT:-}" ]]; then
   MJPEG_PORT="$(
-    python - <<'PY'
+    "$PYTHON_BIN" - <<'PY'
 import socket
 for p in range(18080, 18256):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -95,7 +96,7 @@ cat > "$CALIB_PATH" <<'EOF'
 EOF
 
 echo "[Phase2] Validating calibration schema and pocket labels..."
-python - "$CALIB_PATH" <<'PY'
+"$PYTHON_BIN" - "$CALIB_PATH" <<'PY'
 import json
 import sys
 from core.types import PocketLabel
@@ -149,7 +150,7 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   phase2_build_cam_args
   echo "[Phase2] Running valid calibration edge startup smoke (camera=${PHASE2_CAMERA:-csi})..."
   echo "[Phase2] Note: /mjpeg never ends; we probe /health first, then one bounded /mjpeg download."
-  PYTHONUNBUFFERED=1 run_with_timeout "${EDGE_TIMEOUT_SECONDS}" python -u -m edge.main \
+  PYTHONUNBUFFERED=1 run_with_timeout "${EDGE_TIMEOUT_SECONDS}" "$PYTHON_BIN" -u -m edge.main \
     "${PHASE2_CAM_ARGS[@]}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
   EDGE_PID="$!"
   echo "[Phase2] Waiting for MJPEG TCP on 127.0.0.1:${MJPEG_PORT} (first import can be slow on device)..." >&2
@@ -161,7 +162,7 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
       phase2_hint_valid_log "$VALID_LOG"
       exit 1
     fi
-    if python -c "import socket; s=socket.socket(); s.settimeout(0.4); s.connect(('127.0.0.1',${MJPEG_PORT})); s.close()" 2>/dev/null; then
+    if "$PYTHON_BIN" -c "import socket; s=socket.socket(); s.settimeout(0.4); s.connect(('127.0.0.1',${MJPEG_PORT})); s.close()" 2>/dev/null; then
       TCP_READY=1
       break
     fi
@@ -219,7 +220,7 @@ fi
 
 echo "[Phase2] Building invalid calibration and verifying rejection..."
 cp "$CALIB_PATH" "$CALIB_INVALID_PATH"
-python - "$CALIB_INVALID_PATH" <<'PY'
+"$PYTHON_BIN" - "$CALIB_INVALID_PATH" <<'PY'
 import json
 import sys
 
@@ -233,7 +234,7 @@ print("written", path)
 PY
 
 set +e
-run_with_timeout 120 python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_INVALID_PATH" --mjpeg-port "$((MJPEG_PORT + 1))" >"$INVALID_LOG" 2>&1
+run_with_timeout 120 "$PYTHON_BIN" -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --calib "$CALIB_INVALID_PATH" --mjpeg-port "$((MJPEG_PORT + 1))" >"$INVALID_LOG" 2>&1
 RC=$?
 set -e
 if [[ "$RC" -eq 0 ]]; then

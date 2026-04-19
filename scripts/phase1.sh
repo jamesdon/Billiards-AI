@@ -4,11 +4,12 @@ source "$(dirname "$0")/common.sh"
 
 cd_root
 activate_venv
-python -m pip install -U pip
-python -m pip install -r "$PROJECT_ROOT/requirements.txt"
+PYTHON_BIN="$(python_bin)"
+"$PYTHON_BIN" -m pip install -U pip
+"$PYTHON_BIN" -m pip install -r "$PROJECT_ROOT/requirements.txt"
 
 echo "[Phase1] Verifying OpenCV GStreamer support (required for CSI)..."
-python - <<'PY'
+"$PYTHON_BIN" - <<'PY'
 import cv2
 info = cv2.getBuildInformation()
 has_gst = any(("GStreamer" in ln and "YES" in ln.upper()) for ln in info.splitlines())
@@ -19,7 +20,7 @@ if not has_gst:
 PY
 
 echo "[Phase1] Running integrity checks..."
-/usr/bin/timeout 180 python -m compileall "$PROJECT_ROOT/core" "$PROJECT_ROOT/edge" "$PROJECT_ROOT/backend"
+/usr/bin/timeout 180 "$PYTHON_BIN" -m compileall "$PROJECT_ROOT/core" "$PROJECT_ROOT/edge" "$PROJECT_ROOT/backend"
 /usr/bin/timeout 120 ruff check "$PROJECT_ROOT"
 /usr/bin/timeout 300 pytest -q "$PROJECT_ROOT/tests"
 
@@ -66,7 +67,7 @@ MJPEG_PORT="${MJPEG_PORT:-8080}"
 EDGE_TIMEOUT_SECONDS="${EDGE_TIMEOUT_SECONDS:-1200}"
 
 echo "[Phase1] Starting edge CSI smoke test..."
-/usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" python -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --mjpeg-port "${MJPEG_PORT}" >"$EDGE_LOG" 2>&1 &
+/usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" "$PYTHON_BIN" -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --mjpeg-port "${MJPEG_PORT}" >"$EDGE_LOG" 2>&1 &
 EDGE_PID="$!"
 
 EDGE_READY=0
