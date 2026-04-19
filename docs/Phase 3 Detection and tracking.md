@@ -74,6 +74,8 @@ This script performs:
 - MJPEG readiness checks for each run
 - per-run logs under repo root: `.phase3_n1.log`, `.phase3_n2.log`, `.phase3_n3.log`
 
+**Viewing video:** Phase 3 does **not** open a desktop window. `edge.main` serves an MJPEG stream over HTTP. When the script prints `Live MJPEG`, open **`http://127.0.0.1:<port>/mjpeg`** in Safari or Chrome (default port **8080** for the first segment; later segments use **8082**, **8083**). **`/health`** on the same port reports JSON status.
+
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"

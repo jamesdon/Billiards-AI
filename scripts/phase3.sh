@@ -52,6 +52,7 @@ if [[ "$(/usr/bin/uname -s)" == "Darwin" ]] && [[ "$(printf '%s' "${PHASE3_CAMER
   echo "[Phase3] (Terminal, iTerm, Cursor, etc.). 'not authorized to capture video' means that toggle is off for that app." >&2
 fi
 echo "[Phase3] Camera mode: ${PHASE3_CAMERA} (set PHASE3_CAMERA / PHASE3_USB_INDEX to override)" >&2
+echo "[Phase3] Headless run: there is no OpenCV window. When each segment starts, open the printed http:// URL in a browser." >&2
 
 if [[ ! -f "$CLASS_MAP_PATH" ]] && [[ "$AUTO_WRITE_CLASS_MAP" == "1" ]]; then
   mkdir -p "$(dirname "$CLASS_MAP_PATH")"
@@ -128,6 +129,7 @@ run_case() {
     exit 1
   fi
 
+  echo "[Phase3] Live MJPEG (open in browser for ~${seconds}s): http://127.0.0.1:${port}/mjpeg" >&2
   sleep "${seconds}"
   if ! kill -0 "$EDGE_PID" 2>/dev/null; then
     echo "[Phase3] ${label} exited unexpectedly. Log: ${log_file}" >&2
