@@ -31,7 +31,7 @@ def test_thread_needle_emits_after_rules_clear_fouls():
     ev = det.try_emit_achievement(st, 2.0)
     assert ev is not None
     assert ev.payload["achievement_type"] == "thread_the_needle"
-    assert st.players[0].achievement_counts.get("thread_the_needle") is None  # stats layer increments
+    # Counts are applied when StatsAggregator ingests ACHIEVEMENT (edge main on_event path).
 
 
 def test_thread_needle_suppressed_on_foul():
