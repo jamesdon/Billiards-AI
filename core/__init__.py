@@ -1,3 +1,4 @@
+from .achievements import is_successful_shot
 from .overlay_state import ProjectorOverlayState
 from .rules import (
     EightBallRules,
@@ -25,6 +26,7 @@ from .types import (
 
 __all__ = [
     "ProjectorOverlayState",
+    "is_successful_shot",
     "AchievementType",
     "Ball",
     "BallClass",

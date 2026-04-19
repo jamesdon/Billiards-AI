@@ -35,6 +35,7 @@ Billiards-AI/
     config.py                       Typed config objects
     types.py                        Dataclasses: Ball, Player, GameState, Events
     identity_store.py               Persisted player/stick profiles
+    achievements.py               is_successful_shot() — achievement eligibility after SHOT_END
     stats.py                        Stats aggregation (player/team/shot + achievements)
     geometry.py                     2D geometry helpers, transforms
     timebase.py                     Frame timestamps, dt smoothing

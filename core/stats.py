@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
+from .achievements import is_successful_shot
 from .types import BallId, Event, EventType, GameState
 
 
@@ -54,6 +55,9 @@ class StatsAggregator:
             # Informational; authoritative turn is always GameState.current_* after rules.
             pass
         elif event.type == EventType.ACHIEVEMENT:
+            # Defensive: achievements are emitted only after successful shots; ignore stray events.
+            if not is_successful_shot(state):
+                return
             at = str(event.payload.get("achievement_type", ""))
             pi = event.payload.get("player_idx")
             if at and isinstance(pi, int) and 0 <= pi < len(state.players):

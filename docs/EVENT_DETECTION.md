@@ -13,7 +13,7 @@ This layer converts trajectories into semantic events consumed by the rules engi
 
 - `PLAYER_SHOT_BEGIN`, `PLAYER_SHOT_OVER` — **single stroke** boundaries (one cue motion until balls rest). Emitted with each `SHOT_START` / `SHOT_END` from the pipeline (before rules consume `SHOT_END`). `PLAYER_SHOT_BEGIN` includes `seconds_since_previous_shot_over` (gap since the last `PLAYER_SHOT_OVER`, or `null` for the first stroke). `PLAYER_SHOT_OVER` includes `shot_duration_s`. Use the gap for **shot clock** (time between end of table motion and next stroke).
 
-- `ACHIEVEMENT` — extensible stream; `payload["achievement_type"]` uses `AchievementType` in `core/types.py` (e.g. `thread_the_needle`). Counts accumulate on `PlayerState.achievement_counts` on the edge when stats ingest the event.
+- `ACHIEVEMENT` — extensible stream; `payload["achievement_type"]` uses `AchievementType` in `core/types.py` (e.g. `thread_the_needle`). Counts accumulate on `PlayerState.achievement_counts` on the edge when stats ingest the event. **Achievements are only evaluated for successful strokes** (no fouls on the shot; see `is_successful_shot` in `core/achievements.py`), after rules finish processing `SHOT_END`.
 
 ## Shot analytics vs `ACHIEVEMENT` events
 

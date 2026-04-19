@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
+from core.achievements import is_successful_shot
 from core.geometry import l2
 from core.types import AchievementType, BallClass, BallId, Event, EventType, GameState
 
@@ -71,17 +72,19 @@ class ThreadTheNeedleDetector:
     def try_emit_achievement(self, state: GameState, ts: float) -> Optional[Event]:
         """
         Call after ``RuleEngine`` has processed ``SHOT_END`` so ``fouls_this_shot`` is complete.
+
+        Achievements only apply to **successful** strokes (no fouls on the shot).
         """
         self._active = False
+        if not is_successful_shot(state):
+            state.shot.thread_the_needle_eligible = False
+            return None
         if state.winner_team is not None:
             return None
         if self._min_clearance_m >= self.cfg.max_clearance_m:
             state.shot.thread_the_needle_eligible = False
             return None
         if not self._successful_object_pocket(state):
-            state.shot.thread_the_needle_eligible = False
-            return None
-        if state.shot.fouls_this_shot:
             state.shot.thread_the_needle_eligible = False
             return None
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from core.achievements import is_successful_shot
 from core.types import BallClass, BallId, Event, EventType, GameState, PocketLabel, ShotSummary, ShotTag
 
 
@@ -179,14 +180,20 @@ class ShotAnalyzer:
             ss.break_pocketed = list(state.shot.pocketed_this_shot)
         ss.rail_hits_by_ball = dict(self._rail_hits_by_ball)
 
+        shot_ok = is_successful_shot(state)
+
         # Do not compute bank/combo on break per requirement.
         if not is_break:
             self._tag_follow_draw_stun(ss)
             self._tag_cut(ss)
-            self._tag_combo_carom_bank_kick(ss)
+            # Achievement-style tags (bank/kick/combo/carom): only on successful strokes.
+            if shot_ok:
+                self._tag_combo_carom_bank_kick(ss)
 
-        if state.shot.thread_the_needle_eligible:
+        if shot_ok and state.shot.thread_the_needle_eligible:
             ss.tags.append(ShotTag.THREAD_THE_NEEDLE)
+            state.shot.thread_the_needle_eligible = False
+        elif state.shot.thread_the_needle_eligible:
             state.shot.thread_the_needle_eligible = False
 
         state.shot_history.append(ss)
