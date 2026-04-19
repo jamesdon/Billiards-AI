@@ -11,6 +11,7 @@ pydantic
 orjson
 pytest
 httpx
+markdown
 pytest-timeout
 ruff
 boto3

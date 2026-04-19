@@ -10,7 +10,11 @@
     <div class="layout">
       <aside class="sidebar">
         <h1>Setup guide</h1>
-        <p class="sub">Walk through install, model, calibration, phases, and deploy. Reopen any step to fix or redo work.</p>
+        <p class="sub">Work through steps in order or jump back anytime. Status: <span class="legend"><span class="signal red" title="Not started"></span> not started</span> · <span class="legend"><span class="signal yellow" title="In progress"></span> in progress</span> · <span class="legend"><span class="signal green" title="Complete"></span> complete</span></p>
+        <div class="mjpeg-toolbar">
+          <label for="mjpeg-port">MJPEG port (overlay links)</label>
+          <input type="number" id="mjpeg-port" min="1024" max="65535" value="8080" />
+        </div>
         <ul class="nav-steps" id="nav-steps"></ul>
         <div class="sidebar-footer">
           <div>Repo</div>

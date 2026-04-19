@@ -19,12 +19,23 @@ def test_setup_page_and_api():
     data = r.json()
     assert "project_root" in data
     assert isinstance(data["project_root"], str)
+    assert "launch_enabled" in data
+    assert data["launch_enabled"] is False
 
     r = client.get("/api/setup/steps")
     assert r.status_code == 200
     steps = r.json()["steps"]
     assert len(steps) >= 3
     assert any(s["id"] == "phase3" for s in steps)
+    p3 = next(s for s in steps if s["id"] == "phase3")
+    assert p3["checklist"][0].get("verify")
+
+    r = client.get("/api/setup/doc", params={"path": "README.md"})
+    assert r.status_code == 200
+    assert "Setup wizard" in r.text or "Billiards-AI" in r.text
+
+    r = client.get("/api/setup/doc", params={"path": "docs/../../../etc/passwd"})
+    assert r.status_code == 400
 
     r = client.get("/api/setup/progress")
     assert r.status_code == 200
@@ -32,7 +43,13 @@ def test_setup_page_and_api():
 
     r = client.put(
         "/api/setup/progress",
-        json={"completed": {"overview": True}, "checklist_done": {}, "notes": {}, "last_step_id": "overview"},
+        json={
+            "completed": {"overview": True},
+            "checklist_done": {},
+            "notes": {},
+            "last_step_id": "overview",
+            "mjpeg_port": 8080,
+        },
     )
     assert r.status_code == 200
     assert r.json()["completed"].get("overview") is True
