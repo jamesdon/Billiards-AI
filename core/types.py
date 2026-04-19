@@ -153,6 +153,19 @@ class EventType(str, Enum):
     PLAYER_TURN_BEGIN = "player_turn_begin"
     PLAYER_TURN_OVER = "player_turn_over"
 
+    # Single stroke / shot clock (a turn may include several shots)
+    PLAYER_SHOT_BEGIN = "player_shot_begin"
+    PLAYER_SHOT_OVER = "player_shot_over"
+
+    # Extensible achievement stream (payload["achievement_type"] is AchievementType value)
+    ACHIEVEMENT = "achievement"
+
+
+class AchievementType(str, Enum):
+    """Semantic achievements emitted on ``EventType.ACHIEVEMENT``."""
+
+    THREAD_THE_NEEDLE = "thread_the_needle"
+
 
 class FoulType(str, Enum):
     # Technical & shot-based
@@ -187,6 +200,7 @@ class PlayerState:
     shots_taken: int = 0
     innings: int = 0
     profile_id: Optional[str] = None
+    achievement_counts: Dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -220,6 +234,7 @@ class ShotTag(str, Enum):
     FOLLOW = "follow"
     DRAW = "draw"
     CUT = "cut"
+    THREAD_THE_NEEDLE = "thread_the_needle"
     BANK = "bank"
     KICK = "kick"
     COMBINATION = "combination"
@@ -265,6 +280,8 @@ class ShotState:
     stick_profile_id: Optional[str] = None
     shot_max_cue_speed_mps: float = 0.0
     rail_hits_this_shot: int = 0
+    # Set after rules process SHOT_END when thread-the-needle achievement applies (shot_summary tag).
+    thread_the_needle_eligible: bool = False
 
 
 @dataclass
@@ -301,6 +318,8 @@ class GameState:
     winner_team: Optional[int] = None
     game_over_reason: Optional[str] = None
     ball_in_hand_for_team: Optional[int] = None
+    # Wall-clock of last PLAYER_SHOT_OVER; used for shot-clock gap (next PLAYER_SHOT_BEGIN).
+    last_player_shot_over_ts: Optional[float] = None
     player_profiles: Dict[str, PlayerProfile] = field(default_factory=dict)
     stick_profiles: Dict[str, StickProfile] = field(default_factory=dict)
     shot_history: List[ShotSummary] = field(default_factory=list)

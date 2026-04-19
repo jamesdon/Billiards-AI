@@ -7,6 +7,7 @@ import numpy as np
 
 from core.geometry import Homography
 from core.stats import StatsAggregator
+from core.rules.turn_events import player_shot_begin_event, player_shot_over_event
 from core.types import BallClass, BallId, BallObservation, BallTrack, Event, EventType, GameState, RackTrack
 
 from .calib.calib_store import Calibration
@@ -16,6 +17,7 @@ from .events.pocket_detector import PocketDetector
 from .events.shot_detector import ShotDetector
 from .events.shot_analyzer import ShotAnalyzer
 from .events.rail_hit_detector import RailHitDetector
+from .events.thread_the_needle import ThreadTheNeedleDetector
 from .events.micro_foul_audio import MicroFoulAudioDetector
 from .tracking.iou_tracker import IoUTracker
 from .trajectory.assist import TrajectoryAssistController
@@ -59,6 +61,7 @@ class EdgePipeline:
     cfg: EdgePipelineConfig = field(default_factory=EdgePipelineConfig)
     trajectory: TrajectoryAssistController = field(default_factory=TrajectoryAssistController)
     micro_foul_audio: Optional[MicroFoulAudioDetector] = None
+    thread_needle: ThreadTheNeedleDetector = field(default_factory=ThreadTheNeedleDetector)
 
     _frame_idx: int = 0
     _last_table_pos: Dict[BallId, Tuple[float, float]] = field(default_factory=dict)
@@ -159,7 +162,17 @@ class EdgePipeline:
 
         # Deliver events to rules and stats through callback
         for ev in events:
+            if ev.type == EventType.SHOT_END:
+                pso = player_shot_over_event(state, ev.ts)
+                on_event(pso)
+                self.stats.on_event(state, pso)
+                state.last_player_shot_over_ts = ev.ts
             if ev.type == EventType.SHOT_START:
+                self.thread_needle.on_shot_start()
+                state.shot.thread_the_needle_eligible = False
+                psb = player_shot_begin_event(state, ev.ts)
+                on_event(psb)
+                self.stats.on_event(state, psb)
                 cue_id = ev.payload.get("cue_ball_id") if ev.payload else None
                 self.trajectory.on_shot_start(ev.ts, cue_id)
                 if self.micro_foul_audio is not None:
@@ -179,6 +192,9 @@ class EdgePipeline:
                 summary = self.shot_analyzer.on_event(state, ev)
                 if summary is not None:
                     on_event(Event(type=EventType.SHOT_SUMMARY, ts=ev.ts, payload={"shot_summary": summary.__dict__}))
+
+        if state.shot.in_shot:
+            self.thread_needle.update(state, ts)
 
         self.stats.on_state_update(state)
 

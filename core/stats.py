@@ -45,7 +45,18 @@ class StatsAggregator:
             team = state.current_team()
             if team is not None:
                 team.fouls += 1
-        elif event.type in (EventType.PLAYER_TURN_BEGIN, EventType.PLAYER_TURN_OVER):
+        elif event.type in (
+            EventType.PLAYER_TURN_BEGIN,
+            EventType.PLAYER_TURN_OVER,
+            EventType.PLAYER_SHOT_BEGIN,
+            EventType.PLAYER_SHOT_OVER,
+        ):
             # Informational; authoritative turn is always GameState.current_* after rules.
             pass
+        elif event.type == EventType.ACHIEVEMENT:
+            at = str(event.payload.get("achievement_type", ""))
+            pi = event.payload.get("player_idx")
+            if at and isinstance(pi, int) and 0 <= pi < len(state.players):
+                p = state.players[pi]
+                p.achievement_counts[at] = p.achievement_counts.get(at, 0) + 1
 

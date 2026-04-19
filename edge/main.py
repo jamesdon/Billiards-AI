@@ -295,12 +295,24 @@ def main() -> None:
                 apply_voice_intents_to_state(state, parse_english_intents(phrase), utterance=phrase)
 
             def on_event(ev: Event) -> None:
+                if ev.type in (
+                    EventType.PLAYER_SHOT_BEGIN,
+                    EventType.PLAYER_SHOT_OVER,
+                ):
+                    # Pipeline already applied stats for these.
+                    return
                 if ev.type in (EventType.PLAYER_TURN_BEGIN, EventType.PLAYER_TURN_OVER):
+                    pipeline.stats.on_event(state, ev)
+                    return
+                if ev.type == EventType.ACHIEVEMENT:
                     pipeline.stats.on_event(state, ev)
                     return
                 if ev.type == EventType.SHOT_END:
                     prev_p, prev_t = state.current_player_idx, state.current_team_idx
                     rules.on_event(state, ev)
+                    ach = pipeline.thread_needle.try_emit_achievement(state, ev.ts)
+                    if ach is not None:
+                        on_event(ach)
                     for te in player_turn_events_after_shot_end(state, prev_p, prev_t, ev.ts):
                         pipeline.stats.on_event(state, te)
                     return

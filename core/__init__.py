@@ -8,6 +8,7 @@ from .rules import (
     UKPoolRules,
 )
 from .types import (
+    AchievementType,
     Ball,
     BallClass,
     BallId,
@@ -24,6 +25,7 @@ from .types import (
 
 __all__ = [
     "ProjectorOverlayState",
+    "AchievementType",
     "Ball",
     "BallClass",
     "BallId",

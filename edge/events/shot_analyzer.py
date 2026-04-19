@@ -185,6 +185,10 @@ class ShotAnalyzer:
             self._tag_cut(ss)
             self._tag_combo_carom_bank_kick(ss)
 
+        if state.shot.thread_the_needle_eligible:
+            ss.tags.append(ShotTag.THREAD_THE_NEEDLE)
+            state.shot.thread_the_needle_eligible = False
+
         state.shot_history.append(ss)
         return ss
 

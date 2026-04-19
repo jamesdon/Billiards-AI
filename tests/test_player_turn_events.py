@@ -1,5 +1,9 @@
 from core.rules.straight_pool import StraightPoolRules
-from core.rules.turn_events import initial_player_turn_begin_event, player_turn_events_after_shot_end
+from core.rules.turn_events import (
+    initial_player_turn_begin_event,
+    player_shot_begin_event,
+    player_turn_events_after_shot_end,
+)
 from core.types import Event, EventType, GameConfig, GameState, GameType, PlayerState
 
 
@@ -48,3 +52,17 @@ def test_no_turn_events_when_same_player_continues_after_pocket():
     rules.on_event(st, Event(type=EventType.SHOT_END, ts=1.0))
     evs = player_turn_events_after_shot_end(st, before_p, before_t, 1.0)
     assert evs == []
+
+
+def test_player_shot_begin_includes_gap_since_shot_over():
+    st = _minimal_state()
+    st.last_player_shot_over_ts = 10.0
+    ev = player_shot_begin_event(st, ts=13.5)
+    assert ev.type == EventType.PLAYER_SHOT_BEGIN
+    assert ev.payload["seconds_since_previous_shot_over"] == 3.5
+
+
+def test_player_shot_begin_first_shot_no_prior_over():
+    st = _minimal_state()
+    ev = player_shot_begin_event(st, ts=1.0)
+    assert ev.payload["seconds_since_previous_shot_over"] is None

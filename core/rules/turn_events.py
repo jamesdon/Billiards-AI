@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from ..types import Event, EventType, GameState
 
@@ -23,6 +23,30 @@ def initial_player_turn_begin_event(state: GameState, ts: float) -> Event:
         ts=ts,
         payload=player_snapshot_payload(state, state.current_player_idx, state.current_team_idx),
     )
+
+
+def player_shot_begin_event(state: GameState, ts: float) -> Event:
+    """Single stroke begins (same instant as ``SHOT_START``). Includes shot-clock gap since last stroke."""
+    last = state.last_player_shot_over_ts
+    gap: Optional[float]
+    if last is None:
+        gap = None
+    else:
+        gap = max(0.0, ts - last)
+    payload = player_snapshot_payload(state, state.current_player_idx, state.current_team_idx)
+    payload["seconds_since_previous_shot_over"] = gap
+    return Event(type=EventType.PLAYER_SHOT_BEGIN, ts=ts, payload=payload)
+
+
+def player_shot_over_event(state: GameState, ts: float) -> Event:
+    """Cue stroke ends (balls at rest; same instant as ``SHOT_END`` before rules rotate)."""
+    payload = player_snapshot_payload(state, state.current_player_idx, state.current_team_idx)
+    sst = state.shot.shot_start_ts
+    if sst is not None:
+        payload["shot_duration_s"] = max(0.0, ts - float(sst))
+    else:
+        payload["shot_duration_s"] = 0.0
+    return Event(type=EventType.PLAYER_SHOT_OVER, ts=ts, payload=payload)
 
 
 def player_turn_events_after_shot_end(

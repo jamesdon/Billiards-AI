@@ -54,6 +54,8 @@ class LiveGameReducer:
             "recent_rail_hits": [],
             "latest_event": None,
             "updated_ts": 0.0,
+            "last_player_shot_over_ts": None,
+            "seconds_since_previous_shot_over": None,
         }
 
     def ingest_state(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
@@ -131,6 +133,14 @@ class LiveGameReducer:
                     self.state[k] = payload[k]
         elif et == "player_turn_over":
             # Turn authority moves on the following `player_turn_begin`; keep timestamp only.
+            pass
+        elif et == "player_shot_over":
+            self.state["last_player_shot_over_ts"] = ts
+        elif et == "player_shot_begin":
+            if "seconds_since_previous_shot_over" in payload:
+                self.state["seconds_since_previous_shot_over"] = payload.get("seconds_since_previous_shot_over")
+        elif et == "achievement":
+            # Counts live on edge `PlayerState.achievement_counts`; avoid double-counting here.
             pass
 
         return self.state
