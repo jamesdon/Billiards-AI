@@ -1,0 +1,42 @@
+# Copy to roboflow_merge_batch.yaml (gitignored) or pass this path with --batch-yaml.
+# Merges listed Universe exports into data/datasets/billiards (train/val).
+#
+# Prereq:
+#   bash scripts/jetson_prepare_yolo_dataset.sh
+#   Download imports (see roboflow_universe_manifest.example.yaml)
+#
+# Run:
+#   python3 scripts/merge_yolo_imports_to_billiards.py --batch-yaml scripts/roboflow_merge_batch.example.yaml
+#
+# imports_base: default = <repo>/data/datasets/_imports
+# Each import:
+#   path: folder name under imports_base (required)
+#   remap: { source_class_id: target_id }  # target 0=ball,1=person,2=cue_stick,3=rack,4=pockets
+#           # omit a source id to drop those boxes
+#   auto_remap_from_yaml: true   # build remap from data.yaml names (bag→pockets, ball→ball, …)
+#   only_source_ids: "6-21"     # optional filter before remap
+
+version: 1
+imports_base: data/datasets/_imports
+
+imports:
+  - path: billiard-ball_billiard-ball
+    auto_remap_from_yaml: true
+
+  - path: jdq_table2-kfsub
+    auto_remap_from_yaml: true
+
+  - path: snooker-moldi_snooker-pocket-and-cues
+    auto_remap_from_yaml: true
+
+  - path: thesis-digkz_cue-detection-ciazj
+    auto_remap_from_yaml: true
+
+  - path: 423drpool_drpool
+    auto_remap_from_yaml: true
+
+  - path: ours-workspace_pool-cue-instance
+    auto_remap_from_yaml: true
+
+  - path: taiqiu_billiards-wtibn
+    auto_remap_from_yaml: true

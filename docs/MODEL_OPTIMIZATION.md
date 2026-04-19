@@ -7,7 +7,7 @@
 **Normal setup of additional tables or edge devices does not repeat training.** You reuse the same artifacts under a **single directory**:
 
 - `models/model.onnx` — detector weights (not committed; override with `MODEL_PATH` / Docker `MODEL_PATH`)
-- `models/class_map.json` — same class indices as training (`0..3` → `ball`, `person`, `cue_stick`, `rack`; committed template in repo)
+- `models/class_map.json` — same class indices as training (`0..4` → `ball`, `person`, `cue_stick`, `rack`, `pockets`; committed template in repo)
 
 `scripts/phase3.sh`, `phase4.sh`, and `phase9.sh` default `CLASS_MAP_PATH` to `$PROJECT_ROOT/models/class_map.json`. Jetson-family Docker (Orin Nano compose) mounts `./models` at `/models` and uses the same filenames by default.
 
@@ -49,7 +49,7 @@ Steps:
 
 Follow this once (or when refreshing the shared model). All paths use `"/home/$USER/Billiards-AI"` as the project root; substitute yours.
 
-1. **Class contract** — Keep `models/class_map.json` in sync with your YOLO dataset `names`. The repo template is four classes in order `ball`, `person`, `cue_stick`, `rack`. If you train with fewer classes, remove unused keys from the JSON **and** renumber your dataset so indices stay contiguous from `0` (or keep a dedicated class map that matches exactly what the ONNX head outputs).
+1. **Class contract** — Keep `models/class_map.json` in sync with your YOLO dataset `names`. The repo template is five classes in order `ball`, `person`, `cue_stick`, `rack`, `pockets`. If you train with fewer classes, remove unused keys from the JSON **and** renumber your dataset so indices stay contiguous from `0` (or keep a dedicated class map that matches exactly what the ONNX head outputs).
 
 2. **Dataset layout (YOLO)** — Under `data/datasets/billiards/`, use `images/train`, `images/val`, `labels/train`, `labels/val` with matching stem names (e.g. `frame_000123.jpg` + `frame_000123.txt`). See **Required input** below for the `billiards-data.yaml` example; its `names:` block must match `class_map.json`.
 
@@ -120,6 +120,7 @@ names:
   1: person
   2: cue_stick
   3: rack
+  4: pockets
 EOF
 ```
 
@@ -131,7 +132,7 @@ Use this to get a first usable detector quickly.
 
 1. Capture source video/images on your target table and camera setup.
 2. Extract candidate frames (or label still images directly).
-3. Label `ball` first; add `person`, `cue_stick`, and `rack` once baseline works.
+3. Label `ball` first; add `person`, `cue_stick`, `rack`, and `pockets` once baseline works (or merge public data; see batch merge scripts).
 4. Split train/val by session (not random frame-level only) to avoid leakage.
 5. Train YOLO baseline.
 6. Export ONNX.
@@ -195,6 +196,7 @@ Use consistent class naming and IDs:
 - `1: person`
 - `2: cue_stick`
 - `3: rack`
+- `4: pockets`
 
 ## Public datasets you can leverage
 
@@ -209,7 +211,7 @@ Good sources to explore:
 
 **Merge several imports into training data:** after `jetson_prepare_yolo_dataset.sh`, run `python3 scripts/merge_yolo_imports_to_billiards.py data/datasets/_imports/<dir1> data/datasets/_imports/<dir2> ...` — prefixes filenames per import to avoid collisions; default remaps all classes to `0` (ball). Re-run training after adding data; avoid merging the same import twice (duplicate images).
 
-**Imports with pockets (`bag1`…`bag6`) + per-ball ids** (e.g. Universe `jdq/table2-kfsub`): do **not** merge pockets into `ball` — use `--only-source-ids 6-21` so only `ball0`…`ball15` lines are kept as class `0`. Drop `flag` the same way (omit those ids).
+**Imports with pockets (`bag1`…`bag6`) + per-ball ids** (e.g. Universe `jdq/table2-kfsub`): map **bags → class `4` `pockets`** (not `ball`). Use `python3 scripts/merge_yolo_imports_to_billiards.py --batch-yaml …` with `auto_remap_from_yaml: true`, or explicit `--map-json` / `--only-source-ids` as before. Roboflow often names pockets `bag*`; your runtime label is **`pockets`** per `class_map.json`.
 
 Best practice:
 
@@ -317,6 +319,7 @@ Train a small YOLO-family detector with classes aligned to `models/class_map.jso
 - `1`: `person` (recommended for identity tracking)
 - `2`: `cue_stick` (recommended for identity tracking)
 - `3`: `rack` (triangle/diamond rack; pipeline + rules use this where applicable)
+- `4`: `pockets` (learned pocket regions; Roboflow exports often use `bag*` names — remap to this id)
 
 ### 2) Export to ONNX
 

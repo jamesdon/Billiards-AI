@@ -30,6 +30,7 @@ yaml_path.write_text(
             "  1: person",
             "  2: cue_stick",
             "  3: rack",
+            "  4: pockets",
             "",
         ]
     ),

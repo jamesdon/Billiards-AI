@@ -5,7 +5,7 @@ Summarize YOLO label class ids for one or more import trees (Roboflow zip layout
 Prints:
   - nc / names from data.yaml when parseable
   - Per-class-id box counts across train/valid/test labels
-  - Heuristic mapping hints -> Billiards-AI ids (0 ball, 1 person, 2 cue_stick, 3 rack) or DROP
+  - Heuristic mapping hints -> Billiards-AI ids (0 ball, 1 person, 2 cue_stick, 3 rack, 4 pockets) or DROP
 
 Usage:
   python3 scripts/yolo_import_class_report.py \\
@@ -163,7 +163,7 @@ def _suggest_canonical(label: str) -> str:
             "pocket ",
         )
     ) or re.match(r"^bag\d*$", s):
-        return "DROP"
+        return "4 pockets (class id 4; not 'bags' at runtime)"
     if s == "flag" or re.match(r"^flag\d*$", s):
         return "DROP"
     if any(x in s for x in ("rack", "triangle", "diamond", "frame")):

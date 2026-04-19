@@ -1,4 +1,4 @@
-# Copy to roboflow_universe_manifest.yaml (gitignored) and edit.
+# Copy to roboflow_universe_manifest.yaml (gitignored) and edit versions if download fails.
 # Download with:
 #   export ROBOFLOW_API_KEY='your-key'
 #   python3 scripts/roboflow_universe_pull.py --manifest scripts/roboflow_universe_manifest.yaml
@@ -6,23 +6,45 @@
 # Each entry becomes: data/datasets/_imports/<dirname>/
 
 imports:
-  - workspace: pool-table
-    project: pool-v2
-    version: 1
-    dirname: pool-table_pool-v2
-
   - workspace: billiard-ball
     project: billiard-ball
     version: 1
     dirname: billiard-ball_billiard-ball
 
-  # https://universe.roboflow.com/jdq/table2-kfsub
   - workspace: jdq
     project: table2-kfsub
     version: 1
     dirname: jdq_table2-kfsub
 
-  # Add more rows from Universe URLs:
-  #   https://universe.roboflow.com/<workspace>/<project>
-  # Use the dataset version number shown when you export (API: project.version(N)).
-  # If download fails with "version", open the dataset URL and check .../dataset/<N> in the browser.
+  - workspace: snooker-moldi
+    project: snooker-pocket-and-cues
+    version: 1
+    dirname: snooker-moldi_snooker-pocket-and-cues
+
+  - workspace: thesis-digkz
+    project: cue-detection-ciazj
+    version: 1
+    dirname: thesis-digkz_cue-detection-ciazj
+
+  - workspace: 423drpool
+    project: drpool
+    version: 1
+    dirname: 423drpool_drpool
+
+  - workspace: ours-workspace
+    project: pool-cue-instance
+    version: 1
+    dirname: ours-workspace_pool-cue-instance
+
+  - workspace: taiqiu
+    project: billiards-wtibn
+    version: 1
+    dirname: taiqiu_billiards-wtibn
+
+  # Optional extra pool dataset
+  - workspace: pool-table
+    project: pool-v2
+    version: 1
+    dirname: pool-table_pool-v2
+
+  # If a version fails, open https://universe.roboflow.com/<workspace>/<project> and set `version:` to .../dataset/N

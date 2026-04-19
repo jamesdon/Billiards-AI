@@ -42,3 +42,4 @@ data/datasets/billiards/billiards-data.yaml
 # Roboflow Universe downloads (large); manifest may contain workspace names only
 data/datasets/_imports/
 scripts/roboflow_universe_manifest.yaml
+scripts/roboflow_merge_batch.yaml

@@ -55,7 +55,7 @@ If your repo lives somewhere else, set `PROJECT_ROOT` first, e.g. `export PROJEC
 
 1. **Record or grab frames from the CSI camera** on the Orin Nano (same rig as Phase 3/4): save stills or short videos to disk, then copy JPEG/PNG frames into `data/datasets/billiards/images/train` and `.../images/val`. Use different nights/sessions for val when you can.
 2. **Extract frames from a video** you shot over the table (see `docs/MODEL_OPTIMIZATION.md` → “Helpful frame extraction tip” for an `ffmpeg` example writing into `data/datasets/billiards/images/...`).
-3. **Import** a YOLO-format dataset (e.g. export from Roboflow, or another billiards project) and merge images + labels into those same `images/` and `labels/` folders—**renumber classes** so they match `models/class_map.json` (`0` ball … `3` rack).
+3. **Import** a YOLO-format dataset (e.g. export from Roboflow, or another billiards project) and merge images + labels into those same `images/` and `labels/` folders—**renumber classes** so they match `models/class_map.json` (`0` ball … `4` pockets).
 
 **Where on disk:** after `jetson_prepare_yolo_dataset.sh`, use:
 
