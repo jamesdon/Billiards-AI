@@ -17,8 +17,12 @@ Usage (ball-only merge, all sources -> class 0):
     --default-class 0 \\
     data/datasets/_imports/jdq_table2-kfsub
 
-Per-source class map (JSON object: source_id -> target_id), e.g. map all to ball:
-  python3 scripts/merge_yolo_imports_to_billiards.py --map-json '{"0":0,"1":0,"2":0,"3":0}' IMPORT_DIR
+jdq/table2-kfsub (pockets + balls + flag): keep only ball* class ids 6–21 as `ball` (0); drop bags/flag:
+  python3 scripts/merge_yolo_imports_to_billiards.py --only-source-ids 6-21 \\
+    data/datasets/_imports/jdq_table2-kfsub
+
+Per-source class map (JSON: source_id -> target_id); omit ids to drop lines:
+  python3 scripts/merge_yolo_imports_to_billiards.py --map-json '{"6":0,"7":0}' IMPORT_DIR
 """
 
 from __future__ import annotations
@@ -40,10 +44,25 @@ def _safe_prefix(name: str) -> str:
     return s[:96] if s else "import"
 
 
+def _parse_only_source_ids(spec: str) -> set[int]:
+    """Parse '6,7,8' or '6-21' or '6, 8-10'."""
+    out: set[int] = set()
+    for part in spec.replace(" ", "").split(","):
+        if not part:
+            continue
+        if "-" in part:
+            a, _, b = part.partition("-")
+            out.update(range(int(a), int(b) + 1))
+        else:
+            out.add(int(part))
+    return out
+
+
 def _remap_line(
     line: str,
     id_map: dict[int, int] | None,
     default_class: int,
+    only_ids: set[int] | None = None,
 ) -> str | None:
     parts = line.strip().split()
     if len(parts) != 5:
@@ -51,6 +70,8 @@ def _remap_line(
     try:
         src = int(float(parts[0]))
     except ValueError:
+        return None
+    if only_ids is not None and src not in only_ids:
         return None
     cx, cy, w, h = parts[1:5]
     if id_map is not None:
@@ -68,6 +89,7 @@ def _merge_one_import(
     *,
     id_map: dict[int, int] | None,
     default_class: int,
+    only_ids: set[int] | None,
     dry_run: bool,
 ) -> tuple[int, int]:
     """Returns (images_copied, labels_written)."""
@@ -94,7 +116,7 @@ def _merge_one_import(
             dst_txt = out_lbl / f"{new_stem}.txt"
             lines_out: list[str] = []
             for line in src_txt.read_text(encoding="utf-8", errors="replace").splitlines():
-                m = _remap_line(line, id_map, default_class)
+                m = _remap_line(line, id_map, default_class, only_ids)
                 if m:
                     lines_out.append(m)
             if not lines_out:
@@ -142,6 +164,12 @@ def main() -> None:
         help='Optional JSON object mapping source class id -> target id, e.g. \'{"0":0,"1":0}\'',
     )
     ap.add_argument(
+        "--only-source-ids",
+        type=str,
+        default=None,
+        help="Comma-separated source class ids to keep, or ranges (e.g. 6-21). Others dropped.",
+    )
+    ap.add_argument(
         "--dry-run",
         action="store_true",
         help="Count only; do not write files",
@@ -156,6 +184,10 @@ def main() -> None:
         raw = json.loads(args.map_json)
         id_map = {int(k): int(v) for k, v in raw.items()}
 
+    only_ids: set[int] | None = None
+    if args.only_source_ids:
+        only_ids = _parse_only_source_ids(args.only_source_ids)
+
     total_img = 0
     for imp in args.imports:
         imp = imp.resolve()
@@ -167,6 +199,7 @@ def main() -> None:
             dest,
             id_map=id_map,
             default_class=args.default_class,
+            only_ids=only_ids,
             dry_run=args.dry_run,
         )
         print(f"{imp.name}: images+labels written: {n_img} (dry_run={args.dry_run})")

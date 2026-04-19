@@ -209,6 +209,8 @@ Good sources to explore:
 
 **Merge several imports into training data:** after `jetson_prepare_yolo_dataset.sh`, run `python3 scripts/merge_yolo_imports_to_billiards.py data/datasets/_imports/<dir1> data/datasets/_imports/<dir2> ...` — prefixes filenames per import to avoid collisions; default remaps all classes to `0` (ball). Re-run training after adding data; avoid merging the same import twice (duplicate images).
 
+**Imports with pockets (`bag1`…`bag6`) + per-ball ids** (e.g. Universe `jdq/table2-kfsub`): do **not** merge pockets into `ball` — use `--only-source-ids 6-21` so only `ball0`…`ball15` lines are kept as class `0`. Drop `flag` the same way (omit those ids).
+
 Best practice:
 
 1. Normalize classes to your schema (`ball/person/cue_stick`).

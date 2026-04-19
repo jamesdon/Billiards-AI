@@ -162,7 +162,9 @@ def _suggest_canonical(label: str) -> str:
             "cushion",
             "pocket ",
         )
-    ):
+    ) or re.match(r"^bag\d*$", s):
+        return "DROP"
+    if s == "flag" or re.match(r"^flag\d*$", s):
         return "DROP"
     if any(x in s for x in ("rack", "triangle", "diamond", "frame")):
         return "3 rack"
