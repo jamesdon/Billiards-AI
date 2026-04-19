@@ -268,7 +268,9 @@ python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
 python -m pip install -r "/home/$USER/Billiards-AI/requirements-train.txt"
 ```
 
-Train (edge-friendly defaults; increase `batch` on Orin if memory allows):
+On **Apple Silicon (macOS/arm64)**, prefer `bash scripts/jetson_yolo_train.sh`: it uses higher default `epochs` / `batch` / `workers` than on Jetson (override with `YOLO_EPOCHS`, `YOLO_BATCH`, `YOLO_WORKERS`).
+
+Train on Jetson (conservative defaults; increase `batch` on Orin if memory allows):
 
 ```bash
 cd "/home/$USER/Billiards-AI"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Block 3: Ultralytics train (edge-friendly defaults for Orin Nano; override with env vars).
+# Block 3: Ultralytics train (defaults depend on platform; override with YOLO_EPOCHS / YOLO_BATCH / YOLO_WORKERS).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh
@@ -11,9 +11,21 @@ activate_venv
 # Default name lets Ultralytics download weights into the project cwd if missing.
 YOLO_MODEL="${YOLO_MODEL:-yolov8n.pt}"
 YOLO_IMGSZ="${YOLO_IMGSZ:-640}"
-YOLO_EPOCHS="${YOLO_EPOCHS:-30}"
-YOLO_BATCH="${YOLO_BATCH:-4}"
-YOLO_WORKERS="${YOLO_WORKERS:-2}"
+# Platform defaults (only when env vars are unset):
+# - Apple Silicon (Darwin/arm64): tuned for fast local training (e.g. M2 Max + ample unified memory).
+# - Otherwise (Jetson, Linux x86_64, …): conservative GPU RAM and CPU load.
+_uname_s="$(uname -s)"
+_uname_m="$(uname -m)"
+if [[ "$_uname_s" == "Darwin" && "$_uname_m" == "arm64" ]]; then
+  YOLO_EPOCHS="${YOLO_EPOCHS:-50}"
+  YOLO_BATCH="${YOLO_BATCH:-24}"
+  YOLO_WORKERS="${YOLO_WORKERS:-10}"
+else
+  YOLO_EPOCHS="${YOLO_EPOCHS:-30}"
+  YOLO_BATCH="${YOLO_BATCH:-4}"
+  YOLO_WORKERS="${YOLO_WORKERS:-2}"
+fi
+unset _uname_s _uname_m
 DATA_YAML="$PROJECT_ROOT/data/datasets/billiards/billiards-data.yaml"
 
 require_file "$DATA_YAML"
@@ -37,6 +49,7 @@ if [[ ! -x "$YOLO_CLI" ]]; then
   echo "  $VENV_PATH/bin/python3 -m pip install -r \"$PROJECT_ROOT/requirements-train.txt\"" >&2
   exit 1
 fi
+echo "jetson_yolo_train.sh: epochs=$YOLO_EPOCHS batch=$YOLO_BATCH workers=$YOLO_WORKERS imgsz=$YOLO_IMGSZ (override with YOLO_EPOCHS / YOLO_BATCH / YOLO_WORKERS / YOLO_IMGSZ)"
 "$YOLO_CLI" detect train \
   data="$DATA_YAML" \
   model="$YOLO_MODEL" \

@@ -92,7 +92,7 @@ Defaults write under `data/datasets/billiards/images/capture/`. After labeling, 
 
    `cd ~/Billiards-AI && bash scripts/jetson_yolo_train.sh`
 
-   Shorter run (example): `cd ~/Billiards-AI && YOLO_EPOCHS=10 YOLO_BATCH=2 bash scripts/jetson_yolo_train.sh`
+   Shorter run (example): `cd ~/Billiards-AI && YOLO_EPOCHS=10 YOLO_BATCH=2 bash scripts/jetson_yolo_train.sh` — On **Apple Silicon Macs**, `jetson_yolo_train.sh` uses higher default `epochs` / `batch` / `workers` than on Jetson; override with `YOLO_*` env vars if needed (e.g. `YOLO_BATCH=16` if memory errors).
 
 4. **Export latest checkpoint to `models/model.onnx`**
 
