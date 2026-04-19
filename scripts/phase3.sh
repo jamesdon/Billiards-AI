@@ -120,7 +120,7 @@ run_case() {
     if ! kill -0 "$EDGE_PID" 2>/dev/null; then
       break
     fi
-    /usr/bin/sleep 1
+    sleep 1
   done
 
   if [[ "$ready" -ne 1 ]]; then
@@ -128,7 +128,7 @@ run_case() {
     exit 1
   fi
 
-  /usr/bin/sleep "${seconds}"
+  sleep "${seconds}"
   if ! kill -0 "$EDGE_PID" 2>/dev/null; then
     echo "[Phase3] ${label} exited unexpectedly. Log: ${log_file}" >&2
     exit 1

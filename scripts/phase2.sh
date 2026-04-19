@@ -169,7 +169,7 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
     if (( i % 25 == 0 )); then
       echo "[Phase2] still waiting for TCP ${MJPEG_PORT} ... (${i}/300, ~$((i / 5))s wall)" >&2
     fi
-    /usr/bin/sleep 0.2
+    sleep 0.2
   done
   if [[ "$TCP_READY" -ne 1 ]]; then
     echo "Valid calibration startup failed (MJPEG port never accepted TCP within ~60s). Log: $VALID_LOG" >&2
@@ -187,7 +187,7 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
       phase2_hint_valid_log "$VALID_LOG"
       break
     fi
-    /usr/bin/sleep 0.2
+    sleep 0.2
   done
   if [[ "$READY" -ne 1 ]]; then
     echo "Valid calibration startup failed (TCP open but /health not OK). Log: $VALID_LOG" >&2

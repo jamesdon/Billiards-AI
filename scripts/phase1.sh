@@ -53,7 +53,7 @@ for _ in $(seq 1 30); do
     echo "Backend failed to start. Log: $BACKEND_LOG" >&2
     exit 1
   fi
-  /usr/bin/sleep 1
+  sleep 1
 done
 
 HEALTH_JSON=$(/usr/bin/curl -fsS "http://127.0.0.1:${BACKEND_PORT}/health")
@@ -79,7 +79,7 @@ for _ in $(seq 1 45); do
   if ! kill -0 "$EDGE_PID" 2>/dev/null; then
     break
   fi
-  /usr/bin/sleep 1
+  sleep 1
 done
 
 if [[ "$EDGE_READY" -ne 1 ]]; then
@@ -89,7 +89,7 @@ fi
 
 echo "[Phase1] MJPEG endpoint is reachable."
 echo "[Phase1] Letting edge run for stability window..."
-/usr/bin/sleep 15
+sleep 15
 
 if ! kill -0 "$EDGE_PID" 2>/dev/null; then
   echo "Edge process exited unexpectedly during stability window. Log: $EDGE_LOG" >&2
