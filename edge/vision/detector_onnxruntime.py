@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import List, Optional, Tuple
 
 import cv2
@@ -29,6 +29,14 @@ class OnnxRuntimeDetector:
             self.input_name = self.sess.get_inputs()[0].name
         if self.output_name is None:
             self.output_name = self.sess.get_outputs()[0].name
+
+        # Letterbox to the exported ONNX spatial size (Ultralytics default imgsz=640; static NCHW).
+        ishape = self.sess.get_inputs()[0].shape
+        if len(ishape) >= 4:
+            h_dim, w_dim = ishape[2], ishape[3]
+            if isinstance(h_dim, int) and isinstance(w_dim, int) and h_dim > 0 and w_dim > 0:
+                if h_dim != self.cfg.input_h or w_dim != self.cfg.input_w:
+                    self.cfg = replace(self.cfg, input_h=h_dim, input_w=w_dim)
 
     def detect(self, frame_bgr: np.ndarray, ts: float) -> List[BallObservation]:
         inp, meta = self._preprocess(frame_bgr)

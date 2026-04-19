@@ -10,8 +10,9 @@ from core.types import BallObservation
 
 @dataclass(frozen=True)
 class DetectorConfig:
-    input_w: int = 416
-    input_h: int = 416
+    # Match YOLO train/export imgsz (see scripts/jetson_yolo_train.sh default 640).
+    input_w: int = 640
+    input_h: int = 640
     conf_thres: float = 0.25
     iou_thres: float = 0.45
     max_det: int = 50

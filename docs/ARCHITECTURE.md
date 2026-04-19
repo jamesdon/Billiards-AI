@@ -106,7 +106,7 @@ Calibration is described in `docs/CALIBRATION.md`.
 
 Key knobs for Orin Nano (same ideas apply to other Jetson-family boards; Orin has more headroom):
 
-- detector input size (e.g., 416×416)
+- detector input size (default letterbox 640×640; must match exported ONNX)
 - detector interval (e.g., every 2–3 frames)
 - crop size for classification (small)
 - overlay resolution (can be lower than capture)
