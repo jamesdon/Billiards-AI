@@ -40,3 +40,7 @@ imports:
 
   - path: taiqiu_billiards-wtibn
     auto_remap_from_yaml: true
+
+  # joywolves/ball-qgqhv (Universe); pockets often labeled as bag*, per-ball ids ball0…
+  - path: joywolves_ball-qgqhv
+    auto_remap_from_yaml: true

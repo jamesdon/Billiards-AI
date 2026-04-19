@@ -48,6 +48,12 @@ imports:
     version: 1
     dirname: taiqiu_billiards-wtibn
 
+  # https://universe.roboflow.com/joywolves/ball-qgqhv/dataset/1
+  - workspace: joywolves
+    project: ball-qgqhv
+    version: 1
+    dirname: joywolves_ball-qgqhv
+
   # Optional extra pool dataset
   - workspace: pool-table
     project: pool-v2
