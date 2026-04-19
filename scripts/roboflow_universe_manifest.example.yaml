@@ -6,7 +6,11 @@
 #   2) Or open data.yaml inside any ZIP you already have → roboflow: version: N
 #   See docs/MODEL_OPTIMIZATION.md → "Finding the Roboflow dataset version".
 #
-# Download with:
+# Full reproducible pipeline (prepare + download all below + merge into billiards/):
+#   export ROBOFLOW_API_KEY='your-key'
+#   bash scripts/universe_dataset_pipeline.sh
+#
+# Download only (same manifest):
 #   export ROBOFLOW_API_KEY='your-key'
 #   python3 scripts/roboflow_universe_pull.py --manifest scripts/roboflow_universe_manifest.yaml
 #

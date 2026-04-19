@@ -41,6 +41,10 @@ imports:
   - path: taiqiu_billiards-wtibn
     auto_remap_from_yaml: true
 
-  # joywolves/ball-qgqhv (Universe); pockets often labeled as bag*, per-ball ids ball0…
+  # joywolves/ball-qgqhv — https://universe.roboflow.com/joywolves/ball-qgqhv/dataset/1
   - path: joywolves_ball-qgqhv
+    auto_remap_from_yaml: true
+
+  # pool-table/pool-v2 (optional duplicate of other pool data; comment out if undesired)
+  - path: pool-table_pool-v2
     auto_remap_from_yaml: true

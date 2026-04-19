@@ -209,6 +209,8 @@ Good sources to explore:
 
 **Batch download + class audit (this repo):** copy `scripts/roboflow_universe_manifest.example.yaml` to `scripts/roboflow_universe_manifest.yaml`, add `imports:` rows (workspace, project, version, dirname), set `ROBOFLOW_API_KEY`, then run `python3 scripts/roboflow_universe_pull.py --manifest scripts/roboflow_universe_manifest.yaml`. Summarize labels and heuristic mapping hints with `python3 scripts/yolo_import_class_report.py --imports-dir data/datasets/_imports` (or pass explicit import paths).
 
+**Reproduce everything in one command** (uses `scripts/roboflow_universe_manifest.yaml` and `scripts/roboflow_merge_batch.yaml` if you created them; otherwise the committed `*.example.yaml` files): `export ROBOFLOW_API_KEY='…' && bash scripts/universe_dataset_pipeline.sh`. That runs `jetson_prepare_yolo_dataset.sh`, downloads every import in the manifest, then merges with `merge_yolo_imports_to_billiards.py --batch-yaml`. Add new datasets by editing both example YAMLs (or your copies) and re-run.
+
 ### Finding the Roboflow dataset `version:` (what to put in the manifest)
 
 Universe **landing URLs** (e.g. `https://universe.roboflow.com/workspace/project`) often **do not** show a reliable version in the address bar, and the UI changes over time—so “look at `/dataset/N` in the URL” is **not** guaranteed.
