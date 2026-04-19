@@ -20,9 +20,9 @@ if not has_gst:
 PY
 
 echo "[Phase1] Running integrity checks..."
-/usr/bin/timeout 180 "$PYTHON_BIN" -m compileall "$PROJECT_ROOT/core" "$PROJECT_ROOT/edge" "$PROJECT_ROOT/backend"
-/usr/bin/timeout 120 ruff check "$PROJECT_ROOT"
-/usr/bin/timeout 300 pytest -q "$PROJECT_ROOT/tests"
+run_with_timeout 180 "$PYTHON_BIN" -m compileall "$PROJECT_ROOT/core" "$PROJECT_ROOT/edge" "$PROJECT_ROOT/backend"
+run_with_timeout 120 ruff check "$PROJECT_ROOT"
+run_with_timeout 300 pytest -q "$PROJECT_ROOT/tests"
 
 BACKEND_LOG="${PROJECT_ROOT}/.phase1_backend.log"
 EDGE_LOG="${PROJECT_ROOT}/.phase1_edge.log"
@@ -42,7 +42,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "[Phase1] Starting backend..."
-/usr/bin/timeout 1200 uvicorn backend.app:app --host "$BACKEND_HOST" --port "$BACKEND_PORT" >"$BACKEND_LOG" 2>&1 &
+run_with_timeout 1200 uvicorn backend.app:app --host "$BACKEND_HOST" --port "$BACKEND_PORT" >"$BACKEND_LOG" 2>&1 &
 BACKEND_PID="$!"
 
 for _ in $(seq 1 30); do
@@ -67,7 +67,7 @@ MJPEG_PORT="${MJPEG_PORT:-8080}"
 EDGE_TIMEOUT_SECONDS="${EDGE_TIMEOUT_SECONDS:-1200}"
 
 echo "[Phase1] Starting edge CSI smoke test..."
-/usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" "$PYTHON_BIN" -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --mjpeg-port "${MJPEG_PORT}" >"$EDGE_LOG" 2>&1 &
+run_with_timeout "${EDGE_TIMEOUT_SECONDS}" "$PYTHON_BIN" -m edge.main --camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}" --mjpeg-port "${MJPEG_PORT}" >"$EDGE_LOG" 2>&1 &
 EDGE_PID="$!"
 
 EDGE_READY=0

@@ -103,7 +103,7 @@ run_case() {
   local label="$5"
 
   echo "[Phase3] Starting ${label} detect_every_n=${detect_n} port=${port}"
-  /usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" "$PYTHON_BIN" -m edge.main \
+  run_with_timeout "${EDGE_TIMEOUT_SECONDS}" "$PYTHON_BIN" -m edge.main \
     "${PHASE3_CAM_ARGS[@]}" \
     --onnx-model "$MODEL_PATH" \
     --class-map "$CLASS_MAP_PATH" \

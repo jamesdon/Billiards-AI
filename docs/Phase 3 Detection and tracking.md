@@ -87,7 +87,7 @@ EDGE_TIMEOUT_SECONDS=1200 \
 "/home/$USER/Billiards-AI/scripts/phase3.sh"
 ```
 
-**macOS (Apple Silicon):** `scripts/phase3.sh` defaults to **`PHASE3_CAMERA=usb`** (there is no Jetson CSI). Grant **Camera** permission to the app that runs the shell (Terminal, iTerm, or Cursor) under **System Settings → Privacy & Security → Camera**. If the wrong webcam is selected, try **`PHASE3_USB_INDEX=1`**. An ONNXRuntime message that **CUDAExecutionProvider** is unavailable is normal; CoreML or CPU is used instead.
+**macOS (Apple Silicon):** `scripts/phase3.sh` defaults to **`PHASE3_CAMERA=usb`** (there is no Jetson CSI). Grant **Camera** permission to the app that runs the shell (Terminal, iTerm, or Cursor) under **System Settings → Privacy & Security → Camera**. If the wrong webcam is selected, try **`PHASE3_USB_INDEX=1`**. An ONNXRuntime message that **CUDAExecutionProvider** is unavailable is normal; CoreML or CPU is used instead. The phase script uses **`timeout`** when available; stock macOS has no `/usr/bin/timeout`, so the helper falls back to **`gtimeout`** (Homebrew `coreutils`) or runs **without** a wall-clock cap—either is fine for local smoke tests.
 
 ## 4) Optional manual single-run command
 

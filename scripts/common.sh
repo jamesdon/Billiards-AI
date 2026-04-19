@@ -104,3 +104,18 @@ cd_root() {
   cd "$PROJECT_ROOT"
 }
 
+# GNU `timeout` is often missing on macOS; Homebrew coreutils provides `gtimeout`.
+run_with_timeout() {
+  local max_secs="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "${max_secs}" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "${max_secs}" "$@"
+  elif [[ -x /usr/bin/timeout ]]; then
+    /usr/bin/timeout "${max_secs}" "$@"
+  else
+    "$@"
+  fi
+}
+
