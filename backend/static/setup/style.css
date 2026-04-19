@@ -1,0 +1,278 @@
+:root {
+  --bg: #0f1115;
+  --panel: #1a1d24;
+  --border: #2a3040;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #4d9fff;
+  --accent-dim: #2a5f9e;
+  --ok: #34a853;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+}
+
+a {
+  color: var(--accent);
+}
+
+.layout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: min(300px, 92vw);
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar h1 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 1rem 0.75rem;
+  line-height: 1.3;
+}
+
+.sidebar .sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin: 0 1rem 1rem;
+}
+
+.nav-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.nav-steps button {
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+
+.nav-steps button:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nav-steps button.active {
+  border-left-color: var(--accent);
+  background: rgba(77, 159, 255, 0.08);
+}
+
+.nav-steps button .done-badge {
+  float: right;
+  font-size: 0.7rem;
+  color: var(--ok);
+  opacity: 0.9;
+}
+
+.sidebar-footer {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
+main {
+  flex: 1;
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+  max-width: 900px;
+}
+
+main h2 {
+  margin-top: 0;
+  font-size: 1.35rem;
+}
+
+.summary {
+  color: var(--muted);
+  line-height: 1.55;
+  margin-bottom: 1.25rem;
+}
+
+section {
+  margin-bottom: 1.5rem;
+}
+
+section h3 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.95rem;
+}
+
+.checklist input {
+  margin-top: 0.2rem;
+}
+
+.command-block {
+  background: #12151c;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.command-block .label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.command-block pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+button.btn {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button.btn:hover {
+  border-color: var(--accent-dim);
+}
+
+button.btn-primary {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.hints {
+  font-size: 0.9rem;
+  color: var(--muted);
+  padding-left: 1rem;
+  border-left: 2px solid var(--border);
+}
+
+.hints li {
+  margin-bottom: 0.35rem;
+}
+
+.docs a {
+  display: inline-block;
+  margin-right: 0.75rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.notes textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #12151c;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.step-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.mark-done {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+}
+
+#status-toast {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+#status-toast.show {
+  opacity: 1;
+}
+
+.project-root {
+  font-size: 0.8rem;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+@media (max-width: 720px) {
+  .layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 40vh;
+  }
+}

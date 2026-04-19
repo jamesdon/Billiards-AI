@@ -37,6 +37,9 @@ runs/
 # Local YOLO datasets under data/datasets/ (see also specific lines below)
 data/datasets/
 
+# Web setup wizard progress (backend /setup)
+data/setup_wizard_progress.json
+
 # Local runtime / large artifacts (adjust if you need to version samples)
 *.onnx
 *.engine

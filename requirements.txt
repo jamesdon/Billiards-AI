@@ -10,6 +10,7 @@ uvicorn
 pydantic
 orjson
 pytest
+httpx
 pytest-timeout
 ruff
 boto3

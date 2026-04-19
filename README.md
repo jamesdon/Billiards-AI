@@ -13,6 +13,8 @@ python -m pip install -r requirements.txt
 python -m edge.main --help
 ```
 
+**Guided setup (browser):** with the venv active, run `uvicorn backend.app:app --host 127.0.0.1 --port 8000` and open **http://127.0.0.1:8000/setup** for a step-by-step menu (commands, checklists, docs paths, saved progress).
+
 ## Jetson-family edge assumptions
 
 - **Target platform**: NVIDIA Jetson **Orin Nano** (JetPack **5.x**; Ampere GPU). Older Jetson Nano + JetPack 4.x notes are legacy; behavior differs (Python versions, CUDA arch, wheel availability).

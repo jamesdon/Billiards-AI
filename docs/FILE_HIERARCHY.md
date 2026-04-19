@@ -109,7 +109,9 @@ Billiards-AI/
 
   backend/                          Optional offload + history + dashboard API
     __init__.py
-    app.py                          FastAPI app (`/event`, `/state`, `/live/state`, WebSocket hub)
+    app.py                          FastAPI app (`/event`, `/state`, `/live/state`, WebSocket hub); `/` → `/setup`; mounts `static/`
+    setup_guide.py                  Guided setup steps + `GET/PUT /api/setup/progress` (JSON in `data/setup_wizard_progress.json`)
+    static/setup/                   Setup wizard UI (`index.html`, `app.js`, `style.css`) served under `/static/setup/`
     reducer.py                      LiveGameReducer: merges snapshots + shot/pocket/collision/rail/foul events for `GET /live/state`
     ws.py                           WebSocket broadcast of live state/events
     store.py                        SQLite storage

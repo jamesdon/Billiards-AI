@@ -1,19 +1,27 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from .aws_store import DynamoStatsStore, DynamoStickStatsStore
 from .fouls import ManualFoulRequest, build_manual_foul_event
 from .profiles import router as profiles_router
 from .reducer import LiveGameReducer
 from .store import Store
+from .setup_guide import build_router as build_setup_router
 from .ws import Hub
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Billiards-AI Backend", version="0.1")
+    static_root = Path(__file__).resolve().parent / "static"
+    if static_root.is_dir():
+        app.mount("/static", StaticFiles(directory=str(static_root)), name="static")
+    app.include_router(build_setup_router())
     app.include_router(profiles_router)
     store = Store("billiards.db")
     hub = Hub()
@@ -96,6 +104,10 @@ def create_app() -> FastAPI:
                 _ = await websocket.receive_text()
         except WebSocketDisconnect:
             hub.disconnect(websocket)
+
+    @app.get("/")
+    def root_redirect():
+        return RedirectResponse(url="/setup", status_code=302)
 
     return app
 
