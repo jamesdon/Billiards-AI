@@ -79,7 +79,7 @@ cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
 MODEL_PATH="/ABSOLUTE/PATH/TO/model.onnx" \
 CLASS_MAP_PATH="/home/$USER/Billiards-AI/models/class_map.json" \
-CAMERA_SOURCE="csi" \
+PHASE3_CAMERA=csi \
 CSI_SENSOR_ID=0 \
 CSI_FLIP_METHOD=6 \
 MJPEG_PORT=8080 \
@@ -87,12 +87,14 @@ EDGE_TIMEOUT_SECONDS=1200 \
 "/home/$USER/Billiards-AI/scripts/phase3.sh"
 ```
 
+**macOS (Apple Silicon):** `scripts/phase3.sh` defaults to **`PHASE3_CAMERA=usb`** (there is no Jetson CSI). Grant **Camera** permission to the app that runs the shell (Terminal, iTerm, or Cursor) under **System Settings → Privacy & Security → Camera**. If the wrong webcam is selected, try **`PHASE3_USB_INDEX=1`**. An ONNXRuntime message that **CUDAExecutionProvider** is unavailable is normal; CoreML or CPU is used instead.
+
 ## 4) Optional manual single-run command
 
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-/usr/bin/timeout 1200 python -m edge.main \
+/usr/bin/timeout 1200 "$(pwd)/.venv/bin/python3" -m edge.main \
   --camera csi \
   --csi-sensor-id 0 \
   --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" \
@@ -100,6 +102,8 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
   --detect-every-n 2 \
   --mjpeg-port 8080
 ```
+
+On macOS for a manual run, use `--camera usb` (and `--usb-index` if needed) instead of `csi`.
 
 ## Tuning notes (tracker, shot detector, detector cadence)
 

@@ -19,6 +19,40 @@ BASELINE_SECONDS="${BASELINE_SECONDS:-20}"
 SWEEP_SECONDS="${SWEEP_SECONDS:-20}"
 AUTO_WRITE_CLASS_MAP="${AUTO_WRITE_CLASS_MAP:-1}"
 
+# Camera: CSI is for Jetson; macOS has no Argus CSI — default to USB unless overridden.
+#   PHASE3_CAMERA=csi|usb|INDEX|gstreamer-string
+#   PHASE3_USB_INDEX=0   (when PHASE3_CAMERA=usb)
+PHASE3_CAMERA="${PHASE3_CAMERA:-}"
+if [[ -z "${PHASE3_CAMERA}" ]]; then
+  if [[ "$(/usr/bin/uname -s)" == "Darwin" ]]; then
+    PHASE3_CAMERA=usb
+  else
+    PHASE3_CAMERA=csi
+  fi
+fi
+PHASE3_USB_INDEX="${PHASE3_USB_INDEX:-0}"
+
+phase3_build_cam_args() {
+  local lcam
+  lcam="$(printf '%s' "${PHASE3_CAMERA}" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$lcam" == "csi" ]]; then
+    PHASE3_CAM_ARGS=(--camera csi --csi-sensor-id "${CSI_SENSOR_ID}" --csi-flip-method "${CSI_FLIP_METHOD}")
+  elif [[ "$lcam" == "usb" ]]; then
+    PHASE3_CAM_ARGS=(--camera usb --usb-index "${PHASE3_USB_INDEX}")
+  elif [[ "${PHASE3_CAMERA}" =~ ^[0-9]+$ ]]; then
+    PHASE3_CAM_ARGS=(--camera "${PHASE3_CAMERA}")
+  else
+    PHASE3_CAM_ARGS=(--camera "${PHASE3_CAMERA}")
+  fi
+}
+phase3_build_cam_args
+
+if [[ "$(/usr/bin/uname -s)" == "Darwin" ]] && [[ "$(printf '%s' "${PHASE3_CAMERA}" | tr '[:upper:]' '[:lower:]')" == "usb" ]]; then
+  echo "[Phase3] macOS: allow Camera access (System Settings → Privacy & Security → Camera) for the app running this shell" >&2
+  echo "[Phase3] (Terminal, iTerm, Cursor, etc.). 'not authorized to capture video' means that toggle is off for that app." >&2
+fi
+echo "[Phase3] Camera mode: ${PHASE3_CAMERA} (set PHASE3_CAMERA / PHASE3_USB_INDEX to override)" >&2
+
 if [[ ! -f "$CLASS_MAP_PATH" ]] && [[ "$AUTO_WRITE_CLASS_MAP" == "1" ]]; then
   mkdir -p "$(dirname "$CLASS_MAP_PATH")"
   cat > "$CLASS_MAP_PATH" <<'EOF'
@@ -70,9 +104,7 @@ run_case() {
 
   echo "[Phase3] Starting ${label} detect_every_n=${detect_n} port=${port}"
   /usr/bin/timeout "${EDGE_TIMEOUT_SECONDS}" "$PYTHON_BIN" -m edge.main \
-    --camera csi \
-    --csi-sensor-id "${CSI_SENSOR_ID}" \
-    --csi-flip-method "${CSI_FLIP_METHOD}" \
+    "${PHASE3_CAM_ARGS[@]}" \
     --onnx-model "$MODEL_PATH" \
     --class-map "$CLASS_MAP_PATH" \
     --detect-every-n "${detect_n}" \
