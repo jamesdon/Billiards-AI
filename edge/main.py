@@ -9,8 +9,9 @@ from core.rules.eight_ball import EightBallRules
 from core.rules.nine_ball import NineBallRules
 from core.rules.snooker import SnookerRules
 from core.rules.straight_pool import StraightPoolRules
+from core.rules.turn_events import initial_player_turn_begin_event, player_turn_events_after_shot_end
 from core.rules.uk_pool import UKPoolRules
-from core.types import Event, GameConfig, GameState, GameType, PlayerState
+from core.types import Event, EventType, GameConfig, GameState, GameType, PlayerState
 
 from core.identity_store import IdentityStore
 from .calib.calib_store import Calibration
@@ -288,12 +289,26 @@ def main() -> None:
                     mic_ctl = None
 
     try:
+        _opened_turn = False
         for ts, frame in cam.frames():
             for phrase in voice_poll.poll_new_lines():
                 apply_voice_intents_to_state(state, parse_english_intents(phrase), utterance=phrase)
 
             def on_event(ev: Event) -> None:
+                if ev.type in (EventType.PLAYER_TURN_BEGIN, EventType.PLAYER_TURN_OVER):
+                    pipeline.stats.on_event(state, ev)
+                    return
+                if ev.type == EventType.SHOT_END:
+                    prev_p, prev_t = state.current_player_idx, state.current_team_idx
+                    rules.on_event(state, ev)
+                    for te in player_turn_events_after_shot_end(state, prev_p, prev_t, ev.ts):
+                        pipeline.stats.on_event(state, te)
+                    return
                 rules.on_event(state, ev)
+
+            if not _opened_turn:
+                _opened_turn = True
+                on_event(initial_player_turn_begin_event(state, ts))
 
             pipeline.step(state=state, frame_bgr=frame, ts=ts, calib=calib, on_event=on_event)
             out = draw_overlay(frame, state, player_name=state.current_player().name, calib=calib)

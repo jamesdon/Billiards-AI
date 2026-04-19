@@ -45,4 +45,7 @@ class StatsAggregator:
             team = state.current_team()
             if team is not None:
                 team.fouls += 1
+        elif event.type in (EventType.PLAYER_TURN_BEGIN, EventType.PLAYER_TURN_OVER):
+            # Informational; authoritative turn is always GameState.current_* after rules.
+            pass
 

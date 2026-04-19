@@ -43,6 +43,7 @@ Billiards-AI/
     rules/
       __init__.py
       base.py                       RuleEngine interface + common helpers
+      turn_events.py                player_turn_begin / player_turn_over helpers (turn vs single shot)
       eight_ball.py                 8-ball rules (solids/stripes, 8-ball end)
       nine_ball.py                  9-ball rules (lowest-first, win on 9)
       straight_pool.py              14.1 continuous rules (scoring, rerack)

@@ -149,6 +149,10 @@ class EventType(str, Enum):
     SHOT_SUMMARY = "shot_summary"
     GAME_OVER = "game_over"
 
+    # Turn rotation (one or more shots until rules pass the table to the next player/team)
+    PLAYER_TURN_BEGIN = "player_turn_begin"
+    PLAYER_TURN_OVER = "player_turn_over"
+
 
 class FoulType(str, Enum):
     # Technical & shot-based

@@ -125,6 +125,13 @@ class LiveGameReducer:
                 self.state["recent_rail_hits"],
                 {"ball_id": payload.get("ball_id"), "rail": payload.get("rail"), "ts": ts},
             )
+        elif et == "player_turn_begin":
+            for k in ("current_player_idx", "current_team_idx"):
+                if k in payload and isinstance(payload[k], int):
+                    self.state[k] = payload[k]
+        elif et == "player_turn_over":
+            # Turn authority moves on the following `player_turn_begin`; keep timestamp only.
+            pass
 
         return self.state
 

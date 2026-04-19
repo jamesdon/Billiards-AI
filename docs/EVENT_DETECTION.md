@@ -9,6 +9,20 @@ This layer converts trajectories into semantic events consumed by the rules engi
 - `BALL_COLLISION`
 - `CUE_STRIKE`
 - `FOUL` (scratch/no-contact/wrong-first; rule-dependent)
+- `PLAYER_TURN_BEGIN`, `PLAYER_TURN_OVER` — **turn** boundaries (one or more shots until the rules pass the table). Emitted by the edge runtime when rotation changes after `SHOT_END`, plus an opening `PLAYER_TURN_BEGIN` at session start. Payload: `player_idx`, `team_idx`, `name`, `profile_id`. Not produced by the physics detectors.
+
+## Shot analytics (“achievements”) vs events
+
+There is **no separate `achievement` event type**. Per-shot skill labels and counts (e.g. whether a stroke is tagged `bank`) live on the **`shot_summary`** event, produced by `edge/events/shot_analyzer.py` from kinematics + collision/rail/pocket events.
+
+| Source | What it represents |
+|--------|---------------------|
+| `ShotTag` enum in `core/types.py` | Semantic labels attached to each `ShotSummary`: `stun`, `follow`, `draw`, `cut`, `bank`, `kick`, `combination`, `jump`, `masse`, `english`, `carom`, `break`. |
+| `ShotSummary` fields | `tags`, `follow_distance_m`, `draw_distance_m`, `cut_angle_deg`, `break_rail_hits`, `break_pocketed`, `rail_hits_by_ball`, `cue_peak_speed_mps`, shooter/stick profile IDs, etc. |
+| `core/stats.py` (`StatsAggregator`) | Lightweight live aggregates only: per-ball speeds, cue peak speed for the current shot, last shot duration. **No** running bank-shot totals. |
+| `backend/aws_store.py` | Persists **`shot_summary`** rows per player/stick profile when the backend ingests events (optional DynamoDB). Aggregate “how many banks ever” would be computed by **querying stored summaries**, not a dedicated achievement engine. |
+
+To tune “bank” vs other tags, adjust `ShotAnalyzerConfig` and the heuristics in `edge/events/shot_analyzer.py`. To add new tags, extend `ShotTag` and the analyzer; consumers read them from `payload["shot_summary"]["tags"]` on `shot_summary` events.
 
 ## Shot detection
 
