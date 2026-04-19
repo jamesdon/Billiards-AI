@@ -32,6 +32,7 @@ Includes:
 - foul: `{ reason, team_idx, player_idx }`
 - identity: `{ profile_id, display_name }`
 - profile rename: `PATCH /profiles/player/{id}` or `PATCH /profiles/stick/{id}`
+- turn boundaries: `type="player_turn_begin"` / `type="player_turn_over"` with `{ player_idx, team_idx, name, profile_id }` (rotation after a shot ends, plus an opening `player_turn_begin` at session start)
 - game over: edge emits `type="game_over"` with `{ winner_team, game_over_reason, rulesets, final scores }`
 - rack detected: edge emits `type="rack_detected"` with `{ confidence, bbox_xyxy, fallback_reason }`
 - manual foul injection: `POST /fouls/manual` with `{ game_type, foul_type, player_idx/team_idx, notes, foul_points? }`
