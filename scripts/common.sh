@@ -19,6 +19,11 @@ require_file() {
   fi
 }
 
+# Ultralytics CLI: always invoke via absolute path (some shells leave `yolo` off PATH after `activate`).
+yolo_bin() {
+  echo "${VENV_PATH}/bin/yolo"
+}
+
 activate_venv() {
   if [[ ! -d "$VENV_PATH" ]]; then
     if [[ "$(/usr/bin/uname -m)" == "aarch64" ]]; then

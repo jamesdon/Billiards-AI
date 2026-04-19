@@ -14,7 +14,13 @@ if [[ -z "${LATEST_PT}" ]]; then
   exit 1
 fi
 echo "Using: $LATEST_PT"
-yolo export model="$LATEST_PT" format=onnx imgsz="${YOLO_EXPORT_IMGSZ:-640}"
+YOLO_CLI="$(yolo_bin)"
+if [[ ! -x "$YOLO_CLI" ]]; then
+  echo "Missing $YOLO_CLI — install training deps:" >&2
+  echo "  $VENV_PATH/bin/python3 -m pip install -r \"$PROJECT_ROOT/requirements-train.txt\"" >&2
+  exit 1
+fi
+"$YOLO_CLI" export model="$LATEST_PT" format=onnx imgsz="${YOLO_EXPORT_IMGSZ:-640}"
 WEIGHTS_DIR="$(dirname "$LATEST_PT")"
 ONNX_OUT="$WEIGHTS_DIR/best.onnx"
 if [[ ! -f "$ONNX_OUT" ]]; then

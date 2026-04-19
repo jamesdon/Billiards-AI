@@ -31,7 +31,13 @@ if [[ "${train_n:-0}" -eq 0 ]]; then
   exit 1
 fi
 
-yolo detect train \
+YOLO_CLI="$(yolo_bin)"
+if [[ ! -x "$YOLO_CLI" ]]; then
+  echo "Missing $YOLO_CLI — install training deps:" >&2
+  echo "  $VENV_PATH/bin/python3 -m pip install -r \"$PROJECT_ROOT/requirements-train.txt\"" >&2
+  exit 1
+fi
+"$YOLO_CLI" detect train \
   data="$DATA_YAML" \
   model="$YOLO_MODEL" \
   imgsz="$YOLO_IMGSZ" \
