@@ -324,6 +324,8 @@
     const t = (s || "").trim();
     if (!t) return false;
     if (NO_COPY_BACKTICKS.has(t)) return false;
+    /* Notes / label lines (e.g. "0..4 ball..pockets"), not shell */
+    if (/\d+\.\.\d+.*\.\./.test(t) && /ball|pocket/i.test(t)) return false;
     if (t.length < 2) return false;
     if (t.length === 2 && t !== "ls") return false;
     if (t.length === 3 && t !== "pwd" && t !== "ls" && t !== "set") return false;
@@ -340,11 +342,9 @@
   }
 
   /**
-   * Rich verify/record: {project_root} still uses formatChecklistField; backticked
-   * segments get Copy only when shouldShowCopyForBacktick (real shell/one-liner to paste);
-   * otherwise the segment is only styled with <code>.
+   * Backticked segments: optional Copy (verify = real shell commands only). Record text never shows Copy.
    */
-  function formatVerifyOrRecordHtml(raw) {
+  function formatChecklistWithBackticks(raw, allowCommandCopy) {
     if (!raw) return "";
     if (!raw.includes("`")) {
       return formatChecklistField(raw);
@@ -358,10 +358,13 @@
       } else {
         const seg = parts[j];
         out += `<code class="verify-inline-code">${escapeHtml(seg)}</code>`;
-        if (shouldShowCopyForBacktick(seg)) {
+        if (
+          allowCommandCopy &&
+          shouldShowCopyForBacktick(seg)
+        ) {
           out += ` <button type="button" class="btn btn-primary copy-inline-cmd" data-copy="${encodeURIComponent(
             seg
-          )}" title="Copy to clipboard">Copy</button><br />`;
+          )}" title="Copy command to paste in Terminal">Copy</button><br />`;
         } else {
           out += " ";
         }
@@ -374,13 +377,22 @@
     return cmd.replace(/\{project_root\}/g, state.context.project_root || "$PROJECT_ROOT");
   }
 
+  function getCurrentTextSize() {
+    const a = document.documentElement.getAttribute("data-text-size");
+    if (a === "small" || a === "medium" || a === "large") return a;
+    try {
+      const s = localStorage.getItem(TEXT_SIZE_KEY);
+      if (s === "small" || s === "medium" || s === "large") return s;
+    } catch (_) {
+      /* ignore */
+    }
+    return "medium";
+  }
+
   function docHref(relPath) {
     let u = "/api/setup/doc?path=" + encodeURIComponent(relPath);
-    const size =
-      document.documentElement.getAttribute("data-text-size") || "medium";
-    if (size === "small" || size === "medium" || size === "large") {
-      u += "&textSize=" + encodeURIComponent(size);
-    }
+    const size = getCurrentTextSize();
+    u += "&textSize=" + encodeURIComponent(size);
     return u;
   }
 
@@ -456,13 +468,17 @@
                 <div class="item-text">${formatChecklistField(item.item || "")}</div>
                 ${
                   rawV
-                    ? `<p class="verify"><strong>How to verify:</strong> ${formatVerifyOrRecordHtml(rawV)}${copyBtn}</p>`
+                    ? `<p class="verify"><strong>How to verify:</strong> ${formatChecklistWithBackticks(
+                        rawV,
+                        true
+                      )}${copyBtn}</p>`
                     : ""
                 }
                 ${
                   item.record
-                    ? `<p class="record"><strong>What to record:</strong> ${formatVerifyOrRecordHtml(
-                        item.record
+                    ? `<p class="record"><strong>What to record:</strong> ${formatChecklistWithBackticks(
+                        item.record,
+                        false
                       )}</p>`
                     : ""
                 }
@@ -493,8 +509,9 @@
       ${commands
         .map((c) => {
           const filled = fillCommand(c.command);
+          const copyAttr = encodeURIComponent(filled);
           return `<div class="command-block"><div class="label">${escapeHtml(c.label)}</div><pre>${escapeHtml(filled)}</pre>
-            <div class="row-actions"><button type="button" class="btn btn-primary copy-cmd">Copy command</button></div>
+            <div class="row-actions"><button type="button" class="btn btn-primary copy-cmd" data-copy="${copyAttr}">Copy command</button></div>
           </div>`;
         })
         .join("")}</section>`;
@@ -562,10 +579,23 @@
       </div>
     `;
 
-    content.querySelectorAll(".command-block").forEach((block) => {
-      const pre = block.querySelector("pre");
-      block.querySelector(".copy-cmd")?.addEventListener("click", () => {
-        if (pre) copyText(pre.textContent || "");
+    content.querySelectorAll(".command-block .copy-cmd").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const enc = btn.getAttribute("data-copy");
+        if (!enc) {
+          const pre = btn.closest(".command-block")?.querySelector("pre");
+          if (pre) copyText(pre.textContent || "");
+          return;
+        }
+        let text = enc;
+        try {
+          text = decodeURIComponent(enc);
+        } catch (_) {
+          /* use raw */
+        }
+        if (text.length) copyText(text);
       });
     });
 
@@ -637,14 +667,19 @@
     });
 
     content.querySelectorAll(".copy-inline-cmd").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const enc = btn.getAttribute("data-copy");
         if (!enc) return;
+        let text = enc;
         try {
-          copyText(decodeURIComponent(enc));
+          text = decodeURIComponent(enc);
         } catch (_) {
-          copyText(enc);
+          /* use raw */
         }
+        if (text.length === 0) return;
+        copyText(text);
       });
     });
   }

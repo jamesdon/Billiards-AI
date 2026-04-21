@@ -18,12 +18,27 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 # Repo root: backend/setup_guide.py -> parents[1]
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+# Must match `TEXT_ROOT_PX` in `static/setup/index.html` and `app.js` (html root / rem base).
+_TEXT_SIZE_TO_PX: dict[str, str] = {
+    "small": "14px",
+    "medium": "17px",
+    "large": "28px",
+}
+
+
+def _resolve_text_size_param(text_size: str | None) -> tuple[str, str]:
+    """Return (size key, font-size px) for the setup doc page <html> root."""
+    c = (text_size or "").strip().lower()
+    if c not in _TEXT_SIZE_TO_PX:
+        c = "medium"
+    return c, _TEXT_SIZE_TO_PX[c]
 _PROGRESS_PATH = _PROJECT_ROOT / "data" / "setup_wizard_progress.json"
 _STATIC = Path(__file__).resolve().parent / "static"
 
@@ -142,7 +157,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "item": "class_map.json matches the ONNX output order/count",
                 "verify": "Open `models/class_map.json` and compare per-class order to the names/labels in your YOLO data YAML (the dataset file you use for training). Count and ordering must match the ONNX model head and that YAML’s names list.",
-                "record": "Paste a one-line summary (e.g. `0..4 ball..pockets`) in Notes after changes.",
+                "record": "In Notes, paste a one-line note that class index order in models/class_map.json matches your YOLO names (no need to use backticks; this is free-form text, not a terminal command).",
             },
         ],
         "commands": [
@@ -464,7 +479,13 @@ def build_router() -> APIRouter:
         return {"steps": normalized_steps()}
 
     @router.get("/api/setup/doc", response_class=HTMLResponse)
-    def setup_doc(path: str) -> HTMLResponse:
+    def setup_doc(
+        path: str,
+        textSize: str | None = Query(
+            default=None,
+            description="Text size: small, medium, or large (should match the setup wizard)",
+        ),
+    ) -> HTMLResponse:
         p = _safe_doc_path(path)
         text = p.read_text(encoding="utf-8")
         title = html.escape(p.stem.replace("_", " "))
@@ -477,19 +498,27 @@ def build_router() -> APIRouter:
                 "<code>.venv/bin/python3 -m pip install markdown</code></p>"
             )
         esc_path = html.escape(path)
-        # textSize: query param (from setup links) wins; else localStorage. Same px map as /setup (index.html, app.js).
+        # First-paint: server sets <html style="font-size: …"> + data-text-size from ?textSize=.
+        # (Safari/embedded reads before JS; links from /setup should always pass textSize).
+        # Head script re-applies and patches internal doc links; without query, it upgrades from localStorage.
+        first_choice, first_px = _resolve_text_size_param(textSize)
+        first_choice_esc = html.escape(first_choice, quote=True)
         page = f"""<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<html lang="en" data-text-size="{first_choice_esc}" style="font-size: {html.escape(first_px, quote=True)}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>{title}</title>
 <script>
 (function () {{
   var ROOT_PX = {{ small: "14px", medium: "17px", large: "28px" }};
   var LSK = "billiards-setup-text-size";
-  function pickSize() {{
+  function hasQuerySize() {{
     try {{
       var p = new URLSearchParams(window.location.search).get("textSize");
-      if (p === "small" || p === "medium" || p === "large") return p;
-    }} catch (e) {{}}
+      return p === "small" || p === "medium" || p === "large" ? p : null;
+    }} catch (e) {{ return null; }}
+  }}
+  function pickSize() {{
+    var q = hasQuerySize();
+    if (q) return q;
     try {{
       var s = localStorage.getItem(LSK);
       if (s === "small" || s === "medium" || s === "large") return s;
@@ -497,8 +526,10 @@ def build_router() -> APIRouter:
     return "medium";
   }}
   function apply(choice) {{
+    var px = ROOT_PX[choice] || ROOT_PX.medium;
     document.documentElement.setAttribute("data-text-size", choice);
-    document.documentElement.style.setProperty("font-size", ROOT_PX[choice], "important");
+    document.documentElement.style.fontSize = px;
+    try {{ localStorage.setItem(LSK, choice); }} catch (e) {{}}
   }}
   var choice = pickSize();
   apply(choice);
@@ -521,7 +552,7 @@ html{{box-sizing:border-box;}}
 body{{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#e8eaed;line-height:1.55;max-width:52rem;margin:0 auto;padding:1rem 1.25rem 3rem;font-size:1rem;}}
 a{{color:#4d9fff;}}
 a.md-doc-link code{{color:inherit;}}
-/* rem tracks html root set by the script (same as setup wizard) */
+/* rem — sized from <html> font-size (server + ?textSize+ / localStorage) */
 code,pre{{background:#1a1d24;padding:0.15em 0.35em;border-radius:4px;font-size:0.9rem;}}
 pre{{padding:0.75rem;overflow:auto;font-size:0.9rem;}}
 pre code{{background:transparent;padding:0;font-size:inherit;}}

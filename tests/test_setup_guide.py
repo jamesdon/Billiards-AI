@@ -43,6 +43,8 @@ def test_setup_page_and_api():
     r2 = client.get("/api/setup/doc", params={"path": "README.md", "textSize": "large"})
     assert r2.status_code == 200
     assert "textSize" in r2.text
+    assert 'data-text-size="large"' in r2.text
+    assert "28px" in r2.text
 
     r = client.get("/api/setup/doc", params={"path": "docs/../../../etc/passwd"})
     assert r.status_code == 400
