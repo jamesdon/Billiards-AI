@@ -45,6 +45,9 @@ def test_setup_page_and_api():
     assert "textSize" in r2.text
     assert 'data-text-size="large"' in r2.text
     assert "28px" in r2.text
+    # HTML `href` must use `&amp;` for query `&` or Safari can truncate the URL (dropping `textSize`).
+    if "href=" in r2.text and "/api/setup/doc?" in r2.text:
+        assert "&amp;textSize=" in r2.text
     assert "setup_text_size" in (r2.headers.get("set-cookie") or "").lower()
 
     r_cookie = client.get(

@@ -404,6 +404,11 @@
     return u;
   }
 
+  /** Use in innerHTML: raw `&` in href breaks Safari’s parser; must be &amp; in the attribute. */
+  function docHrefForHtmlAttr(relPath) {
+    return docHref(relPath).replace(/&/g, "&amp;");
+  }
+
   function copyText(text) {
     navigator.clipboard.writeText(text).then(
       () => showToast("Copied — paste in Terminal"),
@@ -516,7 +521,7 @@
     return `<section><h3>Documentation</h3><div class="doc-list">${docs
       .map(
         (d) =>
-          `<a class="doc-line-link" href="${docHref(d.path)}" target="_blank" rel="noopener"><span class="doc-line-label">${escapeHtml(d.label)}</span> <span class="muted-path">(${escapeHtml(d.path)})</span></a>`
+          `<a class="doc-line-link" href="${docHrefForHtmlAttr(d.path)}" target="_blank" rel="noopener"><span class="doc-line-label">${escapeHtml(d.label)}</span> <span class="muted-path">(${escapeHtml(d.path)})</span></a>`
       )
       .join("")}</div></section>`;
   }

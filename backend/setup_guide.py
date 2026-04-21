@@ -44,6 +44,16 @@ def _resolve_text_size_param(text_size: str | None) -> tuple[str, str]:
 _TEXT_SIZE_COOKIE = "setup_text_size"
 
 
+def _read_text_size_query_param(request: Request) -> str | None:
+    """Read textSize= from query; tolerate any key casing (browsers/servers may vary)."""
+    for key in request.query_params.keys():
+        if (key or "").lower() == "textsize":
+            v = (request.query_params.get(key) or "").strip().lower()
+            if v in _TEXT_SIZE_TO_PX:
+                return v
+    return None
+
+
 def _resolve_text_size_for_doc(
     text_size_q: str | None,
     cookie_value: str | None,
@@ -86,6 +96,21 @@ def _inject_text_size_into_viewer_hrefs(body_html: str, size: str) -> str:
         r"(href=)([\"\'])(/api/setup/doc\?[^\"\'>]+)\2",
         repl,
         body_html,
+    )
+
+
+def _escape_ampersands_in_viewer_href_values(html: str) -> str:
+    """`&` in URL query strings must be `&amp;` inside HTML `href=...` or parsers can drop the rest (Safari)."""
+
+    def sub(m: re.Match[str]) -> str:
+        q, url = m.group(1), m.group(2)
+        return f"href={q}{url.replace('&', '&amp;')}{q}"
+
+    return re.sub(
+        r"\bhref=([\"'])(/api/setup/doc\?[^\"']+?)\1",
+        sub,
+        html,
+        flags=re.IGNORECASE,
     )
 _PROGRESS_PATH = _PROJECT_ROOT / "data" / "setup_wizard_progress.json"
 _STATIC = Path(__file__).resolve().parent / "static"
@@ -555,12 +580,14 @@ def build_router() -> APIRouter:
         text = p.read_text(encoding="utf-8")
         title = html.escape(p.stem.replace("_", " "))
         cookie_size = request.cookies.get(_TEXT_SIZE_COOKIE)
-        size_key = _resolve_text_size_for_doc(textSize, cookie_size)
-        first_choice, first_px = _resolve_text_size_param(size_key)
+        q_text = _read_text_size_query_param(request) or textSize
+        size_key = _resolve_text_size_for_doc(q_text, cookie_size)
+        first_choice, _first_px = _resolve_text_size_param(size_key)
         md_html = _markdown_to_html(text)
-        body_html = _inject_text_size_into_viewer_hrefs(
+        body_raw = _inject_text_size_into_viewer_hrefs(
             _linkify_viewer_doc_refs(md_html, first_choice), first_choice
         )
+        body_html = _escape_ampersands_in_viewer_href_values(body_raw)
         warn = ""
         if not _HAS_MARKDOWN:
             warn = (
@@ -573,11 +600,10 @@ def build_router() -> APIRouter:
         # Cookie + Set-Cookie keep new tabs / Safari in sync with /setup when the query is missing.
         first_choice_esc = html.escape(first_choice, quote=True)
         page = f"""<!DOCTYPE html>
-<html lang="en" data-text-size="{first_choice_esc}" style="font-size: {html.escape(first_px, quote=True)}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<html lang="en" data-text-size="{first_choice_esc}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>{title}</title>
 <script>
 (function () {{
-  var ROOT_PX = {{ small: "14px", medium: "17px", large: "28px" }};
   var LSK = "billiards-setup-text-size";
   var CKN = "setup_text_size";
   function readCookie() {{
@@ -595,7 +621,8 @@ def build_router() -> APIRouter:
   }}
   function hasQuerySize() {{
     try {{
-      var p = new URLSearchParams(window.location.search).get("textSize");
+      var sp = new URLSearchParams(window.location.search);
+      var p = sp.get("textSize") || sp.get("textsize");
       return p === "small" || p === "medium" || p === "large" ? p : null;
     }} catch (e) {{ return null; }}
   }}
@@ -611,9 +638,7 @@ def build_router() -> APIRouter:
     return "medium";
   }}
   function apply(choice) {{
-    var px = ROOT_PX[choice] || ROOT_PX.medium;
     document.documentElement.setAttribute("data-text-size", choice);
-    document.documentElement.style.fontSize = px;
     try {{ localStorage.setItem(LSK, choice); }} catch (e) {{}}
     try {{
       document.cookie = CKN + "=" + encodeURIComponent(choice) + "; path=/; max-age=31536000; SameSite=Lax";
@@ -637,16 +662,21 @@ def build_router() -> APIRouter:
 </script>
 <style>
 html{{box-sizing:border-box;}}
-body{{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#e8eaed;line-height:1.55;max-width:52rem;margin:0 auto;padding:1rem 1.25rem 3rem;font-size:1rem;}}
+/* Root font size: must be !important + data-text-size (Safari/legacy ignore inline style + broken href query). */
+html[data-text-size="small"]{{font-size:14px !important;}}
+html[data-text-size="medium"]{{font-size:17px !important;}}
+html[data-text-size="large"]{{font-size:28px !important;}}
+html:not([data-text-size]){{font-size:17px !important;}}
+body{{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#e8eaed;line-height:1.55;max-width:52rem;margin:0 auto;padding:1rem 1.25rem 3rem;font-size:1em;}}
 a{{color:#4d9fff;}}
 a.md-doc-link code{{color:inherit;}}
-/* rem — from <html> font-size (query + cookie + localStorage) */
+/* em — from <html> (same rem scale as /setup) */
 code,pre{{background:#1a1d24;padding:0.15em 0.35em;border-radius:4px;font-size:0.95em;}}
 pre{{padding:0.75rem;overflow:auto;}}
 pre code{{background:transparent;padding:0;font-size:inherit;}}
-h1{{font-size:1.6rem;}}
-h2{{font-size:1.3rem;}}
-h3{{font-size:1.1rem;}}
+h1{{font-size:1.6em;}}
+h2{{font-size:1.3em;}}
+h3{{font-size:1.1em;}}
 h1,h2,h3{{margin-top:1.4em;}}
 p,li,td,th{{font-size:1em;}}
 </style></head><body>
