@@ -351,7 +351,12 @@ section h3 {
   font-size: 0.82rem;
   color: var(--muted);
   margin: 0.25rem 0 0 1.5rem;
-  line-height: 1.45;
+  line-height: 1.55;
+}
+
+.checklist-block .verify br,
+.checklist-block .record br {
+  line-height: inherit;
 }
 
 .checklist-block .verify strong,
@@ -456,7 +461,7 @@ button.btn-primary {
   font-weight: 500;
 }
 
-/* Checklist copy buttons use the same .btn.btn-primary as “Copy command”; only nudge position inline. */
+/* Checklist copy buttons match “Copy command”; <br> after each starts the rest of the line on a new row. */
 .checklist-block .verify .btn,
 .checklist-block .record .btn {
   margin-left: 0.35rem;

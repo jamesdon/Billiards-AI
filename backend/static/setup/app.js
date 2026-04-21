@@ -307,9 +307,42 @@
     return raw.split("{project_root}").join(root);
   }
 
+  /** Backtick text that is a label, expected output, or not worth pasting in a shell — no Copy button. */
+  const NO_COPY_BACKTICKS = new Set([
+    "OK",
+    "H",
+    "names:",
+    "path:",
+    "pockets",
+    "cv2",
+    "cd",
+    "imports-ok",
+    '{"ok":true}',
+  ]);
+
+  function shouldShowCopyForBacktick(s) {
+    const t = (s || "").trim();
+    if (!t) return false;
+    if (NO_COPY_BACKTICKS.has(t)) return false;
+    if (t.length < 2) return false;
+    if (t.length === 2 && t !== "ls") return false;
+    if (t.length === 3 && t !== "pwd" && t !== "ls" && t !== "set") return false;
+    if (t.length < 4) {
+      if (t === "ls" || t === "pwd" || t === "set") return true;
+      return false;
+    }
+    if (/\s|&&|;\s*|\|/.test(t)) return true;
+    if (/^(cd|test|ls|bash|curl|export|source|which|python|python3|\.venv|http)/i.test(t)) {
+      return true;
+    }
+    if (t.length >= 8) return true;
+    return false;
+  }
+
   /**
-   * Rich verify/record: {project_root} is still wrapped as in formatChecklistField; backticked
-   * segments get a Copy button for terminal one-liners.
+   * Rich verify/record: {project_root} still uses formatChecklistField; backticked
+   * segments get Copy only when shouldShowCopyForBacktick (real shell/one-liner to paste);
+   * otherwise the segment is only styled with <code>.
    */
   function formatVerifyOrRecordHtml(raw) {
     if (!raw) return "";
@@ -323,12 +356,15 @@
       if (j % 2 === 0) {
         out += escapeHtml(parts[j]);
       } else {
-        const cmd = parts[j];
-        out += `<code class="verify-inline-code">${escapeHtml(
-          cmd
-        )}</code> <button type="button" class="btn btn-primary copy-inline-cmd" data-copy="${encodeURIComponent(
-          cmd
-        )}" title="Copy to clipboard">Copy</button> `;
+        const seg = parts[j];
+        out += `<code class="verify-inline-code">${escapeHtml(seg)}</code>`;
+        if (shouldShowCopyForBacktick(seg)) {
+          out += ` <button type="button" class="btn btn-primary copy-inline-cmd" data-copy="${encodeURIComponent(
+            seg
+          )}" title="Copy to clipboard">Copy</button><br />`;
+        } else {
+          out += " ";
+        }
       }
     }
     return out;
@@ -405,7 +441,7 @@
           const rawV = item.verify || "";
           const copyBtn =
             rawV.indexOf("{project_root}") >= 0 && (state.context.project_root || "").length > 0
-              ? ` <button type="button" class="btn btn-primary copy-project-path" title="Copy absolute repo path">Copy path</button>`
+              ? ` <button type="button" class="btn btn-primary copy-project-path" title="Copy absolute repo path">Copy path</button><br />`
               : "";
           return `<div class="checklist-block">
             <div class="row-top">

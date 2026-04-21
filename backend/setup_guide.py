@@ -111,7 +111,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
             {
                 "item": "Core dependencies install without error",
-                "verify": "Do these in order: (1) In the **Commands** section **below**, copy and run the **“Install (from repo root)”** command—wait for pip to finish and confirm there is no ERROR. (2) Then verify imports: `.venv/bin/python3 -c \"import onnxruntime,cv2; print('imports-ok')\"` (on Jetson, `cv2` may be from pip or the system). Expect `imports-ok` with no traceback.",
+                "verify": "Do these in order: (1) In the **Commands** section **below**, copy and run the **“Install (from repo root)”** command—wait for pip to finish and confirm there is no ERROR. (2) Then verify imports: `.venv/bin/python3 -c \"import onnxruntime,cv2; print('imports-ok')\"` (on Jetson, the OpenCV `cv2` module may be from pip or the system). Expect `imports-ok` in the output with no traceback.",
                 "record": "If pip upgraded something unexpected, paste the last few lines of its output in Notes.",
             },
         ],
@@ -141,7 +141,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
             {
                 "item": "class_map.json matches the ONNX output order/count",
-                "verify": "Open models/class_map.json and compare indices to your training data.yaml `names:`. Count of classes must match the model head.",
+                "verify": "Open `models/class_map.json` and compare per-class order to the names/labels in your YOLO data YAML (the dataset file you use for training). Count and ordering must match the ONNX model head and that YAML’s names list.",
                 "record": "Paste a one-line summary (e.g. `0..4 ball..pockets`) in Notes after changes.",
             },
         ],
@@ -162,7 +162,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "calibration.json produced for this camera + table",
-                "verify": "After running the calibration flow, check `ls -l calibration.json` (or your chosen path). Open the file and confirm `H` (3×3) and six `pockets` entries exist.",
+                "verify": "After running the calibration flow, check `ls -l calibration.json` (or your chosen path). Open the file and confirm a 3×3 homography matrix and six pocket entries are present in JSON (see CALIBRATION / Phase 2 docs for the expected structure).",
                 "record": "Save the file path if not the default; note table size preset used.",
             },
             {
@@ -243,7 +243,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "Backend responds on /health",
-                "verify": "With uvicorn running: `curl -s http://127.0.0.1:8000/health` → `{\"ok\":true}` or similar.",
+                "verify": "With uvicorn running: `curl -s http://127.0.0.1:8000/health` — the response should be JSON with an ok: true (or similar) field (see Phase 4 doc for the exact contract).",
                 "record": "Paste curl output if /health is not default.",
             },
             {
@@ -281,7 +281,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
             {
                 "item": "billiards-data.yaml paths are valid on this machine",
-                "verify": "Open data/datasets/billiards/billiards-data.yaml and confirm `path:` is absolute and folders exist.",
+                "verify": "Open `data/datasets/billiards/billiards-data.yaml` and confirm the path: value is an absolute path and the image folders on disk exist.",
                 "record": "Note dataset version or date of last merge.",
             },
         ],
