@@ -21,10 +21,13 @@
   const mjpegInput = $("#mjpeg-port");
 
   const TEXT_SIZE_KEY = "billiards-setup-text-size";
+  /** Must match inline <head> script in index.html (root px drives all rem). */
+  const TEXT_ROOT_PX = { small: "14px", medium: "17px", large: "22px" };
 
   function applyTextSize(size) {
     if (size !== "small" && size !== "medium" && size !== "large") size = "medium";
     document.documentElement.setAttribute("data-text-size", size);
+    document.documentElement.style.fontSize = TEXT_ROOT_PX[size];
     try {
       localStorage.setItem(TEXT_SIZE_KEY, size);
     } catch (_) {
@@ -39,9 +42,11 @@
     const saved = document.documentElement.getAttribute("data-text-size") || "medium";
     applyTextSize(saved);
     document.querySelectorAll('input[name="text-size"]').forEach((el) => {
-      el.addEventListener("change", () => {
+      const onPick = () => {
         if (el.checked) applyTextSize(el.value);
-      });
+      };
+      el.addEventListener("change", onPick);
+      el.addEventListener("input", onPick);
     });
   }
 

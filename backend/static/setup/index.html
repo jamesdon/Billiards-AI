@@ -7,33 +7,21 @@
     <link rel="stylesheet" href="/static/setup/style.css" />
     <script>
       (function () {
+        var ROOT_PX = { small: "14px", medium: "17px", large: "22px" };
+        var k = "billiards-setup-text-size";
+        var choice = "medium";
         try {
-          var k = "billiards-setup-text-size";
           var s = localStorage.getItem(k);
-          if (s === "small" || s === "medium" || s === "large") {
-            document.documentElement.setAttribute("data-text-size", s);
-          } else {
-            document.documentElement.setAttribute("data-text-size", "medium");
-          }
+          if (s === "small" || s === "medium" || s === "large") choice = s;
         } catch (e) {
-          document.documentElement.setAttribute("data-text-size", "medium");
+          /* ignore */
         }
+        document.documentElement.setAttribute("data-text-size", choice);
+        document.documentElement.style.fontSize = ROOT_PX[choice];
       })();
     </script>
   </head>
   <body>
-    <div class="text-size-bar" role="radiogroup" aria-labelledby="text-size-label">
-      <span class="text-size-bar-label" id="text-size-label">Text size</span>
-      <label class="text-size-option"
-        ><input type="radio" name="text-size" value="small" /> Small</label
-      >
-      <label class="text-size-option"
-        ><input type="radio" name="text-size" value="medium" checked /> Medium</label
-      >
-      <label class="text-size-option"
-        ><input type="radio" name="text-size" value="large" /> Large</label
-      >
-    </div>
     <div class="layout">
       <aside class="sidebar">
         <h1>Setup guide</h1>
@@ -44,7 +32,24 @@
         </div>
         <ul class="nav-steps" id="nav-steps"></ul>
         <div class="sidebar-footer">
-          <div>Repo</div>
+          <div
+            class="text-size-footer"
+            id="text-size-group"
+            role="radiogroup"
+            aria-labelledby="text-size-label"
+          >
+            <span class="text-size-footer-label" id="text-size-label">Text size</span>
+            <label class="text-size-option"
+              ><input type="radio" name="text-size" value="small" /> Small</label
+            >
+            <label class="text-size-option"
+              ><input type="radio" name="text-size" value="medium" checked /> Medium</label
+            >
+            <label class="text-size-option"
+              ><input type="radio" name="text-size" value="large" /> Large</label
+            >
+          </div>
+          <div class="sidebar-footer-heading">Repo</div>
           <div class="project-root" id="project-root">…</div>
         </div>
       </aside>

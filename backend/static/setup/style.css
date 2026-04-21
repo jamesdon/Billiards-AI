@@ -1,17 +1,4 @@
-/* Text size: controlled by html[data-text-size] + radios (see app.js, localStorage billiards-setup-text-size). */
-html {
-  font-size: 118.75%;
-}
-html[data-text-size="small"] {
-  font-size: 100%;
-}
-html[data-text-size="medium"] {
-  font-size: 118.75%;
-}
-html[data-text-size="large"] {
-  font-size: 140%;
-}
-
+/* Root font-size is set in px via the inline <head> script and app.js so all rem units scale reliably (CSS %-only on html was not visibly changing the layout in some cases). */
 :root {
   --bg: #0f1115;
   --panel: #1a1d24;
@@ -38,44 +25,6 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-.text-size-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem 1rem;
-  padding: 0.5rem 1rem;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  font-size: 0.95rem;
-}
-
-.text-size-bar-label {
-  font-weight: 600;
-  color: var(--text);
-  margin-right: 0.25rem;
-}
-
-.text-size-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  cursor: pointer;
-  color: var(--muted);
-  user-select: none;
-}
-
-.text-size-option:hover {
-  color: var(--text);
-}
-
-.text-size-option input {
-  accent-color: var(--accent);
-  width: 1rem;
-  height: 1rem;
-  margin: 0;
-  cursor: pointer;
 }
 
 a {
@@ -185,10 +134,54 @@ a {
 }
 
 .sidebar-footer {
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 1rem 0.75rem;
   font-size: 0.75rem;
   color: var(--muted);
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.text-size-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.text-size-footer-label {
+  font-weight: 600;
+  color: var(--text);
+  flex: 1 1 100%;
+}
+
+.text-size-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  color: var(--muted);
+  user-select: none;
+  font-size: 0.72rem;
+}
+
+.text-size-option:hover {
+  color: var(--text);
+}
+
+.text-size-option input {
+  accent-color: var(--accent);
+  width: 0.85rem;
+  height: 0.85rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.sidebar-footer-heading {
+  margin: 0 0 0.2rem;
+  color: var(--muted);
 }
 
 main {
