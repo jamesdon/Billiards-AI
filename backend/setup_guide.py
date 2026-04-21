@@ -12,9 +12,11 @@ from __future__ import annotations
 import html
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -43,6 +45,34 @@ def _markdown_to_html(text: str) -> str:
     return f"<pre class=\"fallback-md\">{html.escape(text)}</pre>"
 
 
+# Link bare `docs/…md` / `README.md` in list items and in <code> so rendered docs open in the setup viewer.
+_LI_BARE_PATH = re.compile(
+    r"<li>(docs/[^<]+\.md|README\.md)</li>",
+)
+_CODE_PATH = re.compile(
+    r"<code>(docs/[^<]+\.md|README\.md)</code>",
+)
+
+
+def _linkify_viewer_doc_refs(body_html: str) -> str:
+    """Turn plain doc path strings in rendered Markdown HTML into /api/setup/doc links."""
+    out = _LI_BARE_PATH.sub(
+        lambda m: (
+            f'<li><a class="md-doc-link" href="/api/setup/doc?path={quote(m.group(1), safe="")}">'
+            f"{html.escape(m.group(1))}</a></li>"
+        ),
+        body_html,
+    )
+    out = _CODE_PATH.sub(
+        lambda m: (
+            f'<a class="md-doc-link" href="/api/setup/doc?path={quote(m.group(1), safe="")}">'
+            f"<code>{html.escape(m.group(1))}</code></a>"
+        ),
+        out,
+    )
+    return out
+
+
 # Each checklist line: item (required), verify (how to prove it), record (what to save).
 # Commands may include optional "editor_path" (repo-relative) for IDE deep links.
 
@@ -59,14 +89,14 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
             {
                 "item": "Know your absolute repo path",
-                "verify": "Compare the path shown in the sidebar footer with `pwd` in your terminal when `cd`’d into the repo.",
-                "record": "If you use multiple clones, note which machine/path this checklist refers to.",
+                "verify": "This machine’s path is {project_root} (you can also copy it from the sidebar footer). It should match `pwd` in your terminal when `cd`’d into the repo.",
+                "record": "If you use multiple clones, note which machine/path {project_root} refers to in your notes.",
             },
         ],
         "commands": [],
         "links": [],
         "hints": [
-            "Progress is stored in data/setup_wizard_progress.json when you click Save (or auto-saved after edits).",
+            "Progress is stored in data/setup_wizard_progress.json when you click Save and go to next step (or auto-saved after edits).",
             "Status lights: red = not started, yellow = in progress, green = complete.",
         ],
         "doc_refs": [{"label": "README", "path": "README.md"}, {"label": "Architecture", "path": "docs/ARCHITECTURE.md"}],
@@ -451,7 +481,7 @@ def build_router() -> APIRouter:
         p = _safe_doc_path(path)
         text = p.read_text(encoding="utf-8")
         title = html.escape(p.stem.replace("_", " "))
-        body_html = _markdown_to_html(text)
+        body_html = _linkify_viewer_doc_refs(_markdown_to_html(text))
         warn = ""
         if not _HAS_MARKDOWN:
             warn = (
@@ -460,17 +490,32 @@ def build_router() -> APIRouter:
                 "<code>.venv/bin/python3 -m pip install markdown</code></p>"
             )
         esc_path = html.escape(path)
+        # Same localStorage key + px map as /setup so doc tabs respect text size; body/article use rem.
         page = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>{title}</title>
+<script>
+(function () {{
+  var ROOT_PX = {{ small: "14px", medium: "17px", large: "22px" }};
+  var k = "billiards-setup-text-size";
+  var choice = "medium";
+  try {{
+    var s = localStorage.getItem(k);
+    if (s === "small" || s === "medium" || s === "large") choice = s;
+  }} catch (e) {{}}
+  document.documentElement.setAttribute("data-text-size", choice);
+  document.documentElement.style.fontSize = ROOT_PX[choice];
+}})();
+</script>
 <style>
-body{{font-family:system-ui,-apple-system,sans-serif;background:#0f1115;color:#e8eaed;line-height:1.55;max-width:52rem;margin:0 auto;padding:1rem 1.25rem 3rem;}}
+html{{box-sizing:border-box;}}
+body{{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#e8eaed;line-height:1.55;max-width:52rem;margin:0 auto;padding:1rem 1.25rem 3rem;font-size:1rem;}}
 a{{color:#4d9fff;}}
+a.md-doc-link code{{color:inherit;}}
 code,pre{{background:#1a1d24;padding:0.15em 0.35em;border-radius:4px;font-size:0.9em;}}
 pre{{padding:0.75rem;overflow:auto;}}
 pre code{{background:transparent;padding:0;}}
 h1,h2,h3{{margin-top:1.4em;}}
-.article{{font-size:0.95rem;}}
 </style></head><body>
 <p><a href="/setup">← Setup wizard</a> · <code>{esc_path}</code></p>
 {warn}

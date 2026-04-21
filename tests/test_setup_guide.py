@@ -36,6 +36,8 @@ def test_setup_page_and_api():
     r = client.get("/api/setup/doc", params={"path": "README.md"})
     assert r.status_code == 200
     assert "Setup wizard" in r.text or "Billiards-AI" in r.text
+    assert "md-doc-link" in r.text
+    assert "billiards-setup-text-size" in r.text
 
     r = client.get("/api/setup/doc", params={"path": "docs/../../../etc/passwd"})
     assert r.status_code == 400

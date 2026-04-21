@@ -63,16 +63,39 @@
     return v;
   }
 
-  function saveProgress() {
+  function putProgress() {
     state.progress.mjpeg_port = getMjpegPort();
-    fetch("/api/setup/progress", {
+    return fetch("/api/setup/progress", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(state.progress),
-    })
+    });
+  }
+
+  function saveProgress() {
+    putProgress()
       .then((r) => {
         if (!r.ok) throw new Error(r.statusText);
         showToast("Progress saved");
+      })
+      .catch(() => showToast("Save failed — is the backend running?"));
+  }
+
+  function saveAndGoToNextStep() {
+    const idx = state.steps.findIndex((s) => s.id === state.activeId);
+    const next = idx >= 0 && idx < state.steps.length - 1 ? state.steps[idx + 1] : null;
+    putProgress()
+      .then((r) => {
+        if (!r.ok) throw new Error(r.statusText);
+        if (next) {
+          state.activeId = next.id;
+          state.progress.last_step_id = next.id;
+        }
+        showToast("Progress saved");
+        renderNav();
+        renderContent();
+        const mainEl = $("#content");
+        if (mainEl) mainEl.scrollTo(0, 0);
       })
       .catch(() => showToast("Save failed — is the backend running?"));
   }
@@ -86,6 +109,22 @@
     const d = document.createElement("div");
     d.textContent = s == null ? "" : String(s);
     return d.innerHTML;
+  }
+
+  /** Replaces {project_root} and wraps that path in <code> for readability. */
+  function formatChecklistField(raw) {
+    if (!raw) return "";
+    const root = state.context.project_root || "";
+    if (!raw.includes("{project_root}")) return escapeHtml(raw);
+    const segs = raw.split("{project_root}");
+    let out = "";
+    segs.forEach((p, i) => {
+      out += escapeHtml(p);
+      if (i < segs.length - 1) {
+        out += `<code class="repo-path-inline">${escapeHtml(root)}</code>`;
+      }
+    });
+    return out;
   }
 
   function fillCommand(cmd) {
@@ -172,13 +211,18 @@
           const item = typeof entry === "string" ? { item: entry, verify: "", record: "" } : entry;
           const checked = arr[i] ? " checked" : "";
           const id = `cl-${step.id}-${i}`;
+          const rawV = item.verify || "";
+          const copyBtn =
+            rawV.indexOf("{project_root}") >= 0 && (state.context.project_root || "").length > 0
+              ? ` <button type="button" class="btn copy-project-path" title="Copy absolute repo path">Copy path</button>`
+              : "";
           return `<div class="checklist-block">
             <div class="row-top">
               <input type="checkbox" data-ci="${i}" id="${id}"${checked}/>
               <div>
-                <div class="item-text">${escapeHtml(item.item || "")}</div>
-                ${item.verify ? `<p class="verify"><strong>How to verify:</strong> ${escapeHtml(item.verify)}</p>` : ""}
-                ${item.record ? `<p class="record"><strong>What to record:</strong> ${escapeHtml(item.record)}</p>` : ""}
+                <div class="item-text">${formatChecklistField(item.item || "")}</div>
+                ${rawV ? `<p class="verify"><strong>How to verify:</strong> ${formatChecklistField(rawV)}${copyBtn}</p>` : ""}
+                ${item.record ? `<p class="record"><strong>What to record:</strong> ${formatChecklistField(item.record)}</p>` : ""}
               </div>
             </div>
           </div>`;
@@ -192,7 +236,7 @@
     return `<section><h3>Documentation</h3><div class="doc-list">${docs
       .map(
         (d) =>
-          `<a href="${docHref(d.path)}" target="_blank" rel="noopener">${escapeHtml(d.label)}</a> <span class="muted-path">(${escapeHtml(d.path)})</span>`
+          `<a class="doc-line-link" href="${docHref(d.path)}" target="_blank" rel="noopener"><span class="doc-line-label">${escapeHtml(d.label)}</span> <span class="muted-path">(${escapeHtml(d.path)})</span></a>`
       )
       .join("")}</div></section>`;
   }
@@ -251,6 +295,10 @@
       return;
     }
 
+    const isLastStep =
+      state.steps.length > 0 && state.activeId === state.steps[state.steps.length - 1].id;
+    const saveButtonLabel = isLastStep ? "Save" : "Save and go to next step";
+
     const checklist = step.checklist || [];
     const hints = step.hints || [];
     const hintsHtml = hints.length
@@ -276,7 +324,7 @@
         <label class="mark-done"><input type="checkbox" id="step-done" ${
           state.progress.completed[step.id] ? "checked" : ""
         }/> Mark entire step complete</label>
-        <button type="button" class="btn btn-primary" id="btn-save">Save now</button>
+        <button type="button" class="btn btn-primary" id="btn-save">${escapeHtml(saveButtonLabel)}</button>
       </div>
     `;
 
@@ -343,7 +391,15 @@
       });
     }
 
-    $("#btn-save")?.addEventListener("click", saveProgress);
+    $("#btn-save")?.addEventListener("click", saveAndGoToNextStep);
+
+    content.querySelectorAll(".copy-project-path").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const p = state.context.project_root || "";
+        if (p) copyText(p);
+        else showToast("Path not loaded");
+      });
+    });
   }
 
   async function init() {
