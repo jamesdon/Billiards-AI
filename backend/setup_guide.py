@@ -236,7 +236,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
             {
                 "item": "class_map.json matches the ONNX output order/count",
-                "verify": "Open `models/class_map.json` and compare per-class order to the names/labels in your YOLO data YAML (the dataset file you use for training). Count and ordering must match the ONNX model head and that YAML’s names list.",
+                "verify": "From the repo root, run `more models/class_map.json` to view the file in the terminal (or open the same path in an editor) and compare per-class order to the names/labels in your YOLO data YAML (the dataset file you use for training). Count and ordering must match the ONNX model head and that YAML’s names list.",
                 "record": "In Notes, paste a one-line note that class index order in models/class_map.json matches your YOLO names (no need to use backticks; this is free-form text, not a terminal command).",
                 "record_paste": "class_map <-> YOLO data.yaml: indices 0..N in order: <e.g. ball, person, cue_stick, rack, pockets>",
             },
