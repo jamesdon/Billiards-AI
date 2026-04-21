@@ -326,7 +326,7 @@
         const cmd = parts[j];
         out += `<code class="verify-inline-code">${escapeHtml(
           cmd
-        )}</code> <button type="button" class="btn copy-inline-cmd" data-copy="${encodeURIComponent(
+        )}</code> <button type="button" class="btn btn-primary copy-inline-cmd" data-copy="${encodeURIComponent(
           cmd
         )}" title="Copy to clipboard">Copy</button> `;
       }
@@ -405,7 +405,7 @@
           const rawV = item.verify || "";
           const copyBtn =
             rawV.indexOf("{project_root}") >= 0 && (state.context.project_root || "").length > 0
-              ? ` <button type="button" class="btn copy-project-path" title="Copy absolute repo path">Copy path</button>`
+              ? ` <button type="button" class="btn btn-primary copy-project-path" title="Copy absolute repo path">Copy path</button>`
               : "";
           return `<div class="checklist-block">
             <div class="row-top">
