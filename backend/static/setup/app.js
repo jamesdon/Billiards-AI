@@ -375,7 +375,13 @@
   }
 
   function docHref(relPath) {
-    return "/api/setup/doc?path=" + encodeURIComponent(relPath);
+    let u = "/api/setup/doc?path=" + encodeURIComponent(relPath);
+    const size =
+      document.documentElement.getAttribute("data-text-size") || "medium";
+    if (size === "small" || size === "medium" || size === "large") {
+      u += "&textSize=" + encodeURIComponent(size);
+    }
+    return u;
   }
 
   function copyText(text) {

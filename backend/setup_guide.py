@@ -477,21 +477,43 @@ def build_router() -> APIRouter:
                 "<code>.venv/bin/python3 -m pip install markdown</code></p>"
             )
         esc_path = html.escape(path)
-        # Same localStorage key + px map as /setup so doc tabs respect text size; body/article use rem.
+        # textSize: query param (from setup links) wins; else localStorage. Same px map as /setup (index.html, app.js).
         page = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>{title}</title>
 <script>
 (function () {{
   var ROOT_PX = {{ small: "14px", medium: "17px", large: "28px" }};
-  var k = "billiards-setup-text-size";
-  var choice = "medium";
-  try {{
-    var s = localStorage.getItem(k);
-    if (s === "small" || s === "medium" || s === "large") choice = s;
-  }} catch (e) {{}}
-  document.documentElement.setAttribute("data-text-size", choice);
-  document.documentElement.style.fontSize = ROOT_PX[choice];
+  var LSK = "billiards-setup-text-size";
+  function pickSize() {{
+    try {{
+      var p = new URLSearchParams(window.location.search).get("textSize");
+      if (p === "small" || p === "medium" || p === "large") return p;
+    }} catch (e) {{}}
+    try {{
+      var s = localStorage.getItem(LSK);
+      if (s === "small" || s === "medium" || s === "large") return s;
+    }} catch (e) {{}}
+    return "medium";
+  }}
+  function apply(choice) {{
+    document.documentElement.setAttribute("data-text-size", choice);
+    document.documentElement.style.setProperty("font-size", ROOT_PX[choice], "important");
+  }}
+  var choice = pickSize();
+  apply(choice);
+  function patchDocLinks() {{
+    var c = document.documentElement.getAttribute("data-text-size") || "medium";
+    document.querySelectorAll('a[href*="/api/setup/doc"]').forEach(function (a) {{
+      try {{
+        var u = new URL(a.href, window.location.origin);
+        u.searchParams.set("textSize", c);
+        a.setAttribute("href", u.pathname + (u.search ? u.search : ""));
+      }} catch (e) {{}}
+    }});
+  }}
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", patchDocLinks);
+  else patchDocLinks();
 }})();
 </script>
 <style>
@@ -499,10 +521,15 @@ html{{box-sizing:border-box;}}
 body{{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#e8eaed;line-height:1.55;max-width:52rem;margin:0 auto;padding:1rem 1.25rem 3rem;font-size:1rem;}}
 a{{color:#4d9fff;}}
 a.md-doc-link code{{color:inherit;}}
-code,pre{{background:#1a1d24;padding:0.15em 0.35em;border-radius:4px;font-size:0.9em;}}
-pre{{padding:0.75rem;overflow:auto;}}
-pre code{{background:transparent;padding:0;}}
+/* rem tracks html root set by the script (same as setup wizard) */
+code,pre{{background:#1a1d24;padding:0.15em 0.35em;border-radius:4px;font-size:0.9rem;}}
+pre{{padding:0.75rem;overflow:auto;font-size:0.9rem;}}
+pre code{{background:transparent;padding:0;font-size:inherit;}}
+h1{{font-size:1.6rem;}}
+h2{{font-size:1.3rem;}}
+h3{{font-size:1.1rem;}}
 h1,h2,h3{{margin-top:1.4em;}}
+p,li,td,th{{font-size:1rem;}}
 </style></head><body>
 <p><a href="/setup">← Setup wizard</a> · <code>{esc_path}</code></p>
 {warn}
