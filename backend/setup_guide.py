@@ -74,8 +74,6 @@ def _linkify_viewer_doc_refs(body_html: str) -> str:
 
 
 # Each checklist line: item (required), verify (how to prove it), record (what to save).
-# Commands may include optional "editor_path" (repo-relative) for IDE deep links.
-
 SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "overview",
@@ -96,7 +94,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "commands": [],
         "links": [],
         "hints": [
-            "Progress is stored in data/setup_wizard_progress.json when you click Save and go to next step (or auto-saved after edits).",
+            "Progress is kept in the repo file data/setup_wizard_progress.json and a browser copy (localStorage); both update when you save, auto-save, or leave the page.",
             "Status lights: red = not started, yellow = in progress, green = complete.",
         ],
         "doc_refs": [{"label": "README", "path": "README.md"}, {"label": "Architecture", "path": "docs/ARCHITECTURE.md"}],
@@ -108,25 +106,23 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "Virtual environment exists at .venv",
-                "verify": 'Run: `test -d .venv && echo OK` from the repo root. Expect `OK`.',
+                "verify": 'From the repository root, run: `test -d .venv && echo OK`. You should see `OK`. (If you do not, create a venv first with the “Install” command in the Commands section, then re-check this box.)',
                 "record": "If you recreated the venv, note the date and Python version in Notes.",
             },
             {
                 "item": "Core dependencies install without error",
-                "verify": "Run the Install command below; watch for ERROR at the end. Then run: `.venv/bin/python3 -c \"import onnxruntime,cv2; print('imports-ok')\"` (cv2 may come from pip or system on Jetson).",
-                "record": "Paste the last few lines of pip output into Notes if anything was upgraded unexpectedly.",
+                "verify": "Do these in order: (1) In the **Commands** section **below**, copy and run the **“Install (from repo root)”** command—wait for pip to finish and confirm there is no ERROR. (2) Then verify imports: `.venv/bin/python3 -c \"import onnxruntime,cv2; print('imports-ok')\"` (on Jetson, `cv2` may be from pip or the system). Expect `imports-ok` with no traceback.",
+                "record": "If pip upgraded something unexpected, paste the last few lines of its output in Notes.",
             },
         ],
         "commands": [
             {
                 "label": "Install (from repo root)",
                 "command": 'cd "{project_root}" && python3 -m venv .venv && .venv/bin/python3 -m pip install -U pip && .venv/bin/python3 -m pip install -r requirements.txt',
-                "editor_path": "requirements.txt",
             },
             {
                 "label": "Optional: training extras",
                 "command": 'cd "{project_root}" && .venv/bin/python3 -m pip install -r requirements-train.txt',
-                "editor_path": "requirements-train.txt",
             },
         ],
         "links": [],
@@ -153,7 +149,6 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "label": "Export latest train run to models/model.onnx",
                 "command": 'cd "{project_root}" && bash scripts/jetson_yolo_export_latest.sh',
-                "editor_path": "scripts/jetson_yolo_export_latest.sh",
             },
         ],
         "links": [],
@@ -180,12 +175,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "label": "Interactive calibration GUI",
                 "command": 'cd "{project_root}" && bash scripts/start_calibration.sh',
-                "editor_path": "scripts/start_calibration.sh",
             },
             {
                 "label": "Headless Phase 2 checks (Jetson-oriented)",
                 "command": 'cd "{project_root}" && bash scripts/phase2.sh',
-                "editor_path": "scripts/phase2.sh",
             },
         ],
         "links": [
@@ -226,12 +219,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "label": "Automated Phase 3 (macOS defaults to USB)",
                 "command": 'cd "{project_root}" && source .venv/bin/activate && bash scripts/phase3.sh',
-                "editor_path": "scripts/phase3.sh",
             },
             {
                 "label": "Manual edge + MJPEG (example)",
                 "command": 'cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --calib calibration.json --mjpeg-port 8080',
-                "editor_path": "edge/main.py",
             },
         ],
         "links": [
@@ -265,7 +256,6 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "label": "Terminal A — backend",
                 "command": 'cd "{project_root}" && .venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 8000',
-                "editor_path": "backend/app.py",
             },
             {
                 "label": "Terminal B — edge (USB example)",
@@ -299,12 +289,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "label": "Universe pull + merge (example)",
                 "command": 'cd "{project_root}" && export ROBOFLOW_API_KEY=… && bash scripts/universe_dataset_pipeline.sh',
-                "editor_path": "scripts/universe_dataset_pipeline.sh",
             },
             {
                 "label": "Train + export",
                 "command": 'cd "{project_root}" && bash scripts/jetson_yolo_train.sh && bash scripts/jetson_yolo_export_latest.sh',
-                "editor_path": "scripts/jetson_yolo_train.sh",
             },
         ],
         "links": [],
@@ -334,7 +322,6 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "label": "Docker build + up (on device)",
                 "command": 'cd "{project_root}" && bash scripts/docker_jetson_build.sh && bash scripts/docker_jetson_up.sh',
-                "editor_path": "scripts/docker_jetson_up.sh",
             },
         ],
         "links": [],
@@ -496,7 +483,7 @@ def build_router() -> APIRouter:
 <title>{title}</title>
 <script>
 (function () {{
-  var ROOT_PX = {{ small: "14px", medium: "17px", large: "22px" }};
+  var ROOT_PX = {{ small: "14px", medium: "17px", large: "28px" }};
   var k = "billiards-setup-text-size";
   var choice = "medium";
   try {{

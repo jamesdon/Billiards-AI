@@ -21,8 +21,9 @@
   const mjpegInput = $("#mjpeg-port");
 
   const TEXT_SIZE_KEY = "billiards-setup-text-size";
+  const PROGRESS_LSK = "billiards-setup-progress-v1";
   /** Must match inline <head> script in index.html (root px drives all rem). */
-  const TEXT_ROOT_PX = { small: "14px", medium: "17px", large: "22px" };
+  const TEXT_ROOT_PX = { small: "14px", medium: "17px", large: "28px" };
 
   function applyTextSize(size) {
     if (size !== "small" && size !== "medium" && size !== "large") size = "medium";
@@ -65,11 +66,76 @@
 
   function putProgress() {
     state.progress.mjpeg_port = getMjpegPort();
+    persistProgressLocal();
     return fetch("/api/setup/progress", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(state.progress),
     });
+  }
+
+  function persistProgressLocal() {
+    try {
+      localStorage.setItem(PROGRESS_LSK, JSON.stringify(state.progress));
+    } catch (_) {
+      /* full storage / private mode */
+    }
+  }
+
+  function loadProgressFromLocal() {
+    try {
+      const raw = localStorage.getItem(PROGRESS_LSK);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /** Merge server progress with local backup so work is not lost if the user refreshed before a debounced server save. */
+  function mergeServerAndLocalProgress(server) {
+    const local = loadProgressFromLocal();
+    if (!local || typeof local !== "object") return server;
+    const out = { ...server, notes: { ...(server.notes || {}) } };
+    const localNotes = local.notes && typeof local.notes === "object" ? local.notes : {};
+    const noteIds = new Set([...Object.keys(out.notes), ...Object.keys(localNotes)]);
+    for (const id of noteIds) {
+      const a = (out.notes[id] || "").trim();
+      const b = (localNotes[id] || "").trim();
+      if (b.length > a.length) out.notes[id] = localNotes[id] ?? b;
+    }
+    out.checklist_done = { ...(server.checklist_done || {}) };
+    for (const [id, row] of Object.entries(local.checklist_done || {})) {
+      if (!Array.isArray(row)) continue;
+      const srow = out.checklist_done[id] || [];
+      const m = Math.max(srow.length, row.length);
+      const merged = [];
+      for (let i = 0; i < m; i++) {
+        merged[i] = Boolean(srow[i] || row[i]);
+      }
+      out.checklist_done[id] = merged;
+    }
+    out.completed = { ...(server.completed || {}) };
+    for (const [k, v] of Object.entries(local.completed || {})) {
+      if (v) out.completed[k] = true;
+    }
+    return out;
+  }
+
+  function flushProgressKeepalive() {
+    try {
+      state.progress.mjpeg_port = getMjpegPort();
+      persistProgressLocal();
+      const body = JSON.stringify(state.progress);
+      void fetch("/api/setup/progress", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body,
+        keepalive: true,
+      });
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   function saveProgress() {
@@ -101,8 +167,9 @@
   }
 
   function scheduleSave() {
+    persistProgressLocal();
     clearTimeout(state.saveTimer);
-    state.saveTimer = setTimeout(saveProgress, 600);
+    state.saveTimer = setTimeout(saveProgress, 400);
   }
 
   function escapeHtml(s) {
@@ -127,28 +194,45 @@
     return out;
   }
 
+  function fillProjectRootPlain(raw) {
+    if (!raw) return "";
+    const root = state.context.project_root || "";
+    return raw.split("{project_root}").join(root);
+  }
+
+  /**
+   * Rich verify/record: {project_root} is still wrapped as in formatChecklistField; backticked
+   * segments get a Copy button for terminal one-liners.
+   */
+  function formatVerifyOrRecordHtml(raw) {
+    if (!raw) return "";
+    if (!raw.includes("`")) {
+      return formatChecklistField(raw);
+    }
+    const t = fillProjectRootPlain(raw);
+    const parts = t.split(/`([^`]*)`/);
+    let out = "";
+    for (let j = 0; j < parts.length; j += 1) {
+      if (j % 2 === 0) {
+        out += escapeHtml(parts[j]);
+      } else {
+        const cmd = parts[j];
+        out += `<code class="verify-inline-code">${escapeHtml(
+          cmd
+        )}</code> <button type="button" class="btn copy-inline-cmd" data-copy="${encodeURIComponent(
+          cmd
+        )}" title="Copy to clipboard">Copy</button> `;
+      }
+    }
+    return out;
+  }
+
   function fillCommand(cmd) {
     return cmd.replace(/\{project_root\}/g, state.context.project_root || "$PROJECT_ROOT");
   }
 
   function docHref(relPath) {
     return "/api/setup/doc?path=" + encodeURIComponent(relPath);
-  }
-
-  function vscodeFileUrl(absPath) {
-    const p = absPath.replace(/\\/g, "/");
-    return "vscode://file" + encodeURI(p);
-  }
-
-  function cursorFileUrl(absPath) {
-    const p = absPath.replace(/\\/g, "/");
-    return "cursor://file" + encodeURI(p);
-  }
-
-  function absProjectPath(rel) {
-    const root = (state.context.project_root || "").replace(/\/$/, "");
-    const r = String(rel || "").replace(/^\//, "");
-    return root + "/" + r;
   }
 
   function copyText(text) {
@@ -221,8 +305,18 @@
               <input type="checkbox" data-ci="${i}" id="${id}"${checked}/>
               <div>
                 <div class="item-text">${formatChecklistField(item.item || "")}</div>
-                ${rawV ? `<p class="verify"><strong>How to verify:</strong> ${formatChecklistField(rawV)}${copyBtn}</p>` : ""}
-                ${item.record ? `<p class="record"><strong>What to record:</strong> ${formatChecklistField(item.record)}</p>` : ""}
+                ${
+                  rawV
+                    ? `<p class="verify"><strong>How to verify:</strong> ${formatVerifyOrRecordHtml(rawV)}${copyBtn}</p>`
+                    : ""
+                }
+                ${
+                  item.record
+                    ? `<p class="record"><strong>What to record:</strong> ${formatVerifyOrRecordHtml(
+                        item.record
+                      )}</p>`
+                    : ""
+                }
               </div>
             </div>
           </div>`;
@@ -246,21 +340,12 @@
     if (!commands.length) return "";
     const root = state.context.project_root || "";
     return `<section><h3>Commands</h3>
-      <p class="terminal-hint">Browsers cannot start your OS terminal automatically. Copy the command, switch to Terminal, paste (⌘V / Ctrl+Shift+V), then Enter. Use the editor links to open a script for review.</p>
+      <p class="terminal-hint">Browsers cannot start your OS terminal automatically. Copy the block below, switch to Terminal, paste (⌘V / Ctrl+Shift+V), then Enter.</p>
       ${commands
         .map((c) => {
           const filled = fillCommand(c.command);
-          const ep = c.editor_path;
-          const abs = ep ? absProjectPath(ep) : "";
-          const ed = ep
-            ? `<div class="row-actions">
-                 <a class="btn" href="${vscodeFileUrl(abs)}" title="Open file in VS Code">Open in VS Code</a>
-                 <a class="btn" href="${cursorFileUrl(abs)}" title="Open file in Cursor">Open in Cursor</a>
-               </div>`
-            : "";
           return `<div class="command-block"><div class="label">${escapeHtml(c.label)}</div><pre>${escapeHtml(filled)}</pre>
             <div class="row-actions"><button type="button" class="btn btn-primary copy-cmd">Copy command</button></div>
-            ${ed}
           </div>`;
         })
         .join("")}</section>`;
@@ -373,6 +458,7 @@
     if (ta) {
       ta.addEventListener("input", () => {
         state.progress.notes[step.id] = ta.value;
+        persistProgressLocal();
         scheduleSave();
         renderNav();
         const h2 = content.querySelector("h2");
@@ -400,6 +486,18 @@
         else showToast("Path not loaded");
       });
     });
+
+    content.querySelectorAll(".copy-inline-cmd").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const enc = btn.getAttribute("data-copy");
+        if (!enc) return;
+        try {
+          copyText(decodeURIComponent(enc));
+        } catch (_) {
+          copyText(enc);
+        }
+      });
+    });
   }
 
   async function init() {
@@ -412,7 +510,14 @@
       state.context = await ctxRes.json();
       const stepsPayload = await stepsRes.json();
       state.steps = stepsPayload.steps || [];
-      state.progress = await progRes.json();
+      const serverProgress = await progRes.json();
+      const merged = mergeServerAndLocalProgress(serverProgress);
+      const needServerSync = JSON.stringify(merged) !== JSON.stringify(serverProgress);
+      state.progress = merged;
+      persistProgressLocal();
+      if (needServerSync) {
+        void putProgress().catch(() => {});
+      }
       if (typeof state.progress.mjpeg_port !== "number" || state.progress.mjpeg_port < 1) {
         state.progress.mjpeg_port = 8080;
       }
@@ -441,4 +546,6 @@
 
   initTextSizeControls();
   init();
+  window.addEventListener("pagehide", flushProgressKeepalive);
+  window.addEventListener("beforeunload", flushProgressKeepalive);
 })();
