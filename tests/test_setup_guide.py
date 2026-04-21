@@ -13,6 +13,8 @@ def test_setup_page_and_api():
     r = client.get("/setup", follow_redirects=False)
     assert r.status_code == 200
     assert "Setup guide" in r.text
+    assert "Text size" in r.text
+    assert 'name="text-size"' in r.text
 
     r = client.get("/api/setup/context")
     assert r.status_code == 200

@@ -1,6 +1,15 @@
-/* Base scale: all rem sizes inherit from this (browser default is typically 16px). */
+/* Text size: controlled by html[data-text-size] + radios (see app.js, localStorage billiards-setup-text-size). */
 html {
-  font-size: 125%;
+  font-size: 118.75%;
+}
+html[data-text-size="small"] {
+  font-size: 100%;
+}
+html[data-text-size="medium"] {
+  font-size: 118.75%;
+}
+html[data-text-size="large"] {
+  font-size: 140%;
 }
 
 :root {
@@ -28,6 +37,45 @@ body {
   color: var(--text);
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
+}
+
+.text-size-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+
+.text-size-bar-label {
+  font-weight: 600;
+  color: var(--text);
+  margin-right: 0.25rem;
+}
+
+.text-size-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  color: var(--muted);
+  user-select: none;
+}
+
+.text-size-option:hover {
+  color: var(--text);
+}
+
+.text-size-option input {
+  accent-color: var(--accent);
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  cursor: pointer;
 }
 
 a {
@@ -36,8 +84,9 @@ a {
 
 .layout {
   display: flex;
+  flex: 1;
   width: 100%;
-  min-height: 100vh;
+  min-height: 0;
 }
 
 .sidebar {

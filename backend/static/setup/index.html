@@ -5,8 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Billiards-AI — Setup guide</title>
     <link rel="stylesheet" href="/static/setup/style.css" />
+    <script>
+      (function () {
+        try {
+          var k = "billiards-setup-text-size";
+          var s = localStorage.getItem(k);
+          if (s === "small" || s === "medium" || s === "large") {
+            document.documentElement.setAttribute("data-text-size", s);
+          } else {
+            document.documentElement.setAttribute("data-text-size", "medium");
+          }
+        } catch (e) {
+          document.documentElement.setAttribute("data-text-size", "medium");
+        }
+      })();
+    </script>
   </head>
   <body>
+    <div class="text-size-bar" role="radiogroup" aria-labelledby="text-size-label">
+      <span class="text-size-bar-label" id="text-size-label">Text size</span>
+      <label class="text-size-option"
+        ><input type="radio" name="text-size" value="small" /> Small</label
+      >
+      <label class="text-size-option"
+        ><input type="radio" name="text-size" value="medium" checked /> Medium</label
+      >
+      <label class="text-size-option"
+        ><input type="radio" name="text-size" value="large" /> Large</label
+      >
+    </div>
     <div class="layout">
       <aside class="sidebar">
         <h1>Setup guide</h1>

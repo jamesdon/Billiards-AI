@@ -20,6 +20,31 @@
   const prEl = $("#project-root");
   const mjpegInput = $("#mjpeg-port");
 
+  const TEXT_SIZE_KEY = "billiards-setup-text-size";
+
+  function applyTextSize(size) {
+    if (size !== "small" && size !== "medium" && size !== "large") size = "medium";
+    document.documentElement.setAttribute("data-text-size", size);
+    try {
+      localStorage.setItem(TEXT_SIZE_KEY, size);
+    } catch (_) {
+      /* ignore */
+    }
+    document.querySelectorAll('input[name="text-size"]').forEach((el) => {
+      el.checked = el.value === size;
+    });
+  }
+
+  function initTextSizeControls() {
+    const saved = document.documentElement.getAttribute("data-text-size") || "medium";
+    applyTextSize(saved);
+    document.querySelectorAll('input[name="text-size"]').forEach((el) => {
+      el.addEventListener("change", () => {
+        if (el.checked) applyTextSize(el.value);
+      });
+    });
+  }
+
   function showToast(msg) {
     toast.textContent = msg;
     toast.classList.add("show");
@@ -353,5 +378,6 @@
     }
   }
 
+  initTextSizeControls();
   init();
 })();

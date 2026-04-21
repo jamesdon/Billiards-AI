@@ -111,7 +111,7 @@ Billiards-AI/
     __init__.py
     app.py                          FastAPI app (`/event`, `/state`, `/live/state`, WebSocket hub); `/` → `/setup`; mounts `static/`
     setup_guide.py                  Guided setup: `GET /api/setup/steps`, `GET/PUT /api/setup/progress`, `GET /api/setup/doc?path=` (Markdown→HTML), optional `POST /api/setup/launch` when `SETUP_ALLOW_LAUNCH=1`
-    static/setup/                   Setup wizard UI (`index.html`, `app.js`, `style.css`) served under `/static/setup/`
+    static/setup/                   Setup wizard UI (`index.html`, `app.js`, `style.css`) served under `/static/setup/`; includes text size (small/medium/large) radios + `localStorage` key `billiards-setup-text-size`
     reducer.py                      LiveGameReducer: merges snapshots + shot/pocket/collision/rail/foul events for `GET /live/state`
     ws.py                           WebSocket broadcast of live state/events
     store.py                        SQLite storage
