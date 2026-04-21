@@ -22,6 +22,9 @@
 
   const TEXT_SIZE_KEY = "billiards-setup-text-size";
   const PROGRESS_LSK = "billiards-setup-progress-v1";
+  const SIDEBAR_W_LSK = "billiards-setup-sidebar-width-px";
+  const DEFAULT_SIDEBAR_PX = 300;
+  const MAIN_MIN_PX = 280;
   /** Must match inline <head> script in index.html (root px drives all rem). */
   const TEXT_ROOT_PX = { small: "14px", medium: "17px", large: "28px" };
 
@@ -48,6 +51,110 @@
       };
       el.addEventListener("change", onPick);
       el.addEventListener("input", onPick);
+    });
+  }
+
+  function readSavedSidebarWidth() {
+    try {
+      const v = parseInt(localStorage.getItem(SIDEBAR_W_LSK) || "", 10);
+      if (Number.isFinite(v) && v > 0) return v;
+    } catch (_) {
+      /* ignore */
+    }
+    return DEFAULT_SIDEBAR_PX;
+  }
+
+  function clampSidebarWidth(w) {
+    const min = 200;
+    const max = Math.max(min, window.innerWidth - MAIN_MIN_PX);
+    return Math.min(max, Math.max(min, Math.round(w)));
+  }
+
+  function applySidebarWidth(px) {
+    const layout = document.querySelector(".layout");
+    if (!layout) return;
+    const w = clampSidebarWidth(px);
+    layout.style.setProperty("--sidebar-px", `${w}px`);
+  }
+
+  function initSidebarResize() {
+    const handle = document.getElementById("sidebar-resize");
+    const layout = document.querySelector(".layout");
+    if (!handle || !layout) return;
+
+    function persistCurrentWidth() {
+      try {
+        const raw = getComputedStyle(layout).getPropertyValue("--sidebar-px").trim();
+        const n = parseInt(raw, 10);
+        if (Number.isFinite(n)) {
+          localStorage.setItem(SIDEBAR_W_LSK, String(clampSidebarWidth(n)));
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    applySidebarWidth(readSavedSidebarWidth());
+
+    let startX = 0;
+    let startW = 0;
+
+    function onPointerDown(e) {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      startX = e.clientX;
+      const wStr = getComputedStyle(layout).getPropertyValue("--sidebar-px").trim();
+      const parsed = parseInt(wStr, 10);
+      startW = Number.isFinite(parsed) ? parsed : DEFAULT_SIDEBAR_PX;
+      document.body.classList.add("is-resizing-sidebar");
+      const move = (ev) => {
+        ev.preventDefault();
+        const delta = ev.clientX - startX;
+        applySidebarWidth(startW + delta);
+      };
+      const up = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        document.removeEventListener("pointercancel", up);
+        document.body.classList.remove("is-resizing-sidebar");
+        persistCurrentWidth();
+      };
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+      document.addEventListener("pointercancel", up);
+    }
+
+    handle.addEventListener("pointerdown", onPointerDown);
+
+    handle.addEventListener("keydown", (e) => {
+      const step = e.shiftKey ? 24 : 8;
+      let w = parseInt(getComputedStyle(layout).getPropertyValue("--sidebar-px") || "300", 10);
+      if (!Number.isFinite(w)) w = DEFAULT_SIDEBAR_PX;
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        w += e.key === "ArrowRight" ? step : -step;
+        applySidebarWidth(w);
+        persistCurrentWidth();
+      }
+    });
+
+    handle.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      applySidebarWidth(DEFAULT_SIDEBAR_PX);
+      persistCurrentWidth();
+    });
+
+    let resizeT = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeT);
+      resizeT = setTimeout(() => {
+        const raw = getComputedStyle(layout).getPropertyValue("--sidebar-px").trim();
+        const w = parseInt(raw, 10);
+        if (Number.isFinite(w)) {
+          applySidebarWidth(w);
+          persistCurrentWidth();
+        }
+      }, 100);
     });
   }
 
@@ -545,6 +652,7 @@
   }
 
   initTextSizeControls();
+  initSidebarResize();
   init();
   window.addEventListener("pagehide", flushProgressKeepalive);
   window.addEventListener("beforeunload", flushProgressKeepalive);

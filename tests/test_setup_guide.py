@@ -15,6 +15,7 @@ def test_setup_page_and_api():
     assert "Setup guide" in r.text
     assert "Text size" in r.text
     assert 'name="text-size"' in r.text
+    assert "sidebar-resize" in r.text
 
     r = client.get("/api/setup/context")
     assert r.status_code == 200
