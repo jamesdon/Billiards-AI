@@ -45,6 +45,24 @@ def test_setup_page_and_api():
     assert "textSize" in r2.text
     assert 'data-text-size="large"' in r2.text
     assert "28px" in r2.text
+    assert "setup_text_size" in (r2.headers.get("set-cookie") or "").lower()
+
+    r_cookie = client.get(
+        "/api/setup/doc",
+        params={"path": "README.md"},
+        headers={"Cookie": "setup_text_size=large"},
+    )
+    assert r_cookie.status_code == 200
+    assert 'data-text-size="large"' in r_cookie.text
+    assert "textSize=large" in r_cookie.text
+
+    r3 = client.get("/api/setup/steps")
+    assert r3.status_code == 200
+    steps2 = r3.json()["steps"]
+    has_template = any(
+        any("record_paste" in str(it) for it in (s.get("checklist") or [])) for s in steps2
+    )
+    assert has_template
 
     r = client.get("/api/setup/doc", params={"path": "docs/../../../etc/passwd"})
     assert r.status_code == 400

@@ -18,6 +18,14 @@
         }
         document.documentElement.setAttribute("data-text-size", choice);
         document.documentElement.style.fontSize = ROOT_PX[choice];
+        try {
+          document.cookie =
+            "setup_text_size=" +
+            encodeURIComponent(choice) +
+            "; path=/; max-age=31536000; SameSite=Lax";
+        } catch (e) {
+          /* ignore */
+        }
       })();
     </script>
   </head>

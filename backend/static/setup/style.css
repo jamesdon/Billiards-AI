@@ -428,6 +428,22 @@ button.btn-primary {
   color: #fff;
 }
 
+button.btn-secondary {
+  background: #1e2430;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+button.btn-secondary:hover:not(:disabled) {
+  border-color: var(--muted);
+  color: #fff;
+}
+
+.record-template-wrap {
+  display: inline;
+  margin-left: 0.2rem;
+}
+
 .hints {
   font-size: 0.9rem;
   color: var(--muted);

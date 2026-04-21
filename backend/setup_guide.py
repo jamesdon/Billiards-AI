@@ -16,7 +16,7 @@ import re
 import subprocess
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
@@ -39,6 +39,54 @@ def _resolve_text_size_param(text_size: str | None) -> tuple[str, str]:
     if c not in _TEXT_SIZE_TO_PX:
         c = "medium"
     return c, _TEXT_SIZE_TO_PX[c]
+
+
+_TEXT_SIZE_COOKIE = "setup_text_size"
+
+
+def _resolve_text_size_for_doc(
+    text_size_q: str | None,
+    cookie_value: str | None,
+) -> str:
+    """Order: query, cookie, medium — matches client (setup wizard) preference."""
+    c = (text_size_q or "").strip().lower()
+    if c in _TEXT_SIZE_TO_PX:
+        return c
+    k = (cookie_value or "").strip().lower()
+    if k in _TEXT_SIZE_TO_PX:
+        return k
+    return "medium"
+
+
+def _doc_viewer_href_set_text_size(path_and_query: str, size: str) -> str:
+    """path_and_query like /api/setup/doc?path=docs%2Ffoo.md — ensure textSize= is set or replaced."""
+    if not path_and_query.startswith("/api/setup/doc?"):
+        return path_and_query
+    if size not in _TEXT_SIZE_TO_PX:
+        size = "medium"
+    u = urlparse("http://local" + path_and_query)
+    qs = parse_qs(u.query, keep_blank_values=True)
+    qs["textSize"] = [size]
+    pairs: list[tuple[str, str]] = []
+    for key in sorted(qs.keys()):
+        for v in qs[key]:
+            pairs.append((key, v))
+    new_q = urlencode(pairs, doseq=True)
+    return f"{u.path}?{new_q}"
+
+
+def _inject_text_size_into_viewer_hrefs(body_html: str, size: str) -> str:
+    """Add or replace textSize= on all /api/setup/doc links in rendered HTML."""
+
+    def repl(m: re.Match[str]) -> str:
+        prefix, quote_ch, pathquery = m.group(1), m.group(2), m.group(3)
+        return f"{prefix}{quote_ch}{_doc_viewer_href_set_text_size(pathquery, size)}{quote_ch}"
+
+    return re.sub(
+        r"(href=)([\"\'])(/api/setup/doc\?[^\"\'>]+)\2",
+        repl,
+        body_html,
+    )
 _PROGRESS_PATH = _PROJECT_ROOT / "data" / "setup_wizard_progress.json"
 _STATIC = Path(__file__).resolve().parent / "static"
 
@@ -69,18 +117,21 @@ _CODE_PATH = re.compile(
 )
 
 
-def _linkify_viewer_doc_refs(body_html: str) -> str:
-    """Turn plain doc path strings in rendered Markdown HTML into /api/setup/doc links."""
+def _linkify_viewer_doc_refs(body_html: str, text_size: str) -> str:
+    """Turn plain doc path strings in rendered Markdown HTML into /api/setup/doc links (with textSize)."""
+    if text_size not in _TEXT_SIZE_TO_PX:
+        text_size = "medium"
+    ts = quote(text_size, safe="")
     out = _LI_BARE_PATH.sub(
         lambda m: (
-            f'<li><a class="md-doc-link" href="/api/setup/doc?path={quote(m.group(1), safe="")}">'
+            f'<li><a class="md-doc-link" href="/api/setup/doc?path={quote(m.group(1), safe="")}&textSize={ts}">'
             f"{html.escape(m.group(1))}</a></li>"
         ),
         body_html,
     )
     out = _CODE_PATH.sub(
         lambda m: (
-            f'<a class="md-doc-link" href="/api/setup/doc?path={quote(m.group(1), safe="")}">'
+            f'<a class="md-doc-link" href="/api/setup/doc?path={quote(m.group(1), safe="")}&textSize={ts}">'
             f"<code>{html.escape(m.group(1))}</code></a>"
         ),
         out,
@@ -99,6 +150,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "item": "Confirm Python 3.10+ will be used for the project venv",
                 "verify": 'Run: `python3 --version` (or `which python3`). Expect 3.10 or newer.',
                 "record": "Paste the version line into Notes if your environment is unusual.",
+                "record_paste": "python3 --version output: <paste one line here>",
             },
             {
                 "item": "Know your absolute repo path",
@@ -123,11 +175,13 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "item": "Virtual environment exists at .venv",
                 "verify": 'From the repository root, run: `test -d .venv && echo OK`. You should see `OK`. (If you do not, create a venv first with the “Install” command in the Commands section, then re-check this box.)',
                 "record": "If you recreated the venv, note the date and Python version in Notes.",
+                "record_paste": "test -d .venv: OK\ncd {project_root} && .venv/bin/python3 --version: <paste>",
             },
             {
                 "item": "Core dependencies install without error",
                 "verify": "Do these in order: (1) In the **Commands** section **below**, copy and run the **“Install (from repo root)”** command—wait for pip to finish and confirm there is no ERROR. (2) Then verify imports: `.venv/bin/python3 -c \"import onnxruntime,cv2; print('imports-ok')\"` (on Jetson, the OpenCV `cv2` module may be from pip or the system). Expect `imports-ok` in the output with no traceback.",
                 "record": "If pip upgraded something unexpected, paste the last few lines of its output in Notes.",
+                "record_paste": "import check output:\n<paste terminal lines, or write: OK / ERROR → …>",
             },
         ],
         "commands": [
@@ -153,11 +207,13 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "item": "models/model.onnx exists",
                 "verify": "Run: `ls -lh models/model.onnx` from repo root. Expect a non-zero file (often ~6–15 MB).",
                 "record": "Note file size and export date in Notes when you refresh the model.",
+                "record_paste": "model.onnx: <paste one line: ls -lh output, or size + date>",
             },
             {
                 "item": "class_map.json matches the ONNX output order/count",
                 "verify": "Open `models/class_map.json` and compare per-class order to the names/labels in your YOLO data YAML (the dataset file you use for training). Count and ordering must match the ONNX model head and that YAML’s names list.",
                 "record": "In Notes, paste a one-line note that class index order in models/class_map.json matches your YOLO names (no need to use backticks; this is free-form text, not a terminal command).",
+                "record_paste": "class_map <-> YOLO data.yaml: indices 0..N in order: <e.g. ball, person, cue_stick, rack, pockets>",
             },
         ],
         "commands": [
@@ -179,11 +235,13 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "item": "calibration.json produced for this camera + table",
                 "verify": "After running the calibration flow, check `ls -l calibration.json` (or your chosen path). Open the file and confirm a 3×3 homography matrix and six pocket entries are present in JSON (see CALIBRATION / Phase 2 docs for the expected structure).",
                 "record": "Save the file path if not the default; note table size preset used.",
+                "record_paste": "calibration path: <default or path>\ntable preset: <e.g. 7ft / 8ft / custom>\nls -l line: <paste>",
             },
             {
                 "item": "Pocket labels match the schema (Phase 2 style)",
                 "verify": "On Jetson/Linux: `bash scripts/phase2.sh` (optional). Invalid labels should be rejected in logs.",
                 "record": "Paste any Phase 2 PASS/FAIL snippet into Notes.",
+                "record_paste": "phase2.sh last lines:\n<paste PASS/FAIL lines here>",
             },
         ],
         "commands": [
@@ -223,11 +281,13 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "item": "Automated Phase 3 script completes or manual edge run works",
                 "verify": "Run `bash scripts/phase3.sh` and confirm it ends with PASS, or run the manual edge command and see no traceback.",
                 "record": "Note detect_every_n and any PHASE3_USB_INDEX you used.",
+                "record_paste": "phase3: PASS|FAIL; detect_every_n=…; PHASE3_USB_INDEX=…\n(optional) last log lines: <paste>",
             },
             {
                 "item": "Overlay shows stable track IDs during motion",
                 "verify": "Open the MJPEG link while the camera sees the table; move objects and confirm IDs do not flicker randomly.",
                 "record": "Describe any tuning (confidence, camera) in Notes.",
+                "record_paste": "Overlay check: <OK / issues>; conf_tuning=…; camera notes: …",
             },
         ],
         "commands": [
@@ -260,11 +320,13 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "item": "Backend responds on /health",
                 "verify": "With uvicorn running: `curl -s http://127.0.0.1:8000/health` — the response should be JSON with an ok: true (or similar) field (see Phase 4 doc for the exact contract).",
                 "record": "Paste curl output if /health is not default.",
+                "record_paste": "curl -s http://127.0.0.1:8000/health\n<paste body>",
             },
             {
                 "item": "Profiles persist across edge restarts",
                 "verify": "PATCH a nickname via /profiles API (see Phase 4 doc), restart edge, confirm name still appears.",
                 "record": "Note profile IDs you use for testing.",
+                "record_paste": "Profile test: id=…; nickname=…; after restart: <seen Y/N>",
             },
         ],
         "commands": [
@@ -375,8 +437,8 @@ _LAUNCH_SCRIPTS: dict[str, Path] = {
 }
 
 
-def _normalize_checklist(raw: list[Any]) -> list[dict[str, str]]:
-    out: list[dict[str, str]] = []
+def _normalize_checklist(raw: list[Any]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
     for item in raw:
         if isinstance(item, str):
             out.append(
@@ -387,13 +449,15 @@ def _normalize_checklist(raw: list[Any]) -> list[dict[str, str]]:
                 }
             )
         elif isinstance(item, dict):
-            out.append(
-                {
-                    "item": str(item.get("item", "")),
-                    "verify": str(item.get("verify", "")),
-                    "record": str(item.get("record", "")),
-                }
-            )
+            row: dict[str, Any] = {
+                "item": str(item.get("item", "")),
+                "verify": str(item.get("verify", "")),
+                "record": str(item.get("record", "")),
+            }
+            rp = item.get("record_paste")
+            if isinstance(rp, str) and rp.strip():
+                row["record_paste"] = rp.strip()
+            out.append(row)
         else:
             continue
     return out
@@ -480,6 +544,7 @@ def build_router() -> APIRouter:
 
     @router.get("/api/setup/doc", response_class=HTMLResponse)
     def setup_doc(
+        request: Request,
         path: str,
         textSize: str | None = Query(
             default=None,
@@ -489,7 +554,13 @@ def build_router() -> APIRouter:
         p = _safe_doc_path(path)
         text = p.read_text(encoding="utf-8")
         title = html.escape(p.stem.replace("_", " "))
-        body_html = _linkify_viewer_doc_refs(_markdown_to_html(text))
+        cookie_size = request.cookies.get(_TEXT_SIZE_COOKIE)
+        size_key = _resolve_text_size_for_doc(textSize, cookie_size)
+        first_choice, first_px = _resolve_text_size_param(size_key)
+        md_html = _markdown_to_html(text)
+        body_html = _inject_text_size_into_viewer_hrefs(
+            _linkify_viewer_doc_refs(md_html, first_choice), first_choice
+        )
         warn = ""
         if not _HAS_MARKDOWN:
             warn = (
@@ -498,10 +569,8 @@ def build_router() -> APIRouter:
                 "<code>.venv/bin/python3 -m pip install markdown</code></p>"
             )
         esc_path = html.escape(path)
-        # First-paint: server sets <html style="font-size: …"> + data-text-size from ?textSize=.
-        # (Safari/embedded reads before JS; links from /setup should always pass textSize).
-        # Head script re-applies and patches internal doc links; without query, it upgrades from localStorage.
-        first_choice, first_px = _resolve_text_size_param(textSize)
+        # First-paint: server uses ?textSize, then cookie, then medium (matches client).
+        # Cookie + Set-Cookie keep new tabs / Safari in sync with /setup when the query is missing.
         first_choice_esc = html.escape(first_choice, quote=True)
         page = f"""<!DOCTYPE html>
 <html lang="en" data-text-size="{first_choice_esc}" style="font-size: {html.escape(first_px, quote=True)}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -510,6 +579,20 @@ def build_router() -> APIRouter:
 (function () {{
   var ROOT_PX = {{ small: "14px", medium: "17px", large: "28px" }};
   var LSK = "billiards-setup-text-size";
+  var CKN = "setup_text_size";
+  function readCookie() {{
+    try {{
+      var s = (document.cookie || "").split(";");
+      for (var i = 0; i < s.length; i++) {{
+        var p = s[i].replace(/^\\s+/, "").split("=");
+        if (p[0] === CKN) {{
+          var v = decodeURIComponent((p[1] || "").trim());
+          if (v === "small" || v === "medium" || v === "large") return v;
+        }}
+      }}
+    }} catch (e) {{}}
+    return null;
+  }}
   function hasQuerySize() {{
     try {{
       var p = new URLSearchParams(window.location.search).get("textSize");
@@ -519,6 +602,8 @@ def build_router() -> APIRouter:
   function pickSize() {{
     var q = hasQuerySize();
     if (q) return q;
+    var c = readCookie();
+    if (c) return c;
     try {{
       var s = localStorage.getItem(LSK);
       if (s === "small" || s === "medium" || s === "large") return s;
@@ -530,6 +615,9 @@ def build_router() -> APIRouter:
     document.documentElement.setAttribute("data-text-size", choice);
     document.documentElement.style.fontSize = px;
     try {{ localStorage.setItem(LSK, choice); }} catch (e) {{}}
+    try {{
+      document.cookie = CKN + "=" + encodeURIComponent(choice) + "; path=/; max-age=31536000; SameSite=Lax";
+    }} catch (e) {{}}
   }}
   var choice = pickSize();
   apply(choice);
@@ -552,21 +640,30 @@ html{{box-sizing:border-box;}}
 body{{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#e8eaed;line-height:1.55;max-width:52rem;margin:0 auto;padding:1rem 1.25rem 3rem;font-size:1rem;}}
 a{{color:#4d9fff;}}
 a.md-doc-link code{{color:inherit;}}
-/* rem — sized from <html> font-size (server + ?textSize+ / localStorage) */
-code,pre{{background:#1a1d24;padding:0.15em 0.35em;border-radius:4px;font-size:0.9rem;}}
-pre{{padding:0.75rem;overflow:auto;font-size:0.9rem;}}
+/* rem — from <html> font-size (query + cookie + localStorage) */
+code,pre{{background:#1a1d24;padding:0.15em 0.35em;border-radius:4px;font-size:0.95em;}}
+pre{{padding:0.75rem;overflow:auto;}}
 pre code{{background:transparent;padding:0;font-size:inherit;}}
 h1{{font-size:1.6rem;}}
 h2{{font-size:1.3rem;}}
 h3{{font-size:1.1rem;}}
 h1,h2,h3{{margin-top:1.4em;}}
-p,li,td,th{{font-size:1rem;}}
+p,li,td,th{{font-size:1em;}}
 </style></head><body>
 <p><a href="/setup">← Setup wizard</a> · <code>{esc_path}</code></p>
 {warn}
 <article class="article">{body_html}</article>
 </body></html>"""
-        return HTMLResponse(page)
+        resp = HTMLResponse(page)
+        if first_choice in _TEXT_SIZE_TO_PX:
+            resp.set_cookie(
+                _TEXT_SIZE_COOKIE,
+                first_choice,
+                max_age=31536000,
+                path="/",
+                samesite="lax",
+            )
+        return resp
 
     @router.post("/api/setup/launch")
     def setup_launch(request: Request, body: dict[str, Any]) -> dict[str, Any]:

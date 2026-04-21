@@ -37,6 +37,14 @@
     } catch (_) {
       /* ignore */
     }
+    try {
+      document.cookie =
+        "setup_text_size=" +
+        encodeURIComponent(size) +
+        "; path=/; max-age=31536000; SameSite=Lax";
+    } catch (_) {
+      /* ignore */
+    }
     document.querySelectorAll('input[name="text-size"]').forEach((el) => {
       el.checked = el.value === size;
     });
@@ -403,6 +411,13 @@
     );
   }
 
+  function copyTextForNotes(text) {
+    navigator.clipboard.writeText(text).then(
+      () => showToast("Copied — paste in Notes (this step)"),
+      () => showToast("Copy failed")
+    );
+  }
+
   /** @returns {'red'|'yellow'|'green'} */
   function stepSignal(step) {
     const id = step.id;
@@ -479,7 +494,13 @@
                     ? `<p class="record"><strong>What to record:</strong> ${formatChecklistWithBackticks(
                         item.record,
                         false
-                      )}</p>`
+                      )}${
+                        item.record_paste
+                          ? ` <span class="record-template-wrap"> <button type="button" class="btn btn-secondary copy-for-notes" data-copy="${encodeURIComponent(
+                              fillProjectRootPlain(item.record_paste)
+                            )}">Copy for Notes (template)</button></span>`
+                          : ""
+                      }</p>`
                     : ""
                 }
               </div>
@@ -680,6 +701,22 @@
         }
         if (text.length === 0) return;
         copyText(text);
+      });
+    });
+
+    content.querySelectorAll(".copy-for-notes").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const enc = btn.getAttribute("data-copy");
+        if (!enc) return;
+        let text = enc;
+        try {
+          text = decodeURIComponent(enc);
+        } catch (_) {
+          /* use raw */
+        }
+        if (text.length) copyTextForNotes(text);
       });
     });
   }
