@@ -132,18 +132,23 @@ def centered_table_placeholder_corners_px(
     margin_frac: float = 0.10,
 ) -> List[Tuple[float, float]]:
     """
-    When no reliable corners are found, an axis-aligned quad (TL,TR,BL,BR) with the
-    playing-surface **length:width** aspect ratio, centered in the image with margins.
+    When no reliable corners are found, an axis-aligned quad (TL,TR,BL,BR) centered with margins.
+
+    Matches ``_estimate_homography`` in ``calib_click``: image **x** spans table **Y** (width *W*),
+    image **y** spans table **X** (length *L*). So pixel width / pixel height = *W* / *L* (always
+    ≤ 1 for a regulation table longer than it is wide).
     """
-    ar = float(table_length_m) / float(max(float(table_width_m), 1e-9))
+    L = float(max(float(table_length_m), 1e-9))
+    W = float(max(float(table_width_m), 1e-9))
+    aspect_wh = W / L  # image horizontal / image vertical
     aw = (1.0 - 2.0 * float(margin_frac)) * float(image_w_px)
     ah = (1.0 - 2.0 * float(margin_frac)) * float(image_h_px)
-    if aw / max(ah, 1e-9) >= ar:
+    if aw >= aspect_wh * ah:
         h_rect = ah
-        w_rect = ar * h_rect
+        w_rect = aspect_wh * h_rect
     else:
         w_rect = aw
-        h_rect = w_rect / max(ar, 1e-9)
+        h_rect = w_rect / max(aspect_wh, 1e-12)
     cx = 0.5 * float(image_w_px)
     cy = 0.5 * float(image_h_px)
     x0, x1 = cx - 0.5 * w_rect, cx + 0.5 * w_rect
