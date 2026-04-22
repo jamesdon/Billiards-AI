@@ -111,6 +111,22 @@ python "/home/$USER/Billiards-AI/scripts/calib_click.py" \
 If your local `edge.main` is also older and does not support `--auto-calib-out`,
 the helper now writes `calibration.json` directly without calling `edge.main`.
 
+### Pocket detections in the shared ONNX (optional)
+
+The trained detector in `models/model.onnx` (see `models/class_map.json`) may include
+a `pockets` class. The live `edge` pipeline does not currently consume that class
+for play tracking; it is available for **calibration**: `calib_click.py` loads
+`models/model.onnx` when present (or `MODEL_PATH`, or `--pocket-onnx`) and, when at
+least four `pockets` box centers yield a **quadrilateral** convex hull (typical: six
+openings, hull = four **corner** pockets), uses those to seed the **TL, TR, BL, BR**
+quad before contour-based auto corners. If neither pocket nor CV work, the app falls
+back to a **centered** rectangle in the view with the **selected table** length:width
+aspect and ~10% margins (not a square crop).
+
+Rack **outline** geometry in the schematic overlay uses inner wooden sizes from
+[Billiards / pool racks (Dimensions.com)](https://www.dimensions.com/element/billiards-pool-racks)
+(8: 11.25" × 10" triangle; 9: 6.75" × 10" diamond).
+
 ### Jetson CSI: `Failed to open camera` / Argus
 
 The default path uses `nvarguscamerasrc` (GStreamer). If OpenCV cannot open it:

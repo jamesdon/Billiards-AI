@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import subprocess
 import sys
@@ -17,6 +18,8 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _SCRIPT_DIR.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+
+from edge.calib.corner_order import order_physical_table_corners, order_points_tl_tr_bl_br
 
 try:
     import cv2
@@ -147,7 +150,11 @@ def _camera_cli_type(value: str) -> str:
 
 
 try:
-    from edge.calib.table_geometry import auto_calibration_from_corners, table_geometry_dict
+    from edge.calib.table_geometry import (
+        auto_calibration_from_corners,
+        centered_table_placeholder_corners_px,
+        table_geometry_dict,
+    )
     from edge.calib.table_layout import (
         break_area_polygon,
         head_string_segment_xy_m,
@@ -159,6 +166,7 @@ try:
 except Exception as _e_edge:
     auto_calibration_from_corners = None
     table_geometry_dict = None
+    centered_table_placeholder_corners_px = None
     _HAS_EDGE_AUTOCAL = False
     _HAS_TABLE_LAYOUT = False
     if __name__ == "__main__":
@@ -167,6 +175,14 @@ except Exception as _e_edge:
             f"add repo root to PYTHONPATH. Current sys.path[0:3]={sys.path[:3]!r}",
             file=sys.stderr,
         )
+
+try:
+    from edge.calib.pocket_corners_onnx import corners_from_pocket_detections
+
+    _HAS_POCKET_ONNX = True
+except Exception:
+    corners_from_pocket_detections = None
+    _HAS_POCKET_ONNX = False
 
 try:
     from edge.calib.table_diagram_m import build_table_diagram_m
@@ -234,6 +250,24 @@ def _parse_args() -> argparse.Namespace:
     # off directly to GUI selection.
     p.add_argument("--units", type=str, default="imperial", choices=["imperial", "metric"])
     p.add_argument("--pocket-radius-m", type=float, default=0.07)
+    p.add_argument(
+        "--pocket-onnx",
+        type=str,
+        default=None,
+        help="ONNX model path to use for `pockets` class (optional; defaults to MODEL_PATH or models/model.onnx if present).",
+    )
+    p.add_argument(
+        "--pocket-min-conf",
+        type=float,
+        default=0.22,
+        help="Minimum confidence to keep a `pockets` detection when building a corner quad.",
+    )
+    p.add_argument(
+        "--pocket-class-map",
+        type=str,
+        default=None,
+        help="class_map.json for the pocket ONNX; default: <repo>/models/class_map.json",
+    )
     p.add_argument("--out", type=str, default="/home/$USER/Billiards-AI/calibration.json")
     return p.parse_args()
 
@@ -556,7 +590,11 @@ def _table_m_to_image_xy(h_image_to_table: np.ndarray, xy_m: Tuple[float, float]
     return float(t[0] / w), float(t[1] / w)
 
 
-def _default_corners(h: int, w: int) -> List[Tuple[float, float]]:
+def _default_corners_fitted(
+    h: int, w: int, table_length_m: float, table_width_m: float
+) -> List[Tuple[float, float]]:
+    if centered_table_placeholder_corners_px is not None:
+        return centered_table_placeholder_corners_px(w, h, table_length_m, table_width_m)
     margin_x = 0.12 * w
     margin_y = 0.12 * h
     return [
@@ -803,7 +841,7 @@ def _refine_quad_with_hough(gray: np.ndarray, seed_quad: Sequence[Tuple[float, f
     h, w = gray.shape[:2]
     if len(seed_quad) != 4:
         return [(float(x), float(y)) for x, y in seed_quad]
-    ordered_seed = _order_points_tl_tr_bl_br([(float(x), float(y)) for x, y in seed_quad])
+    ordered_seed = order_points_tl_tr_bl_br([(float(x), float(y)) for x, y in seed_quad])
     tl = np.array(ordered_seed[0], dtype=np.float64)
     tr = np.array(ordered_seed[1], dtype=np.float64)
     bl = np.array(ordered_seed[2], dtype=np.float64)
@@ -898,7 +936,7 @@ def _refine_quad_with_hough(gray: np.ndarray, seed_quad: Sequence[Tuple[float, f
         _clip_point_to_image(float(bl_i[0]), float(bl_i[1]), w, h),
         _clip_point_to_image(float(br_i[0]), float(br_i[1]), w, h),
     ]
-    refined_ordered = _order_points_tl_tr_bl_br(refined_quad)
+    refined_ordered = order_points_tl_tr_bl_br(refined_quad)
     refined_area = abs(float(cv2.contourArea(np.array(refined_ordered, dtype=np.float32))))
     seed_area = abs(float(cv2.contourArea(np.array(ordered_seed, dtype=np.float32))))
     if refined_area < max(0.05 * float(w * h), 0.35 * seed_area):
@@ -957,7 +995,11 @@ def _refine_corner_seeds(gray: np.ndarray, seeds: Sequence[Tuple[float, float]])
     return [(float(x), float(y)) for x, y in refined]
 
 
-def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
+def _estimate_outside_corners(
+    frame: np.ndarray,
+    table_length_m: float = 2.84,
+    table_width_m: float = 1.42,
+) -> List[Tuple[float, float]]:
     h, w = frame.shape[:2]
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray_eq = cv2.equalizeHist(gray)
@@ -970,7 +1012,7 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
     edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8), iterations=2)
     contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
-        return _default_corners(h, w)
+        return _default_corners_fitted(h, w, table_length_m, table_width_m)
 
     wh = float(w * h)
     min_contour_area = 0.08 * wh
@@ -992,12 +1034,12 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
 
         rect = cv2.minAreaRect(contour)
         box = cv2.boxPoints(rect).astype(np.float64)
-        box = np.array(_order_points_tl_tr_bl_br(box.tolist()), dtype=np.float64)
+        box = np.array(order_points_tl_tr_bl_br(box.tolist()), dtype=np.float64)
         snapped = []
         for bx, by in box:
             d = np.sum((hull - np.array([bx, by], dtype=np.float64)) ** 2, axis=1)
             snapped.append(hull[int(np.argmin(d))])
-        snapped = np.array(_order_points_tl_tr_bl_br(np.array(snapped, dtype=np.float64).tolist()), dtype=np.float64)
+        snapped = np.array(order_points_tl_tr_bl_br(np.array(snapped, dtype=np.float64).tolist()), dtype=np.float64)
         snapped_area = abs(float(cv2.contourArea(snapped.astype(np.float32))))
         inset = _quad_min_corner_inset(snapped, w, h)
         fallback.append((snapped_area, snapped.copy()))
@@ -1008,7 +1050,7 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
         eps = 0.012 * cv2.arcLength(hull.astype(np.float32), True)
         approx = cv2.approxPolyDP(hull.astype(np.float32), eps, True).reshape(-1, 2).astype(np.float64)
         if approx.shape[0] == 4:
-            approx_ordered = np.array(_order_points_tl_tr_bl_br(approx.tolist()), dtype=np.float64)
+            approx_ordered = np.array(order_points_tl_tr_bl_br(approx.tolist()), dtype=np.float64)
             approx_area = abs(float(cv2.contourArea(approx_ordered.astype(np.float32))))
             inset = _quad_min_corner_inset(approx_ordered, w, h)
             fallback.append((approx_area, approx_ordered.copy()))
@@ -1035,10 +1077,10 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
                 best_quad = None
 
     if best_quad is None or best_quad_area <= 1.0:
-        return _default_corners(h, w)
+        return _default_corners_fitted(h, w, table_length_m, table_width_m)
 
     hough_refined = _refine_quad_with_hough(gray, best_quad.tolist())
-    phys_hough = _order_physical_table_corners(_order_points_tl_tr_bl_br(hough_refined))
+    phys_hough = order_physical_table_corners(order_points_tl_tr_bl_br(hough_refined))
     throat_pts = _refine_quad_to_pocket_throats(gray, phys_hough, w, h)
     if throat_pts is not None:
         ta = _quad_area_xy(throat_pts)
@@ -1047,17 +1089,17 @@ def _estimate_outside_corners(frame: np.ndarray) -> List[Tuple[float, float]]:
             ta >= 0.09 * float(w * h)
             and ta <= min(0.62 * float(w * h), 1.5 * max(ha, 0.55 * float(best_quad_area)))
         ):
-            return _order_physical_table_corners(throat_pts)
+            return order_physical_table_corners(throat_pts)
 
     refined = _refine_corner_seeds(gray, hough_refined)
-    refined_ordered = _order_points_tl_tr_bl_br(refined)
+    refined_ordered = order_points_tl_tr_bl_br(refined)
     refined_area = abs(float(cv2.contourArea(np.array(refined_ordered, dtype=np.float32))))
     hough_area = abs(float(cv2.contourArea(np.array(hough_refined, dtype=np.float32))))
     if refined_area < 0.4 * best_quad_area:
         if hough_area >= 0.4 * best_quad_area:
-            return _order_physical_table_corners(hough_refined)
-        return _order_physical_table_corners([(float(x), float(y)) for x, y in best_quad])
-    return _order_physical_table_corners(refined_ordered)
+            return order_physical_table_corners(hough_refined)
+        return order_physical_table_corners([(float(x), float(y)) for x, y in best_quad])
+    return order_physical_table_corners(refined_ordered)
 
 
 def _refine_side_pocket_seed(
@@ -1332,115 +1374,6 @@ def _remap_side_pockets_between_corners(
     right_refined = _refine_side_pocket_seed(gray, (float(seed_right[0]), float(seed_right[1])), new_br - new_tr)
     return _normalize_side_pockets_to_rails([left_refined, right_refined], new_corners, frame.shape[:2])
 
-def _order_points_tl_tr_bl_br(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
-    pts = np.array(points, dtype=np.float64)
-    if pts.shape[0] < 4:
-        raise ValueError("Need at least 4 points to order corners.")
-    s = pts.sum(axis=1)
-    diff = pts[:, 0] - pts[:, 1]
-    tl = pts[np.argmin(s)]
-    br = pts[np.argmax(s)]
-    tr = pts[np.argmax(diff)]
-    bl = pts[np.argmin(diff)]
-    ordered = [tl, tr, bl, br]
-    return [(float(p[0]), float(p[1])) for p in ordered]
-
-
-def _order_physical_table_corners_impl(
-    points: List[Tuple[float, float]],
-    *,
-    head_toward_small_image_y: bool,
-) -> List[Tuple[float, float]]:
-    """
-    Order four corners as physical TL, TR, BL, BR given which short-rail end is "head".
-
-    head_toward_small_image_y: if True, the head short rail is the one whose midpoint
-    has smaller image Y; if False, the head rail is the one with larger image Y.
-    """
-    pts = np.array(points, dtype=np.float64)
-    if pts.shape[0] != 4:
-        raise ValueError("Need exactly 4 corners.")
-    c = pts.mean(axis=0)
-    angles = np.arctan2(pts[:, 1] - c[1], pts[:, 0] - c[0])
-    order = np.argsort(angles)
-    p = pts[order]
-    p0, p1, p2, p3 = p[0], p[1], p[2], p[3]
-
-    def dist(a: np.ndarray, b: np.ndarray) -> float:
-        return float(np.linalg.norm(a - b))
-
-    len01 = dist(p0, p1)
-    len12 = dist(p1, p2)
-    len23 = dist(p2, p3)
-    len30 = dist(p3, p0)
-    sum_a = len01 + len23
-    sum_b = len12 + len30
-
-    def mid(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-        return 0.5 * (a + b)
-
-    def head_is_first_short_pair(p_a: np.ndarray, p_b: np.ndarray, p_c: np.ndarray, p_d: np.ndarray) -> bool:
-        m01 = float(mid(p_a, p_b)[1])
-        m23 = float(mid(p_c, p_d)[1])
-        return (m01 <= m23) if head_toward_small_image_y else (m01 >= m23)
-
-    if sum_a <= sum_b:
-        if head_is_first_short_pair(p0, p1, p2, p3):
-            head_a, head_b = p0, p1
-            foot_a, foot_b = p2, p3
-        else:
-            head_a, head_b = p2, p3
-            foot_a, foot_b = p0, p1
-    else:
-        if head_is_first_short_pair(p1, p2, p3, p0):
-            head_a, head_b = p1, p2
-            foot_a, foot_b = p3, p0
-        else:
-            head_a, head_b = p3, p0
-            foot_a, foot_b = p1, p2
-
-    if float(head_a[0]) <= float(head_b[0]):
-        tl, tr = head_a, head_b
-    else:
-        tl, tr = head_b, head_a
-    if float(foot_a[0]) <= float(foot_b[0]):
-        bl, br = foot_a, foot_b
-    else:
-        bl, br = foot_b, foot_a
-    return [
-        (float(tl[0]), float(tl[1])),
-        (float(tr[0]), float(tr[1])),
-        (float(bl[0]), float(bl[1])),
-        (float(br[0]), float(br[1])),
-    ]
-
-
-def _order_physical_table_corners(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
-    """
-    Order four detected corners as physical TL, TR, BL, BR.
-
-    TL and TR share the head short rail (kitchen / rack). BL and BR share the foot short rail.
-    Head vs foot along image Y is ambiguous (camera can show kitchen at top or bottom); we try
-    both and keep the labeling closest to image-axis TL/TR/BL/BR from the same four points.
-    """
-    if len(points) != 4:
-        raise ValueError("Need exactly 4 corners.")
-    flat = [(float(x), float(y)) for x, y in points]
-    img_ref = _order_points_tl_tr_bl_br(flat)
-    phys_lo = _order_physical_table_corners_impl(flat, head_toward_small_image_y=True)
-    phys_hi = _order_physical_table_corners_impl(flat, head_toward_small_image_y=False)
-
-    def _match_cost(phys: List[Tuple[float, float]]) -> float:
-        return float(
-            sum(
-                (phys[i][0] - img_ref[i][0]) ** 2 + (phys[i][1] - img_ref[i][1]) ** 2
-                for i in range(4)
-            )
-        )
-
-    return phys_lo if _match_cost(phys_lo) <= _match_cost(phys_hi) else phys_hi
-
-
 def _manual_calibration_payload(
     corner_points_px: List[Tuple[float, float]],
     table_length_m: float,
@@ -1478,6 +1411,50 @@ def _manual_calibration_payload(
     }
 
 
+def _resolve_pocket_onnx_path(args: argparse.Namespace) -> Optional[str]:
+    p = str(args.pocket_onnx or "").strip()
+    if p.lower() in ("", "none", "0", "false"):
+        p = ""
+    if not p:
+        env = (os.environ.get("MODEL_PATH") or "").strip()
+        if env and os.path.isfile(env):
+            return env
+        c = _REPO_ROOT / "models" / "model.onnx"
+        if c.is_file():
+            return str(c)
+        return None
+    pp = str(Path(p).expanduser())
+    return pp if os.path.isfile(pp) else None
+
+
+def _load_pocket_onnx(args: argparse.Namespace) -> Any:
+    if not _HAS_POCKET_ONNX or corners_from_pocket_detections is None:
+        return None
+    path = _resolve_pocket_onnx_path(args)
+    if not path:
+        return None
+    try:
+        cm = args.pocket_class_map or str(_REPO_ROOT / "models" / "class_map.json")
+        with open(cm, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        class_map = {int(k): v for k, v in raw.items()}
+        from edge.vision.detector_onnxruntime import OnnxRuntimeDetector
+        from edge.vision.detector_base import DetectorConfig
+
+        return OnnxRuntimeDetector(
+            path,
+            class_map=class_map,
+            cfg=DetectorConfig(
+                conf_thres=max(0.05, min(0.45, 0.5 * float(args.pocket_min_conf))),
+                iou_thres=0.45,
+                max_det=32,
+            ),
+        )
+    except Exception as exc:
+        print(f"Pocket detector could not be loaded: {exc}", file=sys.stderr)
+        return None
+
+
 def main() -> None:
     args = _parse_args()
     out_path = Path(str(args.out)).expanduser()
@@ -1505,12 +1482,29 @@ def main() -> None:
         raise RuntimeError(f"{exc}\n\n{_capture_troubleshoot_footer(args)}") from exc
 
     win = "calib-click"
-    try:
-        corner_points: List[Tuple[float, float]] = _estimate_outside_corners(img)
-    except Exception as exc:
-        h, w = img.shape[:2]
-        corner_points = _default_corners(h, w)
-        print(f"AUTO corner detect failed ({exc}); using fallback corners.", file=sys.stderr)
+    l_init_m, w_init_m = _table_dims_m(selected_table_size)
+    h_init, w_init = int(img.shape[0]), int(img.shape[1])
+    pocket_onnx = _load_pocket_onnx(args)
+    corner_points: List[Tuple[float, float]] = []
+    used_pocket_hull = False
+    if pocket_onnx is not None and corners_from_pocket_detections is not None:
+        p_try = corners_from_pocket_detections(
+            img, pocket_onnx, min_conf=float(args.pocket_min_conf)
+        )
+        if p_try is not None:
+            _gray0 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            corner_points = _refine_corner_seeds(_gray0, p_try)
+            used_pocket_hull = True
+            print("Auto corners: pocket ONNX (hull) + subpixel refine.", file=sys.stderr)
+    if not used_pocket_hull:
+        try:
+            corner_points = _estimate_outside_corners(img, l_init_m, w_init_m)
+        except Exception as exc:
+            corner_points = _default_corners_fitted(h_init, w_init, l_init_m, w_init_m)
+            print(
+                f"AUTO corner detect failed ({exc}); using centered table-aspect placeholder.",
+                file=sys.stderr,
+            )
     print("Auto corners (TL,TR,BL,BR):", json.dumps(corner_points))
     active_point_idx: Optional[int] = None
     dragging = False
@@ -2129,11 +2123,26 @@ def main() -> None:
 
     def _redetect_corners() -> None:
         nonlocal corner_points
+        l_m, w_m = _table_dims_m(selected_table_size)
+        hi, wi = int(img.shape[0]), int(img.shape[1])
+        if pocket_onnx is not None and corners_from_pocket_detections is not None:
+            p_try = corners_from_pocket_detections(
+                img, pocket_onnx, min_conf=float(args.pocket_min_conf)
+            )
+            if p_try is not None:
+                _g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                corner_points = _refine_corner_seeds(_g, p_try)
+                print("Re-detect: pocket ONNX hull + refine.", file=sys.stderr)
+                return
         try:
-            corner_points = _estimate_outside_corners(img)
-            print("AUTO corners reloaded from current frame.", file=sys.stderr)
+            corner_points = _estimate_outside_corners(img, l_m, w_m)
+            print("AUTO corners reloaded from current frame (CV).", file=sys.stderr)
         except Exception as exc:
-            print(f"Re-detect failed: {exc}", file=sys.stderr)
+            corner_points = _default_corners_fitted(hi, wi, l_m, w_m)
+            print(
+                f"Re-detect failed ({exc}); using centered table-aspect placeholder.",
+                file=sys.stderr,
+            )
 
     def _draw_table_schematic_and_zones() -> None:
         """Reference diagram: tints, grid, break box, strings, side pockets, diamonds, head string, table outline."""
@@ -2174,9 +2183,6 @@ def main() -> None:
 
         if _HAS_TABLE_DIAGRAM and build_table_diagram_m is not None:
             dg = build_table_diagram_m(l_m, w_m)
-            d_ball = 0.05715
-            p0, p1 = _pm((0.0, 0.0)), _pm((d_ball, 0.0))
-            rack_r = max(2, int(0.45 * math.hypot(p1[0] - p0[0], p1[1] - p0[1])))
 
             for p, q in dg.grid_segments:
                 cv2.line(view, _pm(p), _pm(q), (60, 64, 74), 1, lineType=cv2.LINE_AA)
@@ -2199,11 +2205,18 @@ def main() -> None:
                 cv2.circle(view, _pm(p), 7, (120, 160, 240), 1, lineType=cv2.LINE_AA)
             for p in dg.rail_diamonds_m:
                 cv2.circle(view, _pm(p), 3, (220, 225, 235), 1, lineType=cv2.LINE_AA)
-            for xy in dg.rack_ball_centers_m:
-                c = _pm(xy)
-                iv = max(0, rack_r - 1)
-                cv2.circle(view, c, iv, (235, 232, 225), -1, lineType=cv2.LINE_AA)
-                cv2.circle(view, c, rack_r, (24, 24, 28), 1, lineType=cv2.LINE_AA)
+            tri8 = np.array(
+                [list(_pm(p)) for p in dg.rack8_inner_triangle_m], dtype=np.int32
+            ).reshape((-1, 1, 2))
+            cv2.polylines(
+                view, [tri8], isClosed=True, color=(200, 180, 100), thickness=2, lineType=cv2.LINE_AA
+            )
+            dia9 = np.array(
+                [list(_pm(p)) for p in dg.rack9_inner_diamond_m], dtype=np.int32
+            ).reshape((-1, 1, 2))
+            cv2.polylines(
+                view, [dia9], isClosed=True, color=(150, 190, 220), thickness=2, lineType=cv2.LINE_AA
+            )
             for cap, anchor in dg.captions:
                 u, v = _pm(anchor)
                 tw, _ = cv2.getTextSize(cap, cv2.FONT_HERSHEY_SIMPLEX, 0.32, 1)[0]
@@ -2522,7 +2535,12 @@ def main() -> None:
                 lineType=cv2.LINE_AA,
             )
             _draw_button_primary(view, rr, "Re-detect")
-            _micro_label(view, int(rr[0]), int(rr[3]) + 12, "Auto corner pockets  (same as r)")
+            _micro_label(
+                view,
+                int(rr[0]),
+                int(rr[3]) + 12,
+                "Pocket model if ONNX present, else CV, else aspect placeholder  (r)",
+            )
 
         controls = _view_control_layout(int(view_left), int(view_top))
         flip_h_center = controls["flip_h_center"]

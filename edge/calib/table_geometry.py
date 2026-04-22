@@ -123,3 +123,35 @@ def table_geometry_dict(geom: TableGeometry) -> Dict[str, object]:
         "kitchen_polygon_m": [[x, y] for x, y in geom.kitchen_polygon_m],
     }
 
+
+def centered_table_placeholder_corners_px(
+    image_w_px: int,
+    image_h_px: int,
+    table_length_m: float,
+    table_width_m: float,
+    margin_frac: float = 0.10,
+) -> List[Tuple[float, float]]:
+    """
+    When no reliable corners are found, an axis-aligned quad (TL,TR,BL,BR) with the
+    playing-surface **length:width** aspect ratio, centered in the image with margins.
+    """
+    ar = float(table_length_m) / float(max(float(table_width_m), 1e-9))
+    aw = (1.0 - 2.0 * float(margin_frac)) * float(image_w_px)
+    ah = (1.0 - 2.0 * float(margin_frac)) * float(image_h_px)
+    if aw / max(ah, 1e-9) >= ar:
+        h_rect = ah
+        w_rect = ar * h_rect
+    else:
+        w_rect = aw
+        h_rect = w_rect / max(ar, 1e-9)
+    cx = 0.5 * float(image_w_px)
+    cy = 0.5 * float(image_h_px)
+    x0, x1 = cx - 0.5 * w_rect, cx + 0.5 * w_rect
+    y0, y1 = cy - 0.5 * h_rect, cy + 0.5 * h_rect
+    return [
+        (x0, y0),
+        (x1, y0),
+        (x0, y1),
+        (x1, y1),
+    ]
+

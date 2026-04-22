@@ -18,7 +18,7 @@ Seg2 = Tuple[Vec2, Vec2]
 
 @dataclass(frozen=True)
 class TableDiagramM:
-    """Geometry for a diagram overlay: strings, break box, grid, rail diamonds, side pockets, rack."""
+    """Geometry for a diagram overlay: strings, break box, grid, rail diamonds, side pockets, rack frames."""
 
     # Named segments (endpoints in table m)
     long_string: Seg2  # centerline down the table, length L (longer than the transverse = W)
@@ -29,7 +29,9 @@ class TableDiagramM:
     grid_segments: List[Seg2]  # thin reference grid
     side_pockets_m: List[Vec2]  # midpoints on long rails
     rail_diamonds_m: List[Vec2]  # sight positions on cushion lines (diamonds / sights)
-    rack_ball_centers_m: List[Vec2]  # 15-ball triangle at foot, 2-1/4" centers (BCD ball size)
+    rack_ball_centers_m: List[Vec2]  # 15 ball centers (foot; 2-1/4" BCD) — for legacy/tests
+    rack8_inner_triangle_m: List[Vec2]  # 3 corners: inner 8-ball wooden triangle (open corner toward head)
+    rack9_inner_diamond_m: List[Vec2]  # 4 corners: inner 9-ball wooden diamond
     captions: List[Tuple[str, Vec2]]  # (text, table-m anchor; caller projects and offsets in px)
 
 
@@ -42,6 +44,46 @@ def _u(xs: Set[float], v: float, eps: float = 1e-6) -> None:
 
 # BCA / WPA general pocket billiards: 2-1/4" (0.05715 m) object ball; rack geometry uses centers.
 _BALL_D_M: float = 2.25 * 0.0254
+
+# https://www.dimensions.com/element/billiards-pool-racks (inner / opening size of the rack frame)
+_RACK8_INNER_BASE_M: float = 11.25 * 0.0254
+_RACK8_INNER_HEAD_TO_BASE_M: float = 10.0 * 0.0254
+_RACK9_INNER_DIA_ACROSS_M: float = 6.75 * 0.0254
+_RACK9_INNER_DIA_ALONG_M: float = 10.0 * 0.0254
+
+
+def _rack_foot_baseline_x_m(table_length_m: float) -> float:
+    """
+    Inset from foot cushion (x = L) where the ball pack / rack back row lies — matches 15-ball layout.
+    """
+    L = float(table_length_m)
+    rail_inset = max(2.5 * _BALL_D_M, 0.01 * L)
+    return L - float(rail_inset)
+
+
+def eight_nine_rack_outlines_m(table_length_m: float, table_width_m: float) -> Tuple[List[Vec2], List[Vec2]]:
+    """
+    Return inner wooden rack outlines: 8-ball isosceles triangle (3 verts), 9-ball rhombus (4 verts).
+    Base of the 8-triangle and wide end of 9-diamond run along the foot rail, centered in Y.
+    """
+    L = float(table_length_m)
+    W = float(table_width_m)
+    x_base = _rack_foot_baseline_x_m(L)
+    half_b = 0.5 * _RACK8_INNER_BASE_M
+    y_lo = 0.5 * W - half_b
+    y_hi = 0.5 * W + half_b
+    x_apex = x_base - _RACK8_INNER_HEAD_TO_BASE_M
+    tri8: List[Vec2] = [(float(x_base), float(y_lo)), (float(x_base), float(y_hi)), (float(x_apex), 0.5 * W)]
+    c_x = x_base - 0.5 * _RACK9_INNER_DIA_ALONG_M
+    half_a = 0.5 * _RACK9_INNER_DIA_ALONG_M
+    half_c = 0.5 * _RACK9_INNER_DIA_ACROSS_M
+    d9: List[Vec2] = [
+        (c_x - half_a, 0.5 * W),
+        (c_x, 0.5 * W + half_c),
+        (c_x + half_a, 0.5 * W),
+        (c_x, 0.5 * W - half_c),
+    ]
+    return tri8, d9
 
 
 def fifteen_ball_rack_centers_m(table_length_m: float, table_width_m: float) -> List[Vec2]:
@@ -135,8 +177,10 @@ def build_table_diagram_m(table_length_m: float, table_width_m: float) -> TableD
 
     side_s: List[Vec2] = [(0.5 * L, 0.0), (0.5 * L, W)]
     rack_centers: List[Vec2] = fifteen_ball_rack_centers_m(L, W)
+    tri8, dia9 = eight_nine_rack_outlines_m(L, W)
 
     # Label anchors: corners / margins so text does not sit on the main grid and string lines.
+    x_rack = _rack_foot_baseline_x_m(L) - 0.12 * L
     captions: List[Tuple[str, Vec2]] = [
         ("Head rail  TL,TR", (0.04 * L, 0.06 * W)),
         ("End rail  BL,BR", (0.80 * L, 0.06 * W)),
@@ -145,6 +189,8 @@ def build_table_diagram_m(table_length_m: float, table_width_m: float) -> TableD
         ("Transverse  (side pockets, center W)", (0.78 * L, 0.44 * W)),
         ("Head string  break line", (0.38 * hx, 0.82 * W)),
         ("Foot string", (0.5 * (ftx + L) - 0.02 * L, 0.20 * W)),
+        ("8: inner 11.25 x 10 in triangle", (max(0.02 * L, x_rack), 0.72 * W)),
+        ("9: inner 6.75 x 10 in diamond", (max(0.02 * L, x_rack - 0.04 * L), 0.62 * W)),
     ]
 
     return TableDiagramM(
@@ -157,5 +203,7 @@ def build_table_diagram_m(table_length_m: float, table_width_m: float) -> TableD
         side_pockets_m=side_s,
         rail_diamonds_m=rail_diamonds,
         rack_ball_centers_m=rack_centers,
+        rack8_inner_triangle_m=tri8,
+        rack9_inner_diamond_m=dia9,
         captions=captions,
     )

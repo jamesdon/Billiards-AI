@@ -81,9 +81,11 @@ Billiards-AI/
       shot_hints.py                 Stub “best / alt” aim polylines in table meters (replace with solver)
     calib/
       __init__.py
-      table_geometry.py             Homography from 4 outside corners + default pockets/kitchen geometry
+      table_geometry.py             Homography from 4 outside corners + default pockets/kitchen geometry; centered table-aspect placeholder quads in image px when no corners are found
       table_layout.py               Kitchen/break polygons; infer table size from pocket labels
-      table_diagram_m.py            BCA-style table schematic in table meters (strings, break box, grid, 15-ball foot rack, rail diamonds) for `calib_click` overlay
+      table_diagram_m.py            BCA-style table schematic in table meters (strings, break box, grid, 8- and 9-ball rack frame outlines from dimensions.com, rail diamonds) for `calib_click` overlay; optional 15 ball centers kept for tests
+      corner_order.py               Map four image points to physical TL,TR,BL,BR for homography
+      pocket_corners_onnx.py        Optional: YOLO `pockets` det centers → convex-hull → four corner image points (used by `calib_click` when `models/model.onnx` is present)
       calib_store.py                Load/save calibration json (H camera, optional H_projector table→projector px, pockets, table size, kitchen/break polygons)
     events/
       __init__.py
