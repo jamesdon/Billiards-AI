@@ -39,11 +39,11 @@ def test_centered_placeholder_aspect_ratio():
     from edge.calib.table_geometry import centered_table_placeholder_corners_px
 
     tl, tr, bl, br = centered_table_placeholder_corners_px(1000, 500, 2.84, 1.42)
-    w = tr[0] - tl[0]
-    h = bl[1] - tl[1]
-    # Image x = table width W, image y = table length L → w_px / h_px = W / L (< 1).
-    assert abs((w / h) - (1.42 / 2.84)) < 0.01
-    assert h > w + 1e-6
+    long_px = bl[0] - tl[0]
+    short_px = tr[1] - tl[1]
+    # Long rail along image +x, head rail along image +y → long_px / short_px = L / W.
+    assert abs((long_px / short_px) - (2.84 / 1.42)) < 0.01
+    assert long_px > short_px + 1e-6
     cx = 0.25 * (tl[0] + tr[0] + bl[0] + br[0])
     cy = 0.25 * (tl[1] + tr[1] + bl[1] + br[1])
     assert abs(cx - 500.0) < 1.0

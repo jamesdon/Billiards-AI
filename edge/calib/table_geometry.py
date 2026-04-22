@@ -134,29 +134,35 @@ def centered_table_placeholder_corners_px(
     """
     When no reliable corners are found, an axis-aligned quad (TL,TR,BL,BR) centered with margins.
 
-    Matches ``_estimate_homography`` in ``calib_click``: image **x** spans table **Y** (width *W*),
-    image **y** spans table **X** (length *L*). So pixel width / pixel height = *W* / *L* (always
-    ≤ 1 for a regulation table longer than it is wide).
+    Matches ``_estimate_homography`` in ``calib_click`` (dst table coords unchanged):
+
+    - **Head rail** TL→TR is table **Y** from 0 to *W* (short side). In the image this edge is
+      **vertical** so a landscape frame shows the long dimension **horizontally** (camera-native).
+    - **Left long rail** TL→BL is table **X** from 0 to *L* (long side), drawn **horizontally** in
+      the image.
+
+    So pixel span along **x** is proportional to *L*, along **y** to *W*, and
+    ``(x_BL - x_TL) / (y_TR - y_TL) = L / W`` (wider than tall for a pool table).
     """
     L = float(max(float(table_length_m), 1e-9))
     W = float(max(float(table_width_m), 1e-9))
-    aspect_wh = W / L  # image horizontal / image vertical
+    aspect_lw = L / W  # horizontal long-rail span / vertical head-rail span (in px)
     aw = (1.0 - 2.0 * float(margin_frac)) * float(image_w_px)
     ah = (1.0 - 2.0 * float(margin_frac)) * float(image_h_px)
-    if aw >= aspect_wh * ah:
+    if aw >= aspect_lw * ah:
         h_rect = ah
-        w_rect = aspect_wh * h_rect
+        w_rect = aspect_lw * h_rect
     else:
         w_rect = aw
-        h_rect = w_rect / max(aspect_wh, 1e-12)
+        h_rect = w_rect / max(aspect_lw, 1e-12)
     cx = 0.5 * float(image_w_px)
     cy = 0.5 * float(image_h_px)
-    x0, x1 = cx - 0.5 * w_rect, cx + 0.5 * w_rect
-    y0, y1 = cy - 0.5 * h_rect, cy + 0.5 * h_rect
+    x0 = cx - 0.5 * w_rect
+    y0 = cy - 0.5 * h_rect
     return [
-        (x0, y0),
-        (x1, y0),
-        (x0, y1),
-        (x1, y1),
+        (x0, y0),  # TL
+        (x0, y0 + h_rect),  # TR — head rail, table +Y
+        (x0 + w_rect, y0),  # BL — left long rail, table +X
+        (x0 + w_rect, y0 + h_rect),  # BR
     ]
 
