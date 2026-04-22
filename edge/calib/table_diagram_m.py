@@ -6,6 +6,7 @@ per half between corner and side pocket on long rails, 3 between corners on shor
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import List, Set, Tuple
 
@@ -17,18 +18,18 @@ Seg2 = Tuple[Vec2, Vec2]
 
 @dataclass(frozen=True)
 class TableDiagramM:
-    """Geometry for a diagram overlay: strings, break box, grid, rail diamonds, side pockets."""
+    """Geometry for a diagram overlay: strings, break box, grid, rail diamonds, side pockets, rack."""
 
     # Named segments (endpoints in table m)
-    long_string: Seg2  # along length (head→foot) through table center, parallel to long rails
-    transverse_string: Seg2  # through side pocket centers, parallel to head/foot
+    long_string: Seg2  # centerline down the table, length L (longer than the transverse = W)
+    transverse_string: Seg2  # through side pocket centers (short centerline, parallel to head/foot)
     head_string: Seg2
     foot_string: Seg2
     break_box_m: List[Vec2]  # closed rect (4 corners) inside kitchen, centered in Y
     grid_segments: List[Seg2]  # thin reference grid
-    pocket_center_diagonals: List[Seg2]  # very light, corner-to-opposite-corner
     side_pockets_m: List[Vec2]  # midpoints on long rails
     rail_diamonds_m: List[Vec2]  # sight positions on cushion lines (diamonds / sights)
+    rack_ball_centers_m: List[Vec2]  # 15-ball triangle at foot, 2-1/4" centers (BCD ball size)
     captions: List[Tuple[str, Vec2]]  # (text, table-m anchor; caller projects and offsets in px)
 
 
@@ -37,6 +38,35 @@ def _u(xs: Set[float], v: float, eps: float = 1e-6) -> None:
         if abs(x - v) < eps:
             return
     xs.add(v)
+
+
+# BCA / WPA general pocket billiards: 2-1/4" (0.05715 m) object ball; rack geometry uses centers.
+_BALL_D_M: float = 2.25 * 0.0254
+
+
+def fifteen_ball_rack_centers_m(table_length_m: float, table_width_m: float) -> List[Vec2]:
+    """
+    15-ball equilateral pack: apex (one ball) toward the head, base (five balls) toward the
+    foot rail. Backs the pack off the foot cushion; ball centers use 2-1/4" spacing.
+    """
+    L = float(table_length_m)
+    W = float(table_width_m)
+    D = _BALL_D_M
+    row_step = D * (math.sqrt(3.0) / 2.0)
+    pack_depth = 4.0 * row_step
+    rail_inset = max(2.5 * D, 0.01 * L)
+    x_back = L - rail_inset
+    x_apex = x_back - pack_depth
+    if x_apex < 0.0:
+        x_apex = 0.0
+    centers: List[Vec2] = []
+    for r in range(5):
+        x = x_apex + r * row_step
+        n = r + 1
+        for j in range(n):
+            y = 0.5 * W + (j - 0.5 * (n - 1)) * D
+            centers.append((float(x), float(y)))
+    return centers
 
 
 def build_table_diagram_m(table_length_m: float, table_width_m: float) -> TableDiagramM:
@@ -103,18 +133,18 @@ def build_table_diagram_m(table_length_m: float, table_width_m: float) -> TableD
         if 0.0 < y < W:  # avoid double-tracing the outer frame (corners are drawn)
             grid.append(((0.0, y), (L, y)))
 
-    pocket_center_diags: List[Seg2] = [((0.0, 0.0), (L, W)), ((0.0, W), (L, 0.0))]
-
     side_s: List[Vec2] = [(0.5 * L, 0.0), (0.5 * L, W)]
+    rack_centers: List[Vec2] = fifteen_ball_rack_centers_m(L, W)
 
+    # Label anchors: corners / margins so text does not sit on the main grid and string lines.
     captions: List[Tuple[str, Vec2]] = [
-        ("Head rail  TL,TR", (0.0, 0.32 * W)),
-        ("End rail  BL,BR", (L, 0.32 * W)),
-        ("Break box", (0.35 * hx, 0.5 * (y_lo + y_hi))),
-        ("Long string", (0.58 * L, 0.55 * W)),
-        ("Center  side pockets", (0.5 * L, 0.6 * W)),
-        ("Head string  break line", (hx, 0.12 * W)),
-        ("Foot string", (ftx, 0.12 * W)),
+        ("Head rail  TL,TR", (0.04 * L, 0.06 * W)),
+        ("End rail  BL,BR", (0.80 * L, 0.06 * W)),
+        ("Break box", (0.22 * hx, 0.18 * W)),
+        ("Long string  (head to foot, center L)", (0.38 * L, 0.90 * W)),
+        ("Transverse  (side pockets, center W)", (0.78 * L, 0.44 * W)),
+        ("Head string  break line", (0.38 * hx, 0.82 * W)),
+        ("Foot string", (0.5 * (ftx + L) - 0.02 * L, 0.20 * W)),
     ]
 
     return TableDiagramM(
@@ -124,8 +154,8 @@ def build_table_diagram_m(table_length_m: float, table_width_m: float) -> TableD
         foot_string=(fs_a, fs_b),
         break_box_m=break_box,
         grid_segments=grid,
-        pocket_center_diagonals=pocket_center_diags,
         side_pockets_m=side_s,
         rail_diamonds_m=rail_diamonds,
+        rack_ball_centers_m=rack_centers,
         captions=captions,
     )

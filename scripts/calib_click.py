@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import subprocess
 import sys
@@ -2173,10 +2174,12 @@ def main() -> None:
 
         if _HAS_TABLE_DIAGRAM and build_table_diagram_m is not None:
             dg = build_table_diagram_m(l_m, w_m)
+            d_ball = 0.05715
+            p0, p1 = _pm((0.0, 0.0)), _pm((d_ball, 0.0))
+            rack_r = max(2, int(0.45 * math.hypot(p1[0] - p0[0], p1[1] - p0[1])))
+
             for p, q in dg.grid_segments:
                 cv2.line(view, _pm(p), _pm(q), (60, 64, 74), 1, lineType=cv2.LINE_AA)
-            for p, q in dg.pocket_center_diagonals:
-                cv2.line(view, _pm(p), _pm(q), (52, 56, 66), 1, lineType=cv2.LINE_AA)
             bpoly = np.array([_pm(xy) for xy in dg.break_box_m], dtype=np.int32).reshape((-1, 1, 2))
             bov = view.copy()
             cv2.fillPoly(bov, [bpoly], (90, 100, 160), lineType=cv2.LINE_AA)
@@ -2189,13 +2192,18 @@ def main() -> None:
             ):
                 a, b = seg
                 cv2.line(view, _pm(a), _pm(b), col, th, lineType=cv2.LINE_AA)
+            a, b = dg.head_string
+            cv2.line(view, _pm(a), _pm(b), (0, 255, 255), 3, lineType=cv2.LINE_AA)
             for p in dg.side_pockets_m:
                 cv2.circle(view, _pm(p), 7, (40, 90, 200), -1, lineType=cv2.LINE_AA)
                 cv2.circle(view, _pm(p), 7, (120, 160, 240), 1, lineType=cv2.LINE_AA)
             for p in dg.rail_diamonds_m:
                 cv2.circle(view, _pm(p), 3, (220, 225, 235), 1, lineType=cv2.LINE_AA)
-            a, b = dg.head_string
-            cv2.line(view, _pm(a), _pm(b), (0, 255, 255), 3, lineType=cv2.LINE_AA)
+            for xy in dg.rack_ball_centers_m:
+                c = _pm(xy)
+                iv = max(0, rack_r - 1)
+                cv2.circle(view, c, iv, (235, 232, 225), -1, lineType=cv2.LINE_AA)
+                cv2.circle(view, c, rack_r, (24, 24, 28), 1, lineType=cv2.LINE_AA)
             for cap, anchor in dg.captions:
                 u, v = _pm(anchor)
                 tw, _ = cv2.getTextSize(cap, cv2.FONT_HERSHEY_SIMPLEX, 0.32, 1)[0]

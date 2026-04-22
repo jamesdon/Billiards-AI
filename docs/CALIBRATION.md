@@ -151,10 +151,11 @@ In-window workflow (new default):
 - The overlay no longer renders a large text banner across the top of the frame;
   controls/status are consolidated in the right-side panel to keep points visible.
 - With four corners and a table preset, the **video** draws a **reference diagram** in table
-  space: **grid** (diamond- and string-aligned), **long / center (side) / head / foot**
-  strings, **break box** in the kitchen, **diamonds** and **side pockets** (not editable;
-  corner handles only), tints for **kitchen** and **foot quarter**, a thick **head string**,
-  and text labels (TL/TR/BL/BR = head and foot rails as in the docs). The **table outline**
+  space: **grid** (diamond- and string-aligned), the **long** string (head-to-foot
+  centerline, full length *L*), the **transverse** string (side-pocket / width *W*),
+  head and **foot** strings, **break box** in the kitchen,   a **15-ball rack** (2-1/4 inch ball-center spacing) at the **foot** end, **diamonds** and **side pockets** (not editable; corner
+  handles only), tints for **kitchen** and **foot quarter**, a thick **head string**,
+  and text labels in open areas (TL/TR/BL/BR = head and foot rails as in the docs). The **table outline**
   follows perimeter order (TL–TR–BR–BL, not a bowtie). The panel has space and a rule before
   **Re-detect**. Use **Re-detect** or `r` for new auto corners.
 - The tools panel header supports:
