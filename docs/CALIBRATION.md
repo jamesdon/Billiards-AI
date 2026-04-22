@@ -150,6 +150,11 @@ In-window workflow (new default):
   frame (away from corner points) so corner dragging remains clickable.
 - The overlay no longer renders a large text banner across the top of the frame;
   controls/status are consolidated in the right-side panel to keep points visible.
+- With four corners and a selected table size, the **video** shows the **Kitchen** and
+  **break** regions (tinted polygons in table space, via the current homography) so
+  you can check them against the real table; the **table outline** is a proper
+  **quadrilateral** in perimeter order (TL–TR–BR–BL, not a bowtie). Use **Re-detect**
+  in the SETUP column or `r` to re-run auto pocket-corner detection.
 - The tools panel header supports:
   - drag to reposition
   - double-click to collapse/expand (accordion behavior) for unobstructed corner editing

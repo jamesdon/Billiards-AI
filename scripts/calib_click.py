@@ -44,6 +44,8 @@ UNIT_MENU: list[str] = ["imperial", "metric"]
 # the point where the two *playing-surface* rail lines (long rail × short rail) would
 # meet if extended into the pocket (not pocket center, not outer cushion nose).
 CORNER_LABELS: list[str] = ["TL", "TR", "BL", "BR"]
+# corner_points[i] is always physical i; polylines must follow the table perimeter, not 0,1,2,3.
+CORNER_OUTLINE_INDEX: tuple[int, ...] = (0, 1, 3, 2)  # TL → TR → BR → BL
 
 _JETSON_CSI_HINT = (
     "Jetson-family CSI / Argus (nvarguscamerasrc) often prints 'Failed to create CaptureSession' when no frame arrives.\n"
@@ -487,6 +489,26 @@ def _estimate_homography(
     if abs(float(h[2, 2])) > 1e-12:
         h = h / h[2, 2]
     return h
+
+
+def _table_m_to_image_xy(h_image_to_table: np.ndarray, xy_m: Tuple[float, float]) -> Tuple[float, float]:
+    """
+    H from _estimate_homography maps homogeneous image (x,y,1) to table meters (X,Y,1); invert for table → image.
+    """
+    h_inv = np.linalg.inv(h_image_to_table)
+    t = h_inv @ np.array([xy_m[0], xy_m[1], 1.0], dtype=np.float64)
+    w = float(t[2]) + 1e-12
+    return float(t[0] / w), float(t[1] / w)
+
+
+def _kitchen_break_polygons_m(table_length_m: float, table_width_m: float) -> tuple[List[Tuple[float, float]], List[Tuple[float, float]]]:
+    """Table-coordinate polygons matching calibration.json (see _manual_calibration_payload)."""
+    l = float(table_length_m)
+    w = float(table_width_m)
+    kx = l * 0.25
+    kitchen: List[Tuple[float, float]] = [(0.0, 0.0), (kx, 0.0), (kx, w), (0.0, w)]
+    brk: List[Tuple[float, float]] = [(l * 0.5, 0.0), (l, 0.0), (l, w), (l * 0.5, w)]
+    return kitchen, brk
 
 
 def _default_corners(h: int, w: int) -> List[Tuple[float, float]]:
@@ -1599,6 +1621,7 @@ def main() -> None:
     _air = int(28 * max(1.0, ui_scale))
     _head_sub = int(26 * max(1.0, ui_scale))
     _table_tail = int(22 * max(1.0, ui_scale))
+    _redetect_block = int(20 * max(1.0, ui_scale)) + max(28, int(30 * max(1.0, ui_scale)))
     _left_column_h = (
         14
         + _air
@@ -1609,6 +1632,7 @@ def main() -> None:
         + _head_sub
         + len(UNIT_MENU) * row_spacing
         + int(10 * max(1.0, ui_scale))
+        + _redetect_block
     )
     estimated_menu_h = (
         panel_drag_handle_h
@@ -1876,7 +1900,15 @@ def main() -> None:
         else:
             probe = _view_control_layout(0, 0)
             right_h = int(probe["reset_rect"][3]) + int(28 * max(1.0, ui_scale))
-            left_bottom = units_top + (len(UNIT_MENU) - 1) * row_spacing + int(12 * max(1.0, ui_scale))
+            rbtn = max(28, int(30 * max(1.0, ui_scale)))
+            rgap = int(10 * max(1.0, ui_scale))
+            redetect_extra = rgap + rbtn + int(4 * max(1.0, ui_scale))
+            left_bottom = (
+                units_top
+                + (len(UNIT_MENU) - 1) * row_spacing
+                + int(12 * max(1.0, ui_scale))
+                + redetect_extra
+            )
             left_h = left_bottom - inner_top
             twin_stack_h = max(left_h, right_h) + int(8 * max(1.0, ui_scale))
             footer_block = int(52 * max(1.0, ui_scale))
@@ -1893,6 +1925,15 @@ def main() -> None:
         units_top = units_heading_y + head_sub
         view_top = inner_top + 14 + air + head_sub
         drag_handle_rect = (left, top, left + panel_w, top + panel_drag_handle_h)
+        rbtn2 = max(28, int(30 * max(1.0, ui_scale)))
+        rgap2 = int(10 * max(1.0, ui_scale))
+        redetect_y1 = float(units_top) + (len(UNIT_MENU) - 1) * float(row_spacing) + float(rgap2)
+        redetect_rect = (
+            int(table_left) - 2,
+            int(redetect_y1),
+            int(col1_right) - 2,
+            int(redetect_y1 + rbtn2),
+        )
         return {
             "panel_left": left,
             "panel_top": top,
@@ -1916,6 +1957,7 @@ def main() -> None:
             "units_top": units_top,
             "view_left": view_left,
             "view_top": view_top,
+            "redetect_rect": redetect_rect,
         }
 
     def _find_nearest_point(x_disp: float, y_disp: float) -> Optional[int]:
@@ -2043,15 +2085,53 @@ def main() -> None:
         img = frame
         return True
 
+    def _redetect_corners() -> None:
+        nonlocal corner_points
+        try:
+            corner_points = _estimate_outside_corners(img)
+            print("AUTO corners reloaded from current frame.", file=sys.stderr)
+        except Exception as exc:
+            print(f"Re-detect failed: {exc}", file=sys.stderr)
+
     def redraw() -> None:
         nonlocal view
         view = _render_background()
         layout = _menu_layout()
 
         if len(corner_points) == 4:
-            poly_pts = [(_source_to_display(float(x), float(y))) for x, y in corner_points]
+            l_m, w_m = _table_dims_m(selected_table_size)
+            h_it = _estimate_homography(corner_points, l_m, w_m)
+            k_poly_m, b_poly_m = _kitchen_break_polygons_m(l_m, w_m)
+            for poly_m, fill_bgr, fill_alpha, edge_bgr, tag in (
+                (k_poly_m, (50, 140, 60), 0.22, (70, 200, 90), "Kitchen"),
+                (b_poly_m, (65, 75, 190), 0.18, (95, 110, 240), "Break"),
+            ):
+                disp: List[Tuple[int, int]] = []
+                for xm, ym in poly_m:
+                    ix, iy = _table_m_to_image_xy(h_it, (float(xm), float(ym)))
+                    dx, dy = _source_to_display(ix, iy)
+                    disp.append((int(dx), int(dy)))
+                darr = np.array(disp, dtype=np.int32).reshape((-1, 1, 2))
+                overlay = view.copy()
+                cv2.fillPoly(overlay, [darr], fill_bgr, lineType=cv2.LINE_AA)
+                cv2.addWeighted(overlay, float(fill_alpha), view, 1.0 - float(fill_alpha), 0, view)
+                cv2.polylines(view, [darr], isClosed=True, color=edge_bgr, thickness=1, lineType=cv2.LINE_AA)
+                cxs = sum(p[0] for p in disp) // max(1, len(disp))
+                cys = sum(p[1] for p in disp) // max(1, len(disp))
+                cv2.putText(
+                    view,
+                    tag,
+                    (cxs - 32, cys + 4),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.42,
+                    (245, 248, 252),
+                    1,
+                    cv2.LINE_AA,
+                )
+            outline = [corner_points[i] for i in CORNER_OUTLINE_INDEX]
+            poly_pts = [(_source_to_display(float(x), float(y))) for x, y in outline]
             poly = np.array([(int(px), int(py)) for px, py in poly_pts], dtype=np.int32).reshape((-1, 1, 2))
-            cv2.polylines(view, [poly], isClosed=True, color=(0, 200, 255), thickness=1, lineType=cv2.LINE_AA)
+            cv2.polylines(view, [poly], isClosed=True, color=(0, 200, 255), thickness=2, lineType=cv2.LINE_AA)
         for i, (x_src, y_src) in enumerate(corner_points):
             x, y = _source_to_display(float(x_src), float(y_src))
             cv2.circle(view, (int(x), int(y)), 8, (0, 255, 255), -1)
@@ -2326,6 +2406,11 @@ def main() -> None:
                 selected_color=accent,
             )
 
+        rr = layout.get("redetect_rect")
+        if isinstance(rr, tuple) and len(rr) == 4:
+            _draw_button_primary(view, rr, "Re-detect")
+            _micro_label(view, int(rr[0]), int(rr[3]) + 12, "Auto corner pockets  (same as r)")
+
         controls = _view_control_layout(int(view_left), int(view_top))
         flip_h_center = controls["flip_h_center"]
         flip_v_center = controls["flip_v_center"]
@@ -2470,10 +2555,10 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            "Corners: inner pocket throat (rail lines) TL TR kitchen   BL BR foot",
+            "Video: green=Kitchen, blue=break; table outline = TL-TR-BR-BL  (pocket inners)",
             (panel_left + 12, foot_y1),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.34,
+            0.30,
             accent,
             1,
             cv2.LINE_AA,
@@ -2514,6 +2599,15 @@ def main() -> None:
             if int(layout["col1_left"]) - 10 <= x <= col1_right and abs(y - row_y) <= row_half:
                 return name
         return None
+
+    def _hit_redetect(x: int, y: int) -> bool:
+        if panel_collapsed:
+            return False
+        layout = _menu_layout()
+        rr = layout.get("redetect_rect")
+        if not isinstance(rr, tuple) or len(rr) != 4:
+            return False
+        return _point_in_rect(x, y, rr)
 
     def _hit_view_control(x: int, y: int) -> Optional[str]:
         if panel_collapsed:
@@ -2567,6 +2661,7 @@ def main() -> None:
         nonlocal panel_left_override, panel_top_override, panel_collapsed
         nonlocal header_dbl_arm_time, header_dbl_is_second, header_dbl_moved
         nonlocal header_dbl_start_x, header_dbl_start_y
+        nonlocal corner_points
         if event == cv2.EVENT_LBUTTONDBLCLK:
             if _hit_panel_drag_handle(x, y):
                 header_dbl_arm_time = None
@@ -2613,6 +2708,10 @@ def main() -> None:
             hit_units = _hit_units_option(x, y)
             if hit_units is not None:
                 selected_units = hit_units
+                redraw()
+                return
+            if _hit_redetect(x, y):
+                _redetect_corners()
                 redraw()
                 return
             hit_view = _hit_view_control(x, y)
@@ -2723,8 +2822,7 @@ def main() -> None:
             print("Cancelled.", file=sys.stderr)
             raise SystemExit(1)
         if key in (ord("r"), ord("a")):
-            corner_points = _estimate_outside_corners(img)
-            print("AUTO corners reloaded from current frame.", file=sys.stderr)
+            _redetect_corners()
             redraw()
         if key in (ord("u"),):
             pts = _active_points()
