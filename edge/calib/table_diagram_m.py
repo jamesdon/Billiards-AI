@@ -184,8 +184,8 @@ def build_table_diagram_m(table_length_m: float, table_width_m: float) -> TableD
     # Label anchors: corners / margins so text does not sit on the main grid and string lines.
     x_rack = _rack_foot_baseline_x_m(L) - 0.12 * L
     captions: List[Tuple[str, Vec2]] = [
-        ("Head rail  TL,TR", (0.04 * L, 0.06 * W)),
-        ("End rail  BL,BR", (0.80 * L, 0.06 * W)),
+        ("Head rail", (0.04 * L, 0.06 * W)),
+        ("End rail", (0.80 * L, 0.06 * W)),
         ("Break box", (0.22 * hx, 0.18 * W)),
         ("Long string  (head to foot, center L)", (0.38 * L, 0.90 * W)),
         ("Transverse  (side pockets, center W)", (0.78 * L, 0.44 * W)),

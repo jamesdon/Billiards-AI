@@ -1531,6 +1531,8 @@ def main() -> None:
     selected_rack_style: str = str(args.rack_style)
 
     h_img, w_img = img.shape[:2]
+    # (triangle contour Nx1x2 int32, corner index, delta source x, delta source y) for pixel nudges
+    corner_nudge_hits: List[Tuple[np.ndarray, int, int, int]] = []
     flip_view_h = False
     flip_view_v = False
     view_step_mode = "fine"
@@ -2182,9 +2184,22 @@ def main() -> None:
             c, d_ = _source_to_display(a, b)
             return int(c), int(d_)
 
-        for poly_m, fill_bgr, fill_alpha, edge_bgr, tag in (
-            (k_poly_m, (50, 140, 60), 0.22, (70, 200, 90), "Kitchen"),
-            (foot_quarter_m, (50, 55, 58), 0.12, (80, 88, 98), "Foot quarter"),
+        hx_line = float(k_poly_m[1][0])
+        kitchen_hint_m = (0.22 * hx_line, 0.5 * w_m)
+        f0x = float(foot_quarter_m[0][0])
+        foot_hint_m = (f0x + 0.22 * (l_m - f0x), 0.5 * w_m)
+
+        def _label_screen_shifted(disp_px: List[Tuple[int, int]], hint_m: Tuple[float, float], pad_px: float) -> Tuple[int, int]:
+            cxi = sum(p[0] for p in disp_px) // max(1, len(disp_px))
+            cyi = sum(p[1] for p in disp_px) // max(1, len(disp_px))
+            ix, iy = _pm(hint_m)
+            vx, vy = float(ix - cxi), float(iy - cyi)
+            n = float(np.hypot(vx, vy)) + 1e-6
+            return int(cxi + pad_px * vx / n), int(cyi + pad_px * vy / n)
+
+        for poly_m, fill_bgr, fill_alpha, edge_bgr, tag, hint_m in (
+            (k_poly_m, (50, 140, 60), 0.22, (70, 200, 90), "Kitchen", kitchen_hint_m),
+            (foot_quarter_m, (50, 55, 58), 0.12, (80, 88, 98), "Foot quarter", foot_hint_m),
         ):
             disp: List[Tuple[int, int]] = []
             for xm, ym in poly_m:
@@ -2196,10 +2211,10 @@ def main() -> None:
             cv2.fillPoly(overlay, [darr], fill_bgr, lineType=cv2.LINE_AA)
             cv2.addWeighted(overlay, float(fill_alpha), view, 1.0 - float(fill_alpha), 0, view)
             cv2.polylines(view, [darr], isClosed=True, color=edge_bgr, thickness=1, lineType=cv2.LINE_AA)
-            cxs = sum(p[0] for p in disp) // max(1, len(disp))
-            cys = sum(p[1] for p in disp) // max(1, len(disp))
-            tw, _ = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.34, 1)[0]
-            tx, ty = int(cxs - tw // 2), cys + 4
+            lx, ly = _label_screen_shifted(disp, hint_m, 34.0)
+            (tw, th), bl = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.34, 1)
+            tx = int(lx - tw // 2)
+            ty = int(ly + (th + bl) / 2.0)
             cv2.putText(
                 view, tag, (tx + 1, ty + 1), cv2.FONT_HERSHEY_SIMPLEX, 0.34, (0, 0, 0), 2, cv2.LINE_AA
             )
@@ -2278,6 +2293,7 @@ def main() -> None:
 
     def redraw() -> None:
         nonlocal view
+        corner_nudge_hits.clear()
         view = _render_background()
         layout = _menu_layout()
 
@@ -2296,6 +2312,45 @@ def main() -> None:
                 2,
                 cv2.LINE_AA,
             )
+
+        if len(corner_points) == 4:
+            arm = 15.0
+            wing = 4.5
+            fill_a = (78, 188, 248)
+            edge_a = (32, 100, 150)
+            for ci, (sx, sy) in enumerate(corner_points):
+                p0 = np.array(_source_to_display(float(sx), float(sy)), dtype=np.float64)
+                px = np.array(_source_to_display(float(sx + 1.0), float(sy)), dtype=np.float64)
+                py = np.array(_source_to_display(float(sx), float(sy + 1.0)), dtype=np.float64)
+                vx = px - p0
+                vy = py - p0
+
+                def _unit2(v: np.ndarray) -> np.ndarray:
+                    n = float(np.linalg.norm(v))
+                    return (v / max(n, 1e-9)).astype(np.float64)
+
+                ux = _unit2(vx)
+                uy = _unit2(vy)
+                for vec, dsx, dsy in (
+                    (ux, 1, 0),
+                    (-ux, -1, 0),
+                    (uy, 0, 1),
+                    (-uy, 0, -1),
+                ):
+                    tip = p0 + arm * vec
+                    base = p0 + (arm - 8.0) * vec
+                    perp = np.array((-float(vec[1]), float(vec[0])), dtype=np.float64)
+                    pn = float(np.linalg.norm(perp)) + 1e-9
+                    perp /= pn
+                    p_tip = (float(tip[0]), float(tip[1]))
+                    p_l = (float(base[0] + wing * perp[0]), float(base[1] + wing * perp[1]))
+                    p_r = (float(base[0] - wing * perp[0]), float(base[1] - wing * perp[1]))
+                    tri = np.array([[p_tip[0], p_tip[1]], [p_l[0], p_l[1]], [p_r[0], p_r[1]]], dtype=np.int32).reshape(
+                        (-1, 1, 2)
+                    )
+                    cv2.fillConvexPoly(view, tri, fill_a, lineType=cv2.LINE_AA)
+                    cv2.polylines(view, [tri], True, edge_a, 1, lineType=cv2.LINE_AA)
+                    corner_nudge_hits.append((tri, ci, dsx, dsy))
 
         panel_left = layout["panel_left"]
         panel_top = layout["panel_top"]
@@ -2820,6 +2875,12 @@ def main() -> None:
         layout = _menu_layout()
         return _point_in_rect(x, y, layout["drag_handle_rect"])
 
+    def _hit_corner_nudge(x: int, y: int) -> Optional[Tuple[int, int, int]]:
+        for tri, ci, dsx, dsy in corner_nudge_hits:
+            if cv2.pointPolygonTest(tri, (float(x), float(y)), False) >= 0.0:
+                return ci, dsx, dsy
+        return None
+
     def on_mouse(event, x, y, _flags, _userdata) -> None:
         nonlocal selected_table_size, selected_units, active_point_idx, dragging
         nonlocal flip_view_h, flip_view_v, view_step_mode
@@ -2860,6 +2921,19 @@ def main() -> None:
                 panel_drag_offset_x = int(x - x1)
                 panel_drag_offset_y = int(y - y1)
                 return
+            if len(corner_points) == 4:
+                hit_nudge = _hit_corner_nudge(int(x), int(y))
+                if hit_nudge is not None:
+                    hci, hdx, hdy = hit_nudge
+                    nsx = float(corner_points[hci][0]) + float(hdx)
+                    nsy = float(corner_points[hci][1]) + float(hdy)
+                    nsx = float(np.clip(nsx, 0.0, float(w_img - 1)))
+                    nsy = float(np.clip(nsy, 0.0, float(h_img - 1)))
+                    pts = list(corner_points)
+                    pts[hci] = (nsx, nsy)
+                    _set_active_points(pts)
+                    redraw()
+                    return
             idx = _find_nearest_point(float(x), float(y))
             if idx is not None:
                 active_point_idx = idx
