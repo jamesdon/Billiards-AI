@@ -13,7 +13,7 @@ Validate calibration schema, pocket labels, and coordinate mapping assumptions.
   - table length/width in meters (from selected table preset)
   - six standardized pocket centers/radii
   - kitchen polygon (head-string quarter from the kitchen short rail along X)
-  - break area polygon (foot half-table / behind break line from kitchen)
+  - break area polygon (foot-end **quarter**; **not** the head string — the head string is the kitchen’s footward bound, ≈ ¼L from the head, see `table_layout.py`)
 - **Still manual/assisted**:
   - initial table corner selection in image pixel coordinates
   - optional override of pocket radii and exact break-zone policy

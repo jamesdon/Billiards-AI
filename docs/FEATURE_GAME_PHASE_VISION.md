@@ -12,7 +12,7 @@ Infer **where we are in the match setup** from detections (rack, ball count, opt
 
 ## Roadmap (Roboflow-style parity)
 
-1. **Rack + head string**: detect rack triangle + cue in kitchen / outside break box (calibration polygons in `Calibration.break_area_polygon_xy_m` / `kitchen_polygon_xy_m`).
+1. **Rack + head string**: detect rack triangle + cue in kitchen; optional foot-quarter overlay in `break_area_polygon_xy_m` (not the same as the head string — see `edge/calib/table_layout.py`).
 2. **Legal break setup**: all balls behind head string except cue placement rules (league-specific).
 3. **Post-break**: rack absent + balls moving → `IN_PROGRESS`.
 

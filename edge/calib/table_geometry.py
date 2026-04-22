@@ -9,6 +9,7 @@ from core.geometry import Homography
 from core.types import PocketLabel
 
 from .calib_store import Calibration, PocketDef
+from .table_layout import head_string_x_m
 
 
 @dataclass(frozen=True)
@@ -67,14 +68,15 @@ def _default_pockets(table_length_m: float, table_width_m: float, radius_m: floa
 
 
 def _geometry(table_length_m: float, table_width_m: float, pocket_radius_m: float) -> TableGeometry:
-    # X=0 is the head short rail (kitchen / rack). Break line is ~1/4 table length toward the foot.
-    break_line_x_m = table_length_m * 0.25
+    # X=0: head short rail. Head string (BCA “break line”) ≈ 1/4 playing length, physically second diamonds.
+    hstr = head_string_x_m(float(table_length_m))
+    break_line_x_m = hstr
     break_box_x_m = table_length_m * 0.5
-    kitchen_line_x_m = break_line_x_m
+    kitchen_line_x_m = hstr
     kitchen_polygon = [
         (0.0, 0.0),
-        (kitchen_line_x_m, 0.0),
-        (kitchen_line_x_m, table_width_m),
+        (hstr, 0.0),
+        (hstr, table_width_m),
         (0.0, table_width_m),
     ]
     return TableGeometry(

@@ -9,6 +9,7 @@ import numpy as np
 from core.types import GameState
 
 from ..calib.calib_store import Calibration
+from ..calib.table_layout import head_string_segment_from_kitchen_polygon, head_string_segment_xy_m
 
 
 @dataclass
@@ -86,6 +87,19 @@ def _draw_polyline_table_m(
     cv2.polylines(out, [pts], isClosed=False, color=color, thickness=thickness, lineType=cv2.LINE_AA)
 
 
+def _head_string_segment_table_m(calib: Calibration) -> Optional[List[Tuple[float, float]]]:
+    """BCA head string: across the long rails (constant x), not along the y=0 head rail edge."""
+    seg = head_string_segment_from_kitchen_polygon(
+        list(calib.kitchen_polygon_xy_m) if calib.kitchen_polygon_xy_m else [],
+        calib.table_width_m,
+    )
+    if seg is not None:
+        a, b = seg
+        return [a, b]
+    a, b = head_string_segment_xy_m(calib.table_length_m, calib.table_width_m)
+    return [a, b]
+
+
 def _draw_table_polygon(
     out: np.ndarray,
     calib: Calibration,
@@ -139,8 +153,10 @@ def _draw_projector_mirror_inset(out: np.ndarray, state: GameState, calib: Calib
 
     if layers.show_break_box and calib.break_area_polygon_xy_m:
         draw_on_panel(list(calib.break_area_polygon_xy_m), (0, 255, 255), True)
-    if layers.show_break_string and len(calib.kitchen_polygon_xy_m) >= 2:
-        draw_on_panel(list(calib.kitchen_polygon_xy_m[:2]), (0, 200, 255), False)
+    if layers.show_break_string:
+        hs2 = _head_string_segment_table_m(calib)
+        if hs2 is not None and len(hs2) >= 2:
+            draw_on_panel(hs2, (0, 200, 255), False)
     if layers.show_best_next_shot:
         hb = getattr(state, "_hint_best_table_m", []) or []
         if hb:
@@ -195,9 +211,11 @@ def draw_overlay(
     if calib is not None:
         if layers.show_break_box and calib.break_area_polygon_xy_m:
             _draw_table_polygon(out, calib, calib.break_area_polygon_xy_m, color=(0, 255, 255), thickness=2)
-        if layers.show_break_string and len(calib.kitchen_polygon_xy_m) >= 2:
-            p0 = calib.H.to_pixel(calib.kitchen_polygon_xy_m[0])
-            p1 = calib.H.to_pixel(calib.kitchen_polygon_xy_m[1])
+    if layers.show_break_string:
+        hs = _head_string_segment_table_m(calib)
+        if hs is not None and len(hs) >= 2:
+            p0 = calib.H.to_pixel(hs[0])
+            p1 = calib.H.to_pixel(hs[1])
             cv2.line(
                 out,
                 (int(p0[0]), int(p0[1])),

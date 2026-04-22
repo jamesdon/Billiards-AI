@@ -140,12 +140,40 @@ def _camera_cli_type(value: str) -> str:
 
 try:
     from edge.calib.table_geometry import auto_calibration_from_corners, table_geometry_dict
+    from edge.calib.table_layout import (
+        break_area_polygon,
+        head_string_segment_xy_m,
+        kitchen_polygon,
+    )
 
     _HAS_EDGE_AUTOCAL = True
+    _HAS_TABLE_LAYOUT = True
 except Exception:
     auto_calibration_from_corners = None
     table_geometry_dict = None
     _HAS_EDGE_AUTOCAL = False
+    _HAS_TABLE_LAYOUT = False
+
+
+def _kitchen_foot_and_head_string_m(
+    table_length_m: float, table_width_m: float
+) -> tuple[
+    List[Tuple[float, float]], List[Tuple[float, float]], Tuple[Tuple[float, float], Tuple[float, float]]
+]:
+    """Kitchen rect, foot-end quarter, and head string (break line) segment across the table."""
+    l = float(table_length_m)
+    w = float(table_width_m)
+    if _HAS_TABLE_LAYOUT:
+        k = kitchen_polygon(l, w)
+        fq = break_area_polygon(l, w)
+        a, b = head_string_segment_xy_m(l, w)
+    else:
+        hx = l * 0.25
+        k = [(0.0, 0.0), (hx, 0.0), (hx, w), (0.0, w)]
+        d = 0.25 * l
+        fq = [(l - d, 0.0), (l, 0.0), (l, w), (l - d, w)]
+        a, b = (hx, 0.0), (hx, w)
+    return k, fq, (a, b)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -499,16 +527,6 @@ def _table_m_to_image_xy(h_image_to_table: np.ndarray, xy_m: Tuple[float, float]
     t = h_inv @ np.array([xy_m[0], xy_m[1], 1.0], dtype=np.float64)
     w = float(t[2]) + 1e-12
     return float(t[0] / w), float(t[1] / w)
-
-
-def _kitchen_break_polygons_m(table_length_m: float, table_width_m: float) -> tuple[List[Tuple[float, float]], List[Tuple[float, float]]]:
-    """Table-coordinate polygons matching calibration.json (see _manual_calibration_payload)."""
-    l = float(table_length_m)
-    w = float(table_width_m)
-    kx = l * 0.25
-    kitchen: List[Tuple[float, float]] = [(0.0, 0.0), (kx, 0.0), (kx, w), (0.0, w)]
-    brk: List[Tuple[float, float]] = [(l * 0.5, 0.0), (l, 0.0), (l, w), (l * 0.5, w)]
-    return kitchen, brk
 
 
 def _default_corners(h: int, w: int) -> List[Tuple[float, float]]:
@@ -1415,7 +1433,7 @@ def _manual_calibration_payload(
         rs_m = (0.5 * table_length_m, table_width_m)
     L = float(table_length_m)
     W = float(table_width_m)
-    kx = float(L * 0.25)
+    k_m, foot_m, _ = _kitchen_foot_and_head_string_m(L, W)
     return {
         "H": [[float(v) for v in row] for row in h.tolist()],
         "pockets": [
@@ -1428,18 +1446,8 @@ def _manual_calibration_payload(
         ],
         "table_length_m": table_length_m,
         "table_width_m": table_width_m,
-        "kitchen_polygon_xy_m": [
-            [0.0, 0.0],
-            [kx, 0.0],
-            [kx, W],
-            [0.0, W],
-        ],
-        "break_area_polygon_xy_m": [
-            [L * 0.5, 0.0],
-            [L, 0.0],
-            [L, W],
-            [L * 0.5, W],
-        ],
+        "kitchen_polygon_xy_m": [[float(x), float(y)] for x, y in k_m],
+        "break_area_polygon_xy_m": [[float(x), float(y)] for x, y in foot_m],
     }
 
 
@@ -2101,10 +2109,10 @@ def main() -> None:
         if len(corner_points) == 4:
             l_m, w_m = _table_dims_m(selected_table_size)
             h_it = _estimate_homography(corner_points, l_m, w_m)
-            k_poly_m, b_poly_m = _kitchen_break_polygons_m(l_m, w_m)
+            k_poly_m, foot_quarter_m, (hs_a, hs_b) = _kitchen_foot_and_head_string_m(l_m, w_m)
             for poly_m, fill_bgr, fill_alpha, edge_bgr, tag in (
                 (k_poly_m, (50, 140, 60), 0.22, (70, 200, 90), "Kitchen"),
-                (b_poly_m, (65, 75, 190), 0.18, (95, 110, 240), "Break"),
+                (foot_quarter_m, (50, 55, 58), 0.12, (80, 88, 98), "Foot quarter"),
             ):
                 disp: List[Tuple[int, int]] = []
                 for xm, ym in poly_m:
@@ -2121,13 +2129,36 @@ def main() -> None:
                 cv2.putText(
                     view,
                     tag,
-                    (cxs - 32, cys + 4),
+                    (cxs - 48, cys + 4),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.42,
                     (245, 248, 252),
                     1,
                     cv2.LINE_AA,
                 )
+            p0s = _table_m_to_image_xy(h_it, (float(hs_a[0]), float(hs_a[1])))
+            p1s = _table_m_to_image_xy(h_it, (float(hs_b[0]), float(hs_b[1])))
+            d0 = _source_to_display(float(p0s[0]), float(p0s[1]))
+            d1 = _source_to_display(float(p1s[0]), float(p1s[1]))
+            cv2.line(
+                view,
+                (int(d0[0]), int(d0[1])),
+                (int(d1[0]), int(d1[1])),
+                (0, 255, 255),
+                3,
+                lineType=cv2.LINE_AA,
+            )
+            mx, my = (int((d0[0] + d1[0]) * 0.5), int((d0[1] + d1[1]) * 0.5))
+            cv2.putText(
+                view,
+                "Head string (break line)",
+                (mx - 100, my - 8),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.46,
+                (0, 255, 255),
+                2,
+                cv2.LINE_AA,
+            )
             outline = [corner_points[i] for i in CORNER_OUTLINE_INDEX]
             poly_pts = [(_source_to_display(float(x), float(y))) for x, y in outline]
             poly = np.array([(int(px), int(py)) for px, py in poly_pts], dtype=np.int32).reshape((-1, 1, 2))
@@ -2555,7 +2586,7 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            "Video: green=Kitchen, blue=break; table outline = TL-TR-BR-BL  (pocket inners)",
+            "Video: Kitchen+Foot quarter; cyan=Head string; outline TL-TR-BR-BL  (diamonds ~0.25L)",
             (panel_left + 12, foot_y1),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.30,

@@ -1,10 +1,48 @@
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from core.types import PocketLabel
 
 from .calib_store import PocketDef
+
+# BCA: the kitchen is the half-table area **shoreward of the head string** (between the head
+# cushion and the head string). Cue ball must be in the kitchen for a break — behind the
+# head string (base on/behind the line, toward the head rail).
+# The **head string** (often what people call the “break line”) is an arc across the table
+# connecting the **second diamonds** (from the head) on the two **long (side) rails** — i.e.
+# a line of constant x in table coords, perpendicular to the long centerline.
+# Many specs approximate that line at 1/4 of playing-surface length from the head rail;
+# exact diamond pitch varies by manufacturer, so this is a tunable first-order default.
+HEAD_STRING_FRACTION_OF_LENGTH: float = 0.25
+
+
+def head_string_x_m(table_length_m: float) -> float:
+    return float(table_length_m) * HEAD_STRING_FRACTION_OF_LENGTH
+
+
+def head_string_segment_xy_m(table_length_m: float, table_width_m: float) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+    """
+    Return endpoints of the head string: from the second-diamond / width-side
+    of the y=0 long rail to the y=W long rail, at x = head_string_x_m.
+    """
+    hx = head_string_x_m(table_length_m)
+    w = float(table_width_m)
+    return (hx, 0.0), (hx, w)
+
+
+def head_string_segment_from_kitchen_polygon(
+    kitchen_polygon_xy_m: List[Tuple[float, float]], table_width_m: float
+) -> Optional[Tuple[Tuple[float, float], Tuple[float, float]]]:
+    """
+    Infer the head string segment from a saved kitchen rect [TL,(hx,0),(hx,W),(0,W)].
+    If the polygon is missing or too short, return None.
+    """
+    if len(kitchen_polygon_xy_m) < 2:
+        return None
+    kx = float(kitchen_polygon_xy_m[1][0])
+    w = float(table_width_m)
+    return (kx, 0.0), (kx, w)
 
 
 def _normalize_end(end: str, default: str) -> str:
@@ -23,12 +61,10 @@ def _normalize_end(end: str, default: str) -> str:
 
 def kitchen_polygon(table_length_m: float, table_width_m: float, head_end: str = "left") -> List[Tuple[float, float]]:
     """
-    Kitchen area polygon in table coordinates.
-
-    Baseline definition: quarter-table nearest the head end.
+    Kitchen: playing-surface area between the head cushion and the head string (x in [0, head_string]).
     """
     side = _normalize_end(head_end, default="left")
-    d = float(table_length_m) * 0.25
+    d = head_string_x_m(table_length_m)
     w = float(table_width_m)
     if side == "left":
         return [(0.0, 0.0), (d, 0.0), (d, w), (0.0, w)]
@@ -37,12 +73,14 @@ def kitchen_polygon(table_length_m: float, table_width_m: float, head_end: str =
 
 def break_area_polygon(table_length_m: float, table_width_m: float, foot_end: str = "right") -> List[Tuple[float, float]]:
     """
-    Break area polygon in table coordinates.
+    **Foot-end quarter** (not the head string / break line). Optional overlay for
+    “rack / foot” side heuristics — the legal break cueing region is the **kitchen**
+    and the line that bounds it is the **head string** from ``head_string_segment_xy_m``.
 
-    Baseline definition: quarter-table nearest the foot end.
+    Nearer foot cushion: the quarter of the playing surface at the same end as the foot rail.
     """
     side = _normalize_end(foot_end, default="right")
-    d = float(table_length_m) * 0.25
+    d = head_string_x_m(table_length_m)
     w = float(table_width_m)
     if side == "left":
         return [(0.0, 0.0), (d, 0.0), (d, w), (0.0, w)]
