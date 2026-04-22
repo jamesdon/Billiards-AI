@@ -1611,38 +1611,30 @@ def _merge_legacy_captions_indexed(
     return out
 
 
-def _merge_overlay_labels(defaults: List[Dict[str, Any]], loaded: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    by_id = {str(d["id"]): dict(d) for d in loaded if isinstance(d, dict) and d.get("id")}
-    merged: List[Dict[str, Any]] = []
-    for d in defaults:
-        i = str(d["id"])
-        if i in by_id:
-            merged.append({**d, **by_id[i], "id": i})
-        else:
-            merged.append(dict(d))
-    seen = {str(d["id"]) for d in merged}
-    for d in loaded:
-        if not isinstance(d, dict) or not d.get("id"):
-            continue
-        i = str(d["id"])
-        if i not in seen:
-            r = _parse_overlay_label_row(d)
-            if r is not None:
-                merged.append(r)
-                seen.add(i)
-    return merged
+def _merge_labels_file_order_priority(
+    loaded: List[Dict[str, Any]], diagram_defaults: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """Saved JSON order and x_L,y_W win; append diagram defaults only for ids missing from the file."""
+    out: List[Dict[str, Any]] = [dict(r) for r in loaded]
+    seen = {str(r["id"]) for r in out}
+    for d in diagram_defaults:
+        did = str(d["id"])
+        if did not in seen:
+            out.append(dict(d))
+            seen.add(did)
+    return out
 
 
 def _build_overlay_labels_list(overlay: dict, l_m: float, w_m: float) -> List[Dict[str, Any]]:
-    defaults = _default_overlay_labels(l_m, w_m)
+    diagram_defaults = _default_overlay_labels(l_m, w_m)
     raw_labels = overlay.get("labels")
     if isinstance(raw_labels, list) and raw_labels:
         loaded = [r for r in (_parse_overlay_label_row(x) for x in raw_labels) if r is not None]
-        return _merge_overlay_labels(defaults, loaded)
+        return _merge_labels_file_order_priority(loaded, diagram_defaults)
     legacy = _labels_from_legacy_captions(overlay)
     if legacy:
-        return _merge_legacy_captions_indexed(defaults, legacy)
-    return list(defaults)
+        return _merge_legacy_captions_indexed(diagram_defaults, legacy)
+    return list(diagram_defaults)
 
 
 def _save_overlay_labels_file(
@@ -1684,20 +1676,76 @@ def _puttext_caption_bbox_display(
     )
 
 
-def _gui_edit_label_text(title: str, initial: str) -> Optional[str]:
+def _gui_edit_label_text(
+    title: str,
+    initial: str,
+    *,
+    win_name: Optional[str] = None,
+    place_xy_window: Optional[Tuple[int, int]] = None,
+) -> Optional[str]:
+    """Movable Toplevel (no always-on-top); optional placement near a double-click in the OpenCV window."""
     try:
         import tkinter as tk
-        from tkinter import simpledialog
+        from tkinter import ttk
 
         root = tk.Tk()
         root.withdraw()
+        top = tk.Toplevel(root)
+        top.title(title)
+        var = tk.StringVar(value=initial)
+        frm = ttk.Frame(top, padding=10)
+        frm.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(frm, text="Label text:").pack(anchor=tk.W)
+        ent = ttk.Entry(frm, textvariable=var, width=52)
+        ent.pack(fill=tk.X, pady=(4, 10))
         try:
-            root.attributes("-topmost", True)
+            ent.selection_range(0, tk.END)
         except Exception:
             pass
-        s = simpledialog.askstring(title, "Label text:", initialvalue=initial, parent=root)
+        ent.focus_set()
+
+        result: List[Optional[str]] = [None]
+
+        def on_ok(_e: Any = None) -> None:
+            result[0] = var.get()
+            top.destroy()
+
+        def on_cancel(_e: Any = None) -> None:
+            result[0] = None
+            top.destroy()
+
+        btn_row = ttk.Frame(frm)
+        btn_row.pack(fill=tk.X)
+        ttk.Button(btn_row, text="Cancel", command=on_cancel).pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(btn_row, text="OK", command=on_ok).pack(side=tk.RIGHT)
+        top.protocol("WM_DELETE_WINDOW", on_cancel)
+        ent.bind("<Return>", on_ok)
+        ent.bind("<Escape>", on_cancel)
+
+        top.update_idletasks()
+        rw = max(320, top.winfo_reqwidth())
+        rh = max(120, top.winfo_reqheight())
+        sw = int(top.winfo_screenwidth())
+        sh = int(top.winfo_screenheight())
+        px = max(8, (sw - rw) // 2)
+        py = max(8, int(sh * 0.18))
+        if win_name and place_xy_window is not None:
+            try:
+                r = cv2.getWindowImageRect(str(win_name))
+                if r is not None and len(r) >= 4 and int(r[2]) > 0 and int(r[3]) > 0:
+                    px = int(r[0]) + int(place_xy_window[0]) + 20
+                    py = int(r[1]) + int(place_xy_window[1]) + 20
+                    px = int(np.clip(px, 8, max(9, sw - rw - 8)))
+                    py = int(np.clip(py, 8, max(9, sh - rh - 8)))
+            except Exception:
+                pass
+        top.geometry(f"{rw}x{rh}+{px}+{py}")
+        top.minsize(280, 100)
+        top.grab_set()
+        root.wait_window(top)
         root.destroy()
-        return None if s is None else str(s)
+        v = result[0]
+        return None if v is None else str(v)
     except Exception:
         return None
 
@@ -2559,19 +2607,6 @@ def main() -> None:
 
         if len(corner_points) == 4:
             _draw_table_schematic_and_zones()
-            if edit_overlay_mode:
-                bar_h = max(30, int(round(26 * max(1.0, ui_scale))))
-                cv2.rectangle(view, (0, 0), (w_img, bar_h), (24, 26, 34), -1)
-                cv2.putText(
-                    view,
-                    "LABEL EDIT: drag labels  dbl-click=text  Del/Backspace/d=delete  n=new  s=save  e=exit",
-                    (10, bar_h - 8),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.42 * min(1.0, ui_scale + 0.15),
-                    (235, 240, 250),
-                    1,
-                    cv2.LINE_AA,
-                )
         for i, (x_src, y_src) in enumerate(corner_points):
             x, y = _source_to_display(float(x_src), float(y_src))
             cv2.circle(view, (int(x), int(y)), 8, (0, 255, 255), -1)
@@ -3068,6 +3103,22 @@ def main() -> None:
             cv2.LINE_AA,
         )
 
+        if len(corner_points) == 4 and edit_overlay_mode:
+            bar_h = max(32, int(round(28 * max(1.0, ui_scale))))
+            y0 = max(0, h_img - bar_h)
+            cv2.rectangle(view, (0, y0), (w_img, h_img - 1), (20, 24, 34), -1)
+            cv2.line(view, (0, y0), (w_img, y0), (90, 140, 210), 1, lineType=cv2.LINE_AA)
+            cv2.putText(
+                view,
+                "LABEL EDIT: drag labels  dbl-click=text (movable window)  Del/Backspace/d=delete  n=new  s=save  e=exit",
+                (10, h_img - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.38 * min(1.0, ui_scale + 0.1),
+                (235, 242, 252),
+                1,
+                cv2.LINE_AA,
+            )
+
     def _hit_table_option(x: int, y: int) -> Optional[str]:
         if panel_collapsed:
             return None
@@ -3175,7 +3226,9 @@ def main() -> None:
                 oli = _overlay_label_at_display(int(x), int(y))
                 if oli is not None:
                     t0 = str(overlay_labels_mutable[oli].get("text", ""))
-                    new_t = _gui_edit_label_text("Edit label", t0)
+                    new_t = _gui_edit_label_text(
+                        "Edit label", t0, win_name=win, place_xy_window=(int(x), int(y))
+                    )
                     if new_t is not None:
                         st = new_t.strip()
                         if st:
@@ -3415,8 +3468,9 @@ def main() -> None:
                 dragging_overlay_idx = None
             else:
                 print(
-                    "Label edit mode: drag labels, double-click to edit text, "
-                    "d / Backspace / Del delete selected, n new label, s save JSON, e exit.",
+                    "Label edit mode: hints in a bottom bar on the video; drag labels; "
+                    "double-click opens a movable edit window; d / Backspace / Del delete selected; "
+                    "n new label; s save JSON; e exit.",
                     file=sys.stderr,
                 )
             redraw()
