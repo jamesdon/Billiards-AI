@@ -10,6 +10,13 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+# Running `python scripts/calib_click.py` puts only `scripts/` on sys.path, so `import edge` fails
+# unless the project root (parent of `scripts/`) is on the path.
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _SCRIPT_DIR.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 try:
     import cv2
     import numpy as np
@@ -145,18 +152,33 @@ try:
         head_string_segment_xy_m,
         kitchen_polygon,
     )
-    from edge.calib.table_diagram_m import build_table_diagram_m
 
     _HAS_EDGE_AUTOCAL = True
     _HAS_TABLE_LAYOUT = True
-    _HAS_TABLE_DIAGRAM = True
-except Exception:
+except Exception as _e_edge:
     auto_calibration_from_corners = None
     table_geometry_dict = None
-    build_table_diagram_m = None  # type: ignore[assignment, misc]
     _HAS_EDGE_AUTOCAL = False
     _HAS_TABLE_LAYOUT = False
+    if __name__ == "__main__":
+        print(
+            f"Note: `edge` package not importable ({_e_edge!r}); using inline kitchen/foot only; "
+            f"add repo root to PYTHONPATH. Current sys.path[0:3]={sys.path[:3]!r}",
+            file=sys.stderr,
+        )
+
+try:
+    from edge.calib.table_diagram_m import build_table_diagram_m
+
+    _HAS_TABLE_DIAGRAM = True
+except Exception as _e_dia:
+    build_table_diagram_m = None  # type: ignore[assignment, misc]
     _HAS_TABLE_DIAGRAM = False
+    if __name__ == "__main__":
+        print(
+            f"Note: table diagram overlay disabled ({_e_dia!r}).",
+            file=sys.stderr,
+        )
 
 
 def _kitchen_foot_and_head_string_m(
@@ -2141,23 +2163,20 @@ def main() -> None:
             cxs = sum(p[0] for p in disp) // max(1, len(disp))
             cys = sum(p[1] for p in disp) // max(1, len(disp))
             tw, _ = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.34, 1)[0]
+            tx, ty = int(cxs - tw // 2), cys + 4
             cv2.putText(
-                view,
-                tag,
-                (int(cxs - tw // 2), cys + 4),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.34,
-                (245, 248, 252),
-                1,
-                cv2.LINE_AA,
+                view, tag, (tx + 1, ty + 1), cv2.FONT_HERSHEY_SIMPLEX, 0.34, (0, 0, 0), 2, cv2.LINE_AA
+            )
+            cv2.putText(
+                view, tag, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.34, (245, 248, 252), 1, cv2.LINE_AA
             )
 
         if _HAS_TABLE_DIAGRAM and build_table_diagram_m is not None:
             dg = build_table_diagram_m(l_m, w_m)
             for p, q in dg.grid_segments:
-                cv2.line(view, _pm(p), _pm(q), (42, 46, 54), 1, lineType=cv2.LINE_AA)
+                cv2.line(view, _pm(p), _pm(q), (60, 64, 74), 1, lineType=cv2.LINE_AA)
             for p, q in dg.pocket_center_diagonals:
-                cv2.line(view, _pm(p), _pm(q), (38, 40, 48), 1, lineType=cv2.LINE_AA)
+                cv2.line(view, _pm(p), _pm(q), (52, 56, 66), 1, lineType=cv2.LINE_AA)
             bpoly = np.array([_pm(xy) for xy in dg.break_box_m], dtype=np.int32).reshape((-1, 1, 2))
             bov = view.copy()
             cv2.fillPoly(bov, [bpoly], (90, 100, 160), lineType=cv2.LINE_AA)
