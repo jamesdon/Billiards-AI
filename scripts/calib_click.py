@@ -1623,6 +1623,14 @@ def main() -> None:
     panel_drag_offset_x = 0
     panel_drag_offset_y = 0
     panel_collapsed = False
+    # Many macOS/HighGUI builds never deliver EVENT_LBUTTONDBLCLK; detect double-tap in software.
+    header_dbl_arm_time: Optional[float] = None
+    header_dbl_is_second: bool = False
+    header_dbl_start_x: int = 0
+    header_dbl_start_y: int = 0
+    header_dbl_moved: bool = False
+    header_dbl_tap_s = 0.45
+    header_dbl_move_px = 6
 
     zoom_levels = [
         1.00,
@@ -2557,14 +2565,34 @@ def main() -> None:
         nonlocal flip_view_h, flip_view_v, view_step_mode
         nonlocal panel_dragging, panel_drag_offset_x, panel_drag_offset_y
         nonlocal panel_left_override, panel_top_override, panel_collapsed
+        nonlocal header_dbl_arm_time, header_dbl_is_second, header_dbl_moved
+        nonlocal header_dbl_start_x, header_dbl_start_y
         if event == cv2.EVENT_LBUTTONDBLCLK:
             if _hit_panel_drag_handle(x, y):
+                header_dbl_arm_time = None
                 panel_collapsed = not panel_collapsed
                 panel_dragging = False
                 redraw()
                 return
         if event == cv2.EVENT_LBUTTONDOWN:
+            if not _hit_panel_drag_handle(x, y):
+                header_dbl_arm_time = None
             if _hit_panel_drag_handle(x, y):
+                now = time.time()
+                if (
+                    header_dbl_arm_time is not None
+                    and (now - header_dbl_arm_time) > header_dbl_tap_s
+                ):
+                    header_dbl_arm_time = None
+                is_second = bool(
+                    header_dbl_arm_time is not None
+                    and 0.0 < (now - float(header_dbl_arm_time)) < header_dbl_tap_s
+                )
+                if is_second:
+                    header_dbl_arm_time = None
+                header_dbl_is_second = is_second
+                header_dbl_start_x, header_dbl_start_y = int(x), int(y)
+                header_dbl_moved = False
                 layout = _menu_layout()
                 x1, y1, _x2, _y2 = layout["drag_handle_rect"]
                 panel_dragging = True
@@ -2638,6 +2666,11 @@ def main() -> None:
                 redraw()
         elif event == cv2.EVENT_MOUSEMOVE:
             if panel_dragging:
+                dx = int(x) - header_dbl_start_x
+                dy = int(y) - header_dbl_start_y
+                d2 = dx * dx + dy * dy
+                if d2 > header_dbl_move_px * header_dbl_move_px:
+                    header_dbl_moved = True
                 layout = _menu_layout()
                 panel_w = int(layout["panel_w"])
                 panel_h = int(layout["panel_h"])
@@ -2657,6 +2690,17 @@ def main() -> None:
                     _set_active_points(pts)
                     redraw()
         elif event == cv2.EVENT_LBUTTONUP:
+            if panel_dragging:
+                if header_dbl_is_second and not header_dbl_moved:
+                    header_dbl_arm_time = None
+                    panel_collapsed = not panel_collapsed
+                    redraw()
+                elif (not header_dbl_is_second) and (not header_dbl_moved):
+                    header_dbl_arm_time = time.time()
+                else:
+                    header_dbl_arm_time = None
+            header_dbl_is_second = False
+            header_dbl_moved = False
             panel_dragging = False
             dragging = False
             active_point_idx = None
