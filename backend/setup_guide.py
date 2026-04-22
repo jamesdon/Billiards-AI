@@ -215,23 +215,27 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
         ],
         "links": [],
-        "hints": ["Full device smoke: `bash scripts/phase1.sh` (Jetson-oriented; macOS may differ)."],
+        "hints": [
+            "Optional (Jetson with CSI only): with the venv active, from the repository root run `bash scripts/phase1.sh`. That script installs Python deps, checks that OpenCV was built with GStreamer (needed for CSI), runs compileall, ruff, pytest, then smoke-tests the backend and edge with `--camera csi`. It is not a generic desktop check—do not expect it to succeed on macOS or on a system without a CSI camera and a GStreamer-capable OpenCV; use the Environment checklist on those machines instead."
+        ],
         "doc_refs": [{"label": "Phase 1 — Environment", "path": "docs/Phase 1 Environment and startup.md"}],
     },
     {
         "id": "model",
         "title": "2. Detector model (ONNX)",
-        "summary": "Place exported weights as models/model.onnx and keep models/class_map.json aligned with training.",
+        "summary": "Use ONNX exported from this repo’s latest training run (same runs/ tree) at models/model.onnx, with models/class_map.json matching that training.",
         "checklist": [
             {
                 "item": "models/model.onnx exists",
                 "verify": (
-                    "1) If you export from a local training run, from the repository root run:\n"
+                    "1) Export the newest trained weights from this same repository clone. The script "
+                    "jetson_yolo_export_latest.sh selects the latest runs/detect/.../weights/best.pt, "
+                    "runs the Ultralytics ONNX export, and copies the file to models/model.onnx. From the repository root run:\n"
                     '`cd "{project_root}" && bash scripts/jetson_yolo_export_latest.sh`'
-                    "\n(You can also copy a trained `model.onnx` into `models/` by any path you trust.)\n\n"
-                    "2) Confirm the file exists and is non-empty:\n"
+                    "\n\n"
+                    "If you must bring an ONNX from another machine, install it in this tree as models/model.onnx only when its class head still matches models/class_map.json and your YOLO data YAML; when in doubt, train or re-export in this clone so the run, class map, and YAML stay one consistent line.\n\n"
+                    "2) Confirm the file on disk (typical size is a few to tens of MB):\n"
                     "`ls -lh models/model.onnx`"
-                    "\nTypical size is on the order of a few to tens of MB."
                 ),
                 "record": "When you replace the model, put size or the `ls -lh` line and the date in Notes if useful.",
             },

@@ -334,6 +334,8 @@
     "cd",
     "imports-ok",
     '{"ok":true}',
+    /* File / label fragments, not shell (avoid Copy next to inline filenames) */
+    "model.onnx",
   ]);
 
   function shouldShowCopyForBacktick(s) {
