@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -360,19 +362,52 @@ def _capture_frame(args: argparse.Namespace) -> np.ndarray:
     )
 
 
-def _apply_fullscreen_window(win_name: str) -> None:
-    """Best-effort maximize/fullscreen (macOS HighGUI often needs resize + move as fallback)."""
-    try:
-        import tkinter as tk
+def _main_screen_size_fallback() -> tuple[int, int] | None:
+    """Screen pixel size for fullscreen resize (no Tk: avoids Tcl/Tk abort on some macOS versions)."""
+    if sys.platform != "darwin":
+        try:
+            import tkinter as tk
 
-        root = tk.Tk()
-        sw, sh = int(root.winfo_screenwidth()), int(root.winfo_screenheight())
-        root.destroy()
-        if sw > 0 and sh > 0:
-            cv2.resizeWindow(win_name, sw, sh)
-            cv2.moveWindow(win_name, 0, 0)
+            root = tk.Tk()
+            sw, sh = int(root.winfo_screenwidth()), int(root.winfo_screenheight())
+            root.destroy()
+            if sw > 0 and sh > 0:
+                return sw, sh
+        except Exception:
+            pass
+        return None
+    # macOS: never call tk.Tk() here — it can throw uncaught NSException in libtk (macOSVersion selector).
+    try:
+        out = subprocess.check_output(
+            [
+                "/usr/bin/osascript",
+                "-e",
+                'tell application "Finder" to get bounds of window of desktop',
+            ],
+            text=True,
+            timeout=5,
+        )
+        raw = re.findall(r"-?\d+", out)
+        if len(raw) >= 4:
+            left, top, right, bottom = (int(raw[i]) for i in range(4))
+            sw, sh = right - left, bottom - top
+            if sw > 100 and sh > 100:
+                return sw, sh
     except Exception:
         pass
+    return (1920, 1080)
+
+
+def _apply_fullscreen_window(win_name: str) -> None:
+    """Best-effort maximize/fullscreen (macOS HighGUI often needs resize + move as fallback)."""
+    sz = _main_screen_size_fallback()
+    if sz is not None:
+        sw, sh = sz
+        try:
+            cv2.resizeWindow(win_name, int(sw), int(sh))
+            cv2.moveWindow(win_name, 0, 0)
+        except Exception:
+            pass
     try:
         cv2.setWindowProperty(win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     except Exception:
@@ -503,10 +538,11 @@ def _fit_line_from_points(points: Sequence[Tuple[float, float]]) -> Optional[np.
         vx, vy, x0, y0 = cv2.fitLine(pts, cv2.DIST_L2, 0, 0.01, 0.01)
     except cv2.error:
         return None
-    vx_f = float(vx)
-    vy_f = float(vy)
-    x0_f = float(x0)
-    y0_f = float(y0)
+    # OpenCV can return 4×1 float arrays; avoid deprecated ndarray→scalar in NumPy 1.25+.
+    vx_f = float(np.asarray(vx, dtype=np.float64).ravel()[0])
+    vy_f = float(np.asarray(vy, dtype=np.float64).ravel()[0])
+    x0_f = float(np.asarray(x0, dtype=np.float64).ravel()[0])
+    y0_f = float(np.asarray(y0, dtype=np.float64).ravel()[0])
     a = vy_f
     b = -vx_f
     c = -((a * x0_f) + (b * y0_f))
