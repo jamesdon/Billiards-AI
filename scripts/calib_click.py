@@ -1681,9 +1681,10 @@ def _gui_edit_label_text(
     initial: str,
     *,
     win_name: Optional[str] = None,
-    place_xy_window: Optional[Tuple[int, int]] = None,
+    place_xy_image: Optional[Tuple[int, int]] = None,
+    view_wh: Optional[Tuple[int, int]] = None,
 ) -> Optional[str]:
-    """Movable Toplevel (no always-on-top); optional placement near a double-click in the OpenCV window."""
+    """Movable Toplevel (no always-on-top); optional placement near double-click (image px + view size for fullscreen scale)."""
     try:
         import tkinter as tk
         from tkinter import ttk
@@ -1729,12 +1730,15 @@ def _gui_edit_label_text(
         sh = int(top.winfo_screenheight())
         px = max(8, (sw - rw) // 2)
         py = max(8, int(sh * 0.18))
-        if win_name and place_xy_window is not None:
+        if win_name and place_xy_image is not None and view_wh is not None:
             try:
                 r = cv2.getWindowImageRect(str(win_name))
                 if r is not None and len(r) >= 4 and int(r[2]) > 0 and int(r[3]) > 0:
-                    px = int(r[0]) + int(place_xy_window[0]) + 20
-                    py = int(r[1]) + int(place_xy_window[1]) + 20
+                    vw, vh = int(view_wh[0]), int(view_wh[1])
+                    if vw > 0 and vh > 0:
+                        ix_i, iy_i = int(place_xy_image[0]), int(place_xy_image[1])
+                        px = int(r[0]) + int(round(ix_i * float(r[2]) / float(vw))) + 16
+                        py = int(r[1]) + int(round(iy_i * float(r[3]) / float(vh))) + 16
                     px = int(np.clip(px, 8, max(9, sw - rw - 8)))
                     py = int(np.clip(py, 8, max(9, sh - rh - 8)))
             except Exception:
@@ -2696,6 +2700,32 @@ def main() -> None:
         muted = (132, 140, 154)
         line_soft = (64, 72, 88)
 
+        def _draw_label_edit_hint_bar() -> None:
+            if len(corner_points) != 4 or not edit_overlay_mode:
+                return
+            bar_h = max(40, int(round(32 * max(1.0, ui_scale))))
+            y0 = max(0, h_img - bar_h)
+            cv2.rectangle(view, (0, y0), (w_img - 1, h_img - 1), (14, 18, 28), -1)
+            cv2.rectangle(view, (0, y0), (w_img - 1, h_img - 1), (100, 170, 255), 1, lineType=cv2.LINE_AA)
+            msg = "LABEL EDIT: drag labels  dbl-click=text  Del/d=delete  n=new  s=save  e=exit"
+            fs = 0.42 * min(1.0, ui_scale + 0.08)
+            (tw, th), _bl = cv2.getTextSize(msg, cv2.FONT_HERSHEY_SIMPLEX, fs, 1)
+            if tw + 20 > w_img:
+                msg = "LABEL EDIT: drag  dbl-click  d/del  n  s  e=exit"
+                fs = 0.38 * min(1.0, ui_scale + 0.08)
+            ty = int(y0 + bar_h - 10)
+            ty = min(h_img - 4, max(y0 + th + 4, ty))
+            cv2.putText(
+                view,
+                msg,
+                (12, ty),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                fs,
+                (255, 245, 200),
+                1,
+                cv2.LINE_AA,
+            )
+
         def _micro_label(img: np.ndarray, x: int, y: int, s: str) -> None:
             cv2.putText(
                 img,
@@ -2768,6 +2798,7 @@ def main() -> None:
                 1,
                 cv2.LINE_AA,
             )
+            _draw_label_edit_hint_bar()
             return
 
         inner_bottom = panel_top + panel_h - menu_padding
@@ -3103,21 +3134,7 @@ def main() -> None:
             cv2.LINE_AA,
         )
 
-        if len(corner_points) == 4 and edit_overlay_mode:
-            bar_h = max(32, int(round(28 * max(1.0, ui_scale))))
-            y0 = max(0, h_img - bar_h)
-            cv2.rectangle(view, (0, y0), (w_img, h_img - 1), (20, 24, 34), -1)
-            cv2.line(view, (0, y0), (w_img, y0), (90, 140, 210), 1, lineType=cv2.LINE_AA)
-            cv2.putText(
-                view,
-                "LABEL EDIT: drag labels  dbl-click=text (movable window)  Del/Backspace/d=delete  n=new  s=save  e=exit",
-                (10, h_img - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.38 * min(1.0, ui_scale + 0.1),
-                (235, 242, 252),
-                1,
-                cv2.LINE_AA,
-            )
+        _draw_label_edit_hint_bar()
 
     def _hit_table_option(x: int, y: int) -> Optional[str]:
         if panel_collapsed:
@@ -3205,6 +3222,20 @@ def main() -> None:
                 return ci, dsx, dsy
         return None
 
+    def _mouse_event_to_image_xy(mx: int, my: int) -> Tuple[int, int]:
+        """Map HighGUI mouse coords to image/view pixel space (fullscreen scales the canvas)."""
+        try:
+            r = cv2.getWindowImageRect(win)
+            if r is not None and len(r) >= 4:
+                rw, rh = int(r[2]), int(r[3])
+                if rw > 1 and rh > 1:
+                    vx = int(round(float(mx) * float(w_img) / float(rw)))
+                    vy = int(round(float(my) * float(h_img) / float(rh)))
+                    return int(np.clip(vx, 0, w_img - 1)), int(np.clip(vy, 0, h_img - 1))
+        except Exception:
+            pass
+        return int(np.clip(mx, 0, w_img - 1)), int(np.clip(my, 0, h_img - 1))
+
     def on_mouse(event, x, y, _flags, _userdata) -> None:
         nonlocal selected_table_size, selected_units, active_point_idx, dragging
         nonlocal flip_view_h, flip_view_v, view_step_mode
@@ -3215,19 +3246,24 @@ def main() -> None:
         nonlocal corner_points
         nonlocal edit_overlay_mode, selected_overlay_label_idx, dragging_overlay_idx
         nonlocal overlay_label_button_down_idx, overlay_label_drag_origin
+        ix, iy = _mouse_event_to_image_xy(int(x), int(y))
         if event == cv2.EVENT_LBUTTONDBLCLK:
-            if _hit_panel_drag_handle(x, y):
+            if _hit_panel_drag_handle(ix, iy):
                 header_dbl_arm_time = None
                 panel_collapsed = not panel_collapsed
                 panel_dragging = False
                 redraw()
                 return
             if edit_overlay_mode and len(corner_points) == 4 and overlay_labels_mutable:
-                oli = _overlay_label_at_display(int(x), int(y))
+                oli = _overlay_label_at_display(ix, iy)
                 if oli is not None:
                     t0 = str(overlay_labels_mutable[oli].get("text", ""))
                     new_t = _gui_edit_label_text(
-                        "Edit label", t0, win_name=win, place_xy_window=(int(x), int(y))
+                        "Edit label",
+                        t0,
+                        win_name=win,
+                        place_xy_image=(ix, iy),
+                        view_wh=(w_img, h_img),
                     )
                     if new_t is not None:
                         st = new_t.strip()
@@ -3236,9 +3272,9 @@ def main() -> None:
                     redraw()
                     return
         if event == cv2.EVENT_LBUTTONDOWN:
-            if not _hit_panel_drag_handle(x, y):
+            if not _hit_panel_drag_handle(ix, iy):
                 header_dbl_arm_time = None
-            if _hit_panel_drag_handle(x, y):
+            if _hit_panel_drag_handle(ix, iy):
                 now = time.time()
                 if (
                     header_dbl_arm_time is not None
@@ -3252,25 +3288,25 @@ def main() -> None:
                 if is_second:
                     header_dbl_arm_time = None
                 header_dbl_is_second = is_second
-                header_dbl_start_x, header_dbl_start_y = int(x), int(y)
+                header_dbl_start_x, header_dbl_start_y = ix, iy
                 header_dbl_moved = False
                 layout = _menu_layout()
                 x1, y1, _x2, _y2 = layout["drag_handle_rect"]
                 panel_dragging = True
-                panel_drag_offset_x = int(x - x1)
-                panel_drag_offset_y = int(y - y1)
+                panel_drag_offset_x = int(ix - x1)
+                panel_drag_offset_y = int(iy - y1)
                 return
             if len(corner_points) == 4 and edit_overlay_mode and overlay_labels_mutable:
-                oli = _overlay_label_at_display(int(x), int(y))
+                oli = _overlay_label_at_display(ix, iy)
                 if oli is not None:
                     overlay_label_button_down_idx = oli
-                    overlay_label_drag_origin = (int(x), int(y))
+                    overlay_label_drag_origin = (ix, iy)
                     selected_overlay_label_idx = oli
                     dragging_overlay_idx = None
                     redraw()
                     return
             if len(corner_points) == 4:
-                hit_nudge = _hit_corner_nudge(int(x), int(y))
+                hit_nudge = _hit_corner_nudge(ix, iy)
                 if hit_nudge is not None:
                     hci, hdx, hdy = hit_nudge
                     nsx = float(corner_points[hci][0]) + float(hdx)
@@ -3282,27 +3318,27 @@ def main() -> None:
                     _set_active_points(pts)
                     redraw()
                     return
-            idx = _find_nearest_point(float(x), float(y))
+            idx = _find_nearest_point(float(ix), float(iy))
             if idx is not None:
                 active_point_idx = idx
                 dragging = True
                 return
 
-            hit_table = _hit_table_option(x, y)
+            hit_table = _hit_table_option(ix, iy)
             if hit_table is not None:
                 selected_table_size = hit_table
                 redraw()
                 return
-            hit_units = _hit_units_option(x, y)
+            hit_units = _hit_units_option(ix, iy)
             if hit_units is not None:
                 selected_units = hit_units
                 redraw()
                 return
-            if _hit_redetect(x, y):
+            if _hit_redetect(ix, iy):
                 _redetect_corners()
                 redraw()
                 return
-            hit_view = _hit_view_control(x, y)
+            hit_view = _hit_view_control(ix, iy)
             if hit_view is not None:
                 step = _current_view_step()
                 zoom_delta = int(round(step["zoom_delta"]))
@@ -3347,7 +3383,7 @@ def main() -> None:
             pts = _active_points()
             labels = _active_labels()
             if len(pts) < len(labels):
-                src_x, src_y = _display_to_source(float(x), float(y))
+                src_x, src_y = _display_to_source(float(ix), float(iy))
                 pts.append((src_x, src_y))
                 _set_active_points(pts)
                 redraw()
@@ -3360,12 +3396,12 @@ def main() -> None:
                 and overlay_label_drag_origin is not None
             ):
                 ox, oy = overlay_label_drag_origin
-                if (int(x) - ox) ** 2 + (int(y) - oy) ** 2 >= overlay_drag_threshold_px * overlay_drag_threshold_px:
+                if (ix - ox) ** 2 + (iy - oy) ** 2 >= overlay_drag_threshold_px * overlay_drag_threshold_px:
                     dragging_overlay_idx = overlay_label_button_down_idx
             if dragging_overlay_idx is not None and edit_overlay_mode and len(corner_points) == 4:
                 l_m, w_m = _table_dims_m(selected_table_size)
                 h_it = _estimate_homography(corner_points, l_m, w_m)
-                sx, sy = _display_to_source(float(x), float(y))
+                sx, sy = _display_to_source(float(ix), float(iy))
                 xm, ym = _image_xy_to_table_m(h_it, sx, sy)
                 j = dragging_overlay_idx
                 if j is not None and 0 <= j < len(overlay_labels_mutable):
@@ -3374,8 +3410,8 @@ def main() -> None:
                 redraw()
                 return
             if panel_dragging:
-                dx = int(x) - header_dbl_start_x
-                dy = int(y) - header_dbl_start_y
+                dx = ix - header_dbl_start_x
+                dy = iy - header_dbl_start_y
                 d2 = dx * dx + dy * dy
                 if d2 > header_dbl_move_px * header_dbl_move_px:
                     header_dbl_moved = True
@@ -3386,14 +3422,14 @@ def main() -> None:
                 max_left = int(max(menu_margin, w_img - panel_w - menu_margin))
                 min_top = int(menu_margin)
                 max_top = int(max(menu_margin, h_img - panel_h - menu_margin))
-                panel_left_override = int(np.clip(x - panel_drag_offset_x, min_left, max_left))
-                panel_top_override = int(np.clip(y - panel_drag_offset_y, min_top, max_top))
+                panel_left_override = int(np.clip(ix - panel_drag_offset_x, min_left, max_left))
+                panel_top_override = int(np.clip(iy - panel_drag_offset_y, min_top, max_top))
                 redraw()
                 return
             if dragging and active_point_idx is not None:
                 pts = _active_points()
                 if 0 <= active_point_idx < len(pts):
-                    src_x, src_y = _display_to_source(float(x), float(y))
+                    src_x, src_y = _display_to_source(float(ix), float(iy))
                     pts[active_point_idx] = (src_x, src_y)
                     _set_active_points(pts)
                     redraw()
@@ -3468,9 +3504,9 @@ def main() -> None:
                 dragging_overlay_idx = None
             else:
                 print(
-                    "Label edit mode: hints in a bottom bar on the video; drag labels; "
-                    "double-click opens a movable edit window; d / Backspace / Del delete selected; "
-                    "n new label; s save JSON; e exit.",
+                    "Label edit mode: orange bottom bar on the video (even when panel is collapsed); "
+                    "drag labels; double-click opens a movable edit window; d / Backspace / Del delete; "
+                    "n new; s save; e exit. Panel header drag uses fullscreen-correct coordinates.",
                     file=sys.stderr,
                 )
             redraw()
