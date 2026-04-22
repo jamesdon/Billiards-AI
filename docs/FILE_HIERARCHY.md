@@ -83,6 +83,7 @@ Billiards-AI/
       __init__.py
       table_geometry.py             Homography from 4 outside corners + default pockets/kitchen geometry
       table_layout.py               Kitchen/break polygons; infer table size from pocket labels
+      table_diagram_m.py            BCA-style table schematic in table meters (strings, break box, grid, rail diamonds) for `calib_click` overlay
       calib_store.py                Load/save calibration json (H camera, optional H_projector table→projector px, pockets, table size, kitchen/break polygons)
     events/
       __init__.py

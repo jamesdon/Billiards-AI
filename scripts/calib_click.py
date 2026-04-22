@@ -145,14 +145,18 @@ try:
         head_string_segment_xy_m,
         kitchen_polygon,
     )
+    from edge.calib.table_diagram_m import build_table_diagram_m
 
     _HAS_EDGE_AUTOCAL = True
     _HAS_TABLE_LAYOUT = True
+    _HAS_TABLE_DIAGRAM = True
 except Exception:
     auto_calibration_from_corners = None
     table_geometry_dict = None
+    build_table_diagram_m = None  # type: ignore[assignment, misc]
     _HAS_EDGE_AUTOCAL = False
     _HAS_TABLE_LAYOUT = False
+    _HAS_TABLE_DIAGRAM = False
 
 
 def _kitchen_foot_and_head_string_m(
@@ -2108,42 +2112,78 @@ def main() -> None:
         except Exception as exc:
             print(f"Re-detect failed: {exc}", file=sys.stderr)
 
-    def redraw() -> None:
+    def _draw_table_schematic_and_zones() -> None:
+        """Reference diagram: tints, grid, break box, strings, side pockets, diamonds, head string, table outline."""
         nonlocal view
-        view = _render_background()
-        layout = _menu_layout()
+        l_m, w_m = _table_dims_m(selected_table_size)
+        h_it = _estimate_homography(corner_points, l_m, w_m)
+        k_poly_m, foot_quarter_m, (hs_a, hs_b) = _kitchen_foot_and_head_string_m(l_m, w_m)
 
-        if len(corner_points) == 4:
-            l_m, w_m = _table_dims_m(selected_table_size)
-            h_it = _estimate_homography(corner_points, l_m, w_m)
-            k_poly_m, foot_quarter_m, (hs_a, hs_b) = _kitchen_foot_and_head_string_m(l_m, w_m)
-            for poly_m, fill_bgr, fill_alpha, edge_bgr, tag in (
-                (k_poly_m, (50, 140, 60), 0.22, (70, 200, 90), "Kitchen"),
-                (foot_quarter_m, (50, 55, 58), 0.12, (80, 88, 98), "Foot quarter"),
+        def _pm(xym: Tuple[float, float]) -> Tuple[int, int]:
+            a, b = _table_m_to_image_xy(h_it, (float(xym[0]), float(xym[1])))
+            c, d_ = _source_to_display(a, b)
+            return int(c), int(d_)
+
+        for poly_m, fill_bgr, fill_alpha, edge_bgr, tag in (
+            (k_poly_m, (50, 140, 60), 0.22, (70, 200, 90), "Kitchen"),
+            (foot_quarter_m, (50, 55, 58), 0.12, (80, 88, 98), "Foot quarter"),
+        ):
+            disp: List[Tuple[int, int]] = []
+            for xm, ym in poly_m:
+                ix, iy = _table_m_to_image_xy(h_it, (float(xm), float(ym)))
+                dx, dy = _source_to_display(ix, iy)
+                disp.append((int(dx), int(dy)))
+            darr = np.array(disp, dtype=np.int32).reshape((-1, 1, 2))
+            overlay = view.copy()
+            cv2.fillPoly(overlay, [darr], fill_bgr, lineType=cv2.LINE_AA)
+            cv2.addWeighted(overlay, float(fill_alpha), view, 1.0 - float(fill_alpha), 0, view)
+            cv2.polylines(view, [darr], isClosed=True, color=edge_bgr, thickness=1, lineType=cv2.LINE_AA)
+            cxs = sum(p[0] for p in disp) // max(1, len(disp))
+            cys = sum(p[1] for p in disp) // max(1, len(disp))
+            tw, _ = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.34, 1)[0]
+            cv2.putText(
+                view,
+                tag,
+                (int(cxs - tw // 2), cys + 4),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.34,
+                (245, 248, 252),
+                1,
+                cv2.LINE_AA,
+            )
+
+        if _HAS_TABLE_DIAGRAM and build_table_diagram_m is not None:
+            dg = build_table_diagram_m(l_m, w_m)
+            for p, q in dg.grid_segments:
+                cv2.line(view, _pm(p), _pm(q), (42, 46, 54), 1, lineType=cv2.LINE_AA)
+            for p, q in dg.pocket_center_diagonals:
+                cv2.line(view, _pm(p), _pm(q), (38, 40, 48), 1, lineType=cv2.LINE_AA)
+            bpoly = np.array([_pm(xy) for xy in dg.break_box_m], dtype=np.int32).reshape((-1, 1, 2))
+            bov = view.copy()
+            cv2.fillPoly(bov, [bpoly], (90, 100, 160), lineType=cv2.LINE_AA)
+            cv2.addWeighted(bov, 0.12, view, 0.88, 0, view)
+            cv2.polylines(view, [bpoly], isClosed=True, color=(120, 140, 200), thickness=1, lineType=cv2.LINE_AA)
+            for seg, col, th in (
+                (dg.long_string, (200, 200, 255), 2),
+                (dg.transverse_string, (200, 230, 190), 2),
+                (dg.foot_string, (180, 160, 210), 2),
             ):
-                disp: List[Tuple[int, int]] = []
-                for xm, ym in poly_m:
-                    ix, iy = _table_m_to_image_xy(h_it, (float(xm), float(ym)))
-                    dx, dy = _source_to_display(ix, iy)
-                    disp.append((int(dx), int(dy)))
-                darr = np.array(disp, dtype=np.int32).reshape((-1, 1, 2))
-                overlay = view.copy()
-                cv2.fillPoly(overlay, [darr], fill_bgr, lineType=cv2.LINE_AA)
-                cv2.addWeighted(overlay, float(fill_alpha), view, 1.0 - float(fill_alpha), 0, view)
-                cv2.polylines(view, [darr], isClosed=True, color=edge_bgr, thickness=1, lineType=cv2.LINE_AA)
-                cxs = sum(p[0] for p in disp) // max(1, len(disp))
-                cys = sum(p[1] for p in disp) // max(1, len(disp))
-                tw, _ = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.34, 1)[0]
-                cv2.putText(
-                    view,
-                    tag,
-                    (int(cxs - tw // 2), cys + 4),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.34,
-                    (245, 248, 252),
-                    1,
-                    cv2.LINE_AA,
-                )
+                a, b = seg
+                cv2.line(view, _pm(a), _pm(b), col, th, lineType=cv2.LINE_AA)
+            for p in dg.side_pockets_m:
+                cv2.circle(view, _pm(p), 7, (40, 90, 200), -1, lineType=cv2.LINE_AA)
+                cv2.circle(view, _pm(p), 7, (120, 160, 240), 1, lineType=cv2.LINE_AA)
+            for p in dg.rail_diamonds_m:
+                cv2.circle(view, _pm(p), 3, (220, 225, 235), 1, lineType=cv2.LINE_AA)
+            a, b = dg.head_string
+            cv2.line(view, _pm(a), _pm(b), (0, 255, 255), 3, lineType=cv2.LINE_AA)
+            for cap, anchor in dg.captions:
+                u, v = _pm(anchor)
+                tw, _ = cv2.getTextSize(cap, cv2.FONT_HERSHEY_SIMPLEX, 0.32, 1)[0]
+                x0, y0 = u - tw // 2, v - 4
+                cv2.putText(view, cap, (x0 + 1, y0 + 1), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (0, 0, 0), 2, cv2.LINE_AA)
+                cv2.putText(view, cap, (x0, y0), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (250, 252, 255), 1, cv2.LINE_AA)
+        else:
             p0s = _table_m_to_image_xy(h_it, (float(hs_a[0]), float(hs_a[1])))
             p1s = _table_m_to_image_xy(h_it, (float(hs_b[0]), float(hs_b[1])))
             d0 = _source_to_display(float(p0s[0]), float(p0s[1]))
@@ -2156,21 +2196,18 @@ def main() -> None:
                 3,
                 lineType=cv2.LINE_AA,
             )
-            mx, my = (int((d0[0] + d1[0]) * 0.5), int((d0[1] + d1[1]) * 0.5))
-            cv2.putText(
-                view,
-                "Head string (break line)",
-                (mx - 100, my - 8),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.46,
-                (0, 255, 255),
-                2,
-                cv2.LINE_AA,
-            )
-            outline = [corner_points[i] for i in CORNER_OUTLINE_INDEX]
-            poly_pts = [(_source_to_display(float(x), float(y))) for x, y in outline]
-            poly = np.array([(int(px), int(py)) for px, py in poly_pts], dtype=np.int32).reshape((-1, 1, 2))
-            cv2.polylines(view, [poly], isClosed=True, color=(0, 200, 255), thickness=2, lineType=cv2.LINE_AA)
+        outline = [corner_points[i] for i in CORNER_OUTLINE_INDEX]
+        poly_pts = [(_source_to_display(float(x), float(y))) for x, y in outline]
+        poly = np.array([(int(px), int(py)) for px, py in poly_pts], dtype=np.int32).reshape((-1, 1, 2))
+        cv2.polylines(view, [poly], isClosed=True, color=(0, 200, 255), thickness=2, lineType=cv2.LINE_AA)
+
+    def redraw() -> None:
+        nonlocal view
+        view = _render_background()
+        layout = _menu_layout()
+
+        if len(corner_points) == 4:
+            _draw_table_schematic_and_zones()
         for i, (x_src, y_src) in enumerate(corner_points):
             x, y = _source_to_display(float(x_src), float(y_src))
             cv2.circle(view, (int(x), int(y)), 8, (0, 255, 255), -1)
