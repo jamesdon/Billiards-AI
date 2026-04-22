@@ -150,12 +150,12 @@ In-window workflow (new default):
   frame (away from corner points) so corner dragging remains clickable.
 - The overlay no longer renders a large text banner across the top of the frame;
   controls/status are consolidated in the right-side panel to keep points visible.
-- With four corners and a selected table size, the **video** shows the **kitchen** (head
-  rail to head string) and a **foot quarter** reference (tinted polygons), plus a **cyan
-  line** for the **head string** (the official “break line” — across the long rails, often
-  approximated at ¼ of playing length from the head, i.e. second-diamond to second-diamond on
-  standard tables). The **table outline** follows perimeter order (TL–TR–BR–BL, not a
-  bowtie). Use **Re-detect** in the SETUP column or `r` to re-run auto pocket-corner detection.
+- With four corners and a selected table size, the **video** shows the **kitchen** (American
+  pool: the band on the head short rail, from that rail to the **head string**; snooker
+  / British: analogous **baulk**), a **foot quarter** (reference only), and a **cyan** **head
+  string** / break line. The **table outline** follows perimeter order (TL–TR–BR–BL, not a
+  bowtie). The panel leaves extra space and a rule between **Output / Units** and
+  **Re-detect**. Use **Re-detect** or `r` to re-run auto pocket corners.
 - The tools panel header supports:
   - drag to reposition
   - double-click to collapse/expand (accordion behavior) for unobstructed corner editing

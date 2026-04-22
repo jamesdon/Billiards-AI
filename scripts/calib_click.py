@@ -1629,7 +1629,9 @@ def main() -> None:
     _air = int(28 * max(1.0, ui_scale))
     _head_sub = int(26 * max(1.0, ui_scale))
     _table_tail = int(22 * max(1.0, ui_scale))
-    _redetect_block = int(20 * max(1.0, ui_scale)) + max(28, int(30 * max(1.0, ui_scale)))
+    _after_units_pad = int(16 * max(1.0, ui_scale))
+    _redetect_gap = int(32 * max(1.0, ui_scale))
+    _redetect_block = _after_units_pad + _redetect_gap + max(28, int(30 * max(1.0, ui_scale))) + int(4 * max(1.0, ui_scale))
     _left_column_h = (
         14
         + _air
@@ -1639,7 +1641,6 @@ def main() -> None:
         + _air
         + _head_sub
         + len(UNIT_MENU) * row_spacing
-        + int(10 * max(1.0, ui_scale))
         + _redetect_block
     )
     estimated_menu_h = (
@@ -1909,12 +1910,12 @@ def main() -> None:
             probe = _view_control_layout(0, 0)
             right_h = int(probe["reset_rect"][3]) + int(28 * max(1.0, ui_scale))
             rbtn = max(28, int(30 * max(1.0, ui_scale)))
-            rgap = int(10 * max(1.0, ui_scale))
-            redetect_extra = rgap + rbtn + int(4 * max(1.0, ui_scale))
+            after_u = int(16 * max(1.0, ui_scale))
+            gap_re = int(32 * max(1.0, ui_scale))
+            redetect_extra = after_u + gap_re + rbtn + int(4 * max(1.0, ui_scale))
             left_bottom = (
                 units_top
                 + (len(UNIT_MENU) - 1) * row_spacing
-                + int(12 * max(1.0, ui_scale))
                 + redetect_extra
             )
             left_h = left_bottom - inner_top
@@ -1934,8 +1935,14 @@ def main() -> None:
         view_top = inner_top + 14 + air + head_sub
         drag_handle_rect = (left, top, left + panel_w, top + panel_drag_handle_h)
         rbtn2 = max(28, int(30 * max(1.0, ui_scale)))
-        rgap2 = int(10 * max(1.0, ui_scale))
-        redetect_y1 = float(units_top) + (len(UNIT_MENU) - 1) * float(row_spacing) + float(rgap2)
+        after_u2 = int(16 * max(1.0, ui_scale))
+        gap_re2 = int(32 * max(1.0, ui_scale))
+        redetect_y1 = (
+            float(units_top)
+            + (len(UNIT_MENU) - 1) * float(row_spacing)
+            + float(after_u2)
+            + float(gap_re2)
+        )
         redetect_rect = (
             int(table_left) - 2,
             int(redetect_y1),
@@ -2126,12 +2133,13 @@ def main() -> None:
                 cv2.polylines(view, [darr], isClosed=True, color=edge_bgr, thickness=1, lineType=cv2.LINE_AA)
                 cxs = sum(p[0] for p in disp) // max(1, len(disp))
                 cys = sum(p[1] for p in disp) // max(1, len(disp))
+                tw, _ = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.34, 1)[0]
                 cv2.putText(
                     view,
                     tag,
-                    (cxs - 48, cys + 4),
+                    (int(cxs - tw // 2), cys + 4),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.42,
+                    0.34,
                     (245, 248, 252),
                     1,
                     cv2.LINE_AA,
@@ -2437,8 +2445,18 @@ def main() -> None:
                 selected_color=accent,
             )
 
+        last_unit_row_y = int(units_top + (len(UNIT_MENU) - 1) * row_spacing)
         rr = layout.get("redetect_rect")
         if isinstance(rr, tuple) and len(rr) == 4:
+            sep_y = (last_unit_row_y + int(rr[1])) // 2
+            cv2.line(
+                view,
+                (rx_strip1, sep_y),
+                (rx_strip2, sep_y),
+                line_soft,
+                1,
+                lineType=cv2.LINE_AA,
+            )
             _draw_button_primary(view, rr, "Re-detect")
             _micro_label(view, int(rr[0]), int(rr[3]) + 12, "Auto corner pockets  (same as r)")
 
@@ -2586,7 +2604,7 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            "Video: Kitchen+Foot quarter; cyan=Head string; outline TL-TR-BR-BL  (diamonds ~0.25L)",
+            "Video: Kitchen=head rail  head string; foot quarter; cyan=head string  (L0.25 default)",
             (panel_left + 12, foot_y1),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.30,

@@ -6,14 +6,16 @@ from core.types import PocketLabel
 
 from .calib_store import PocketDef
 
-# BCA: the kitchen is the half-table area **shoreward of the head string** (between the head
-# cushion and the head string). Cue ball must be in the kitchen for a break — behind the
-# head string (base on/behind the line, toward the head rail).
-# The **head string** (often what people call the “break line”) is an arc across the table
-# connecting the **second diamonds** (from the head) on the two **long (side) rails** — i.e.
-# a line of constant x in table coords, perpendicular to the long centerline.
-# Many specs approximate that line at 1/4 of playing-surface length from the head rail;
-# exact diamond pitch varies by manufacturer, so this is a tunable first-order default.
+# **Kitchen (American pool):** the region from the **head** short rail to the **head string**
+# (a/k/a break line): the imaginary line through the second diamonds (from the head) on the
+# two long rails — full table width, constant x in this model. That line is the **footward**
+# boundary of the kitchen; the head rail is the **headward** boundary. (Snooker/British
+# “baulk / balk” is the same idea.) Cue must be in this band for a legal break (behind the
+# head string, toward the head). Colloquial “bottom quarter” often means this **head** end
+# of the playfield in camera view, not a geometric screen “bottom” without reference to the
+# table — here x runs head→foot with TL/TR at x=0.
+# **Head string** position: many tables ≈1/4 of playing **length** from the head; diamond
+# spacing can vary, so 0.25 is a first-order default.
 HEAD_STRING_FRACTION_OF_LENGTH: float = 0.25
 
 
@@ -61,7 +63,9 @@ def _normalize_end(end: str, default: str) -> str:
 
 def kitchen_polygon(table_length_m: float, table_width_m: float, head_end: str = "left") -> List[Tuple[float, float]]:
     """
-    Kitchen: playing-surface area between the head cushion and the head string (x in [0, head_string]).
+    Kitchen polygon: the quarter (along table length) between the head short rail and the head
+    string, full playing width. Matches “kitchen” / “in the kitchen” for breaks and
+    (bar-rule) ball-in-hand behind the string.
     """
     side = _normalize_end(head_end, default="left")
     d = head_string_x_m(table_length_m)
