@@ -204,9 +204,17 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
             {
                 "item": "Core dependencies install without error",
-                "verify": "Do these in order: (1) In the **Commands** section **below**, copy and run the **“Install (from repo root)”** command—wait for pip to finish and confirm there is no ERROR. (2) Then verify imports: `.venv/bin/python3 -c \"import onnxruntime,cv2; print('imports-ok')\"` (on Jetson, the OpenCV `cv2` module may be from pip or the system). Expect `imports-ok` in the output with no traceback.",
-                "record": "If pip upgraded something unexpected, paste the last few lines of its output in Notes.",
-                "record_paste": "import check output:\n<paste terminal lines, or write: OK / ERROR → …>",
+                "verify": (
+                    "1) At the repository root, run this one-line install. Wait for pip to finish. "
+                    "A pip line marked ERROR is a failure; most warnings are OK.\n"
+                    '`cd "{project_root}" && python3 -m venv .venv && .venv/bin/python3 -m pip install -U pip && .venv/bin/python3 -m pip install -r requirements.txt`\n\n'
+                    "2) Confirm onnxruntime and OpenCV (cv2) import (Jetson may use system cv2; that is fine if this command succeeds; expect a single line of output, no Python traceback).\n"
+                    r"""`.venv/bin/python3 -c "import onnxruntime,cv2; print('imports-ok')"`"""
+                    + "\n\n"
+                    "3) Optional — only if you need training tools on this machine, install training extras in the same venv.\n"
+                    '`cd "{project_root}" && .venv/bin/python3 -m pip install -r requirements-train.txt`'
+                ),
+                "record": "If pip or the import check failed, paste the last error lines in Notes. If there was a surprising upgrade, note the package name in Notes.",
             },
         ],
         "commands": [

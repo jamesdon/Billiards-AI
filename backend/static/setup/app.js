@@ -293,15 +293,23 @@
     return d.innerHTML;
   }
 
+  function escWithLineBreaks(s) {
+    if (s == null) return "";
+    return String(s)
+      .split("\n")
+      .map((line) => escapeHtml(line))
+      .join("<br />");
+  }
+
   /** Replaces {project_root} and wraps that path in <code> for readability. */
   function formatChecklistField(raw) {
     if (!raw) return "";
     const root = state.context.project_root || "";
-    if (!raw.includes("{project_root}")) return escapeHtml(raw);
+    if (!raw.includes("{project_root}")) return escWithLineBreaks(raw);
     const segs = raw.split("{project_root}");
     let out = "";
     segs.forEach((p, i) => {
-      out += escapeHtml(p);
+      out += escWithLineBreaks(p);
       if (i < segs.length - 1) {
         out += `<code class="repo-path-inline">${escapeHtml(root)}</code>`;
       }
@@ -362,7 +370,7 @@
     let out = "";
     for (let j = 0; j < parts.length; j += 1) {
       if (j % 2 === 0) {
-        out += escapeHtml(parts[j]);
+        out += escWithLineBreaks(parts[j]);
       } else {
         const seg = parts[j];
         out += `<code class="verify-inline-code">${escapeHtml(seg)}</code>`;
