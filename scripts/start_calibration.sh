@@ -9,7 +9,15 @@ PROJECT_ROOT="${PROJECT_ROOT:-/home/$USER/Billiards-AI}"
 CALIB_SCRIPT="${CALIB_SCRIPT:-$PROJECT_ROOT/scripts/calib_click.py}"
 CALIB_OUT="${CALIB_OUT:-$PROJECT_ROOT/calibration.json}"
 
-CAMERA_SOURCE="${CAMERA_SOURCE:-csi}"
+# Default camera: macOS/typical dev → USB; Jetson/embedded → CSI (Argus, GStreamer).
+# Override with CAMERA_SOURCE=... (e.g. csi, usb) or pass flags through to calib_click.py
+if [[ -z "${CAMERA_SOURCE:-}" ]]; then
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    CAMERA_SOURCE=usb
+  else
+    CAMERA_SOURCE=csi
+  fi
+fi
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-6}"
 CSI_FRAMERATE="${CSI_FRAMERATE:-30}"
@@ -80,74 +88,128 @@ print("Calibration GUI feature check: OK")
 PY
 }
 
-ensure_cv2_numpy_abi() {
+_venv_cv_numpy_check_relaxed() {
+  # macOS and generic USB: pip opencv often reports GStreamer: NO; only require NumPy<2 + import.
   local py
-  py="$(python_bin)"
-  # Must probe the same interpreter as `exec` below (venv).
-  # System python3 can load distro cv2 while the venv still has a pip opencv-python
-  # wheel (GStreamer=NO), which breaks CSI pipelines and confuses Phase 2.
+  py="$1"
   if "$py" - <<'PY'
 import sys
+try:
+    import numpy as np
+    import cv2  # noqa: F401
+except Exception:
+    sys.exit(1)
+if int(str(np.__version__).split(".")[0]) >= 2:
+    sys.exit(2)
+sys.exit(0)
+PY
+  then
+    return 0
+  fi
+  return 1
+}
 
+_venv_cv_numpy_check_csi() {
+  # Jetson CSI / Phase 2: venv must see GStreamer: YES in OpenCV build.
+  local py
+  py="$1"
+  if "$py" - <<'PY'
+import sys
 try:
     import numpy  # noqa: F401
     import cv2
 except Exception:
     sys.exit(1)
-
 try:
     import numpy as np
-
     if int(str(np.__version__).split(".")[0]) >= 2:
         sys.exit(2)
 except Exception:
     sys.exit(2)
-
 info = cv2.getBuildInformation()
 if "GStreamer:                   YES" not in info:
     sys.exit(3)
 sys.exit(0)
 PY
   then
-    echo "OpenCV/NumPy ABI check: OK (venv cv2, GStreamer enabled)"
     return 0
   fi
+  return 1
+}
 
-  echo "OpenCV/NumPy import failed; attempting NumPy repair (numpy<2) for distro OpenCV compatibility..."
+_venv_cv_numpy_check_after_repair() {
+  if [[ "$(_uname)" == "Darwin" ]]; then
+    _venv_cv_numpy_check_relaxed "$1" && return 0
+  else
+    # After numpy reinstall, re-run full GStreamer check on Linux
+    _venv_cv_numpy_check_csi "$1" && return 0
+  fi
+  return 1
+}
+
+_uname() {
+  uname -s
+}
+
+_print_macos_cv2_help() {
+  echo "On macOS, pip 'opencv-python' does not use GStreamer; that is normal for USB webcams." >&2
+  echo "This script only requires: Python venv, NumPy<2, and 'import cv2' from the venv." >&2
+  echo "Try:" >&2
+  echo "  source \"$VENV_PATH/bin/activate\"" >&2
+  echo "  python -m pip install --upgrade --force-reinstall \"numpy<2\"" >&2
+  echo "  python -m pip install -U opencv-python" >&2
+  echo "Grant Camera (and if prompted, Microphone) to Terminal, iTerm, or VS Code, then run start_calibration again." >&2
+  echo "The script defaults to CAMERA_SOURCE=usb on Darwin (use CSI-style flags only on Jetson)." >&2
+}
+
+_print_linux_csi_gst_help() {
+  echo "On Linux/Jetson (CSI + GStreamer), if the check reported GStreamer: NO, remove pip OpenCV" >&2
+  echo "and use system packages, or a venv with --system-site-packages. Example:" >&2
+  echo "  source \"$VENV_PATH/bin/activate\"" >&2
+  echo "  python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless" >&2
+  echo "  sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools" >&2
+  echo "  python3 -m venv --system-site-packages \"$VENV_PATH\"" >&2
+  echo "NumPy<2 only:" >&2
+  echo "  cd \"$PROJECT_ROOT\"" >&2
+  echo "  source \"$VENV_PATH/bin/activate\"" >&2
+  echo "  python -m pip install --upgrade --force-reinstall \"numpy<2\"" >&2
+}
+
+ensure_cv2_numpy_abi() {
+  local py
+  py="$(python_bin)"
+  # System python3 can load distro cv2 while the venv has pip wheels; we probe the venv only.
+
+  if [[ "$(_uname)" == "Darwin" ]]; then
+    if _venv_cv_numpy_check_relaxed "$py"; then
+      echo "OpenCV/NumPy check: OK (macOS — NumPy<2 and venv cv2; GStreamer not required for USB)"
+      return 0
+    fi
+  else
+    if _venv_cv_numpy_check_csi "$py"; then
+      echo "OpenCV/NumPy ABI check: OK (venv cv2, GStreamer enabled)"
+      return 0
+    fi
+  fi
+
+  echo "OpenCV/NumPy import failed; attempting NumPy repair (numpy<2) for OpenCV wheel compatibility..."
   "$py" -m pip install --upgrade --force-reinstall "numpy<2"
 
-  if "$py" - <<'PY'
-import sys
-
-try:
-    import numpy as np
-    import cv2
-except Exception:
-    sys.exit(1)
-
-if int(str(np.__version__).split(".")[0]) >= 2:
-    sys.exit(2)
-
-info = cv2.getBuildInformation()
-if "GStreamer:                   YES" not in info:
-    sys.exit(3)
-sys.exit(0)
-PY
-  then
-    echo "OpenCV/NumPy ABI check after repair: OK (venv cv2, GStreamer enabled)"
+  if _venv_cv_numpy_check_after_repair "$py"; then
+    if [[ "$(_uname)" == "Darwin" ]]; then
+      echo "OpenCV/NumPy check after repair: OK (macOS)"
+    else
+      echo "OpenCV/NumPy ABI check after repair: OK (venv cv2, GStreamer enabled)"
+    fi
     return 0
   fi
 
   echo "ERROR: venv OpenCV/NumPy check failed after repair." >&2
-  echo "If the log mentioned GStreamer, remove pip OpenCV from the venv and use distro packages:" >&2
-  echo "  source \"$VENV_PATH/bin/activate\"" >&2
-  echo "  python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless" >&2
-  echo "  sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools" >&2
-  echo "Ensure the venv was created with: python3 -m venv --system-site-packages \"$VENV_PATH\"" >&2
-  echo "NumPy-only repair:" >&2
-  echo "  cd \"$PROJECT_ROOT\"" >&2
-  echo "  source \"$VENV_PATH/bin/activate\"" >&2
-  echo "  python -m pip install --upgrade --force-reinstall \"numpy<2\"" >&2
+  if [[ "$(_uname)" == "Darwin" ]]; then
+    _print_macos_cv2_help
+  else
+    _print_linux_csi_gst_help
+  fi
   echo "Then rerun start_calibration.sh." >&2
   exit 2
 }

@@ -252,7 +252,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "calibration",
         "title": "3. Calibration (table + camera)",
-        "summary": "Homography + pocket labels map pixels to table coordinates. Use the GUI on a desktop session (or X11-forwarded Jetson).",
+        "summary": "Homography + pocket labels map pixels to table coordinates. On macOS, the starter script uses a USB camera by default; Jetson uses CSI. Use the GUI on a desktop session (or X11-forwarded Jetson).",
         "checklist": [
             {
                 "item": "calibration.json produced for this camera + table",
@@ -277,7 +277,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "label": "Launch calibration GUI (this Mac / device)",
                 "launch": "start_calibration",
-                "note": "Runs bash scripts/start_calibration.sh. Requires SETUP_ALLOW_LAUNCH=1 and localhost; grant Camera access if prompted.",
+                "note": "Runs scripts/start_calibration.sh (USB on macOS by default, CSI on Linux). Requires SETUP_ALLOW_LAUNCH=1 and localhost; allow Camera for your terminal app.",
             },
             {
                 "label": "Preview live table overlay (MJPEG via edge)",
@@ -285,7 +285,9 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "note": "Start edge.main with your calibration first; set MJPEG port below (default 8080).",
             },
         ],
-        "hints": ["macOS: USB camera; Jetson production: CSI. Grant Camera permission to your terminal app."],
+        "hints": [
+            "macOS: `start_calibration.sh` defaults to a USB camera and only requires venv + NumPy<2 + `import cv2` (pip opencv, no GStreamer). Jetson: CSI + GStreamer-backed OpenCV for production. Grant Camera to Terminal / iTerm / VS Code."
+        ],
         "doc_refs": [
             {"label": "CALIBRATION", "path": "docs/CALIBRATION.md"},
             {"label": "Phase 2", "path": "docs/Phase 2 Calibration and coordinate mapping.md"},

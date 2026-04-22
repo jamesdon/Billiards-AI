@@ -336,6 +336,7 @@
     '{"ok":true}',
     /* File / label fragments, not shell (avoid Copy next to inline filenames) */
     "model.onnx",
+    "start_calibration.sh",
   ]);
 
   function shouldShowCopyForBacktick(s) {
@@ -515,6 +516,19 @@
       .join("")}</div></section>`;
   }
 
+  function renderHintsSection(step) {
+    const hints = step.hints || [];
+    if (!hints.length) return "";
+    return `<section class="setup-hints"><h3>Tips</h3><ul class="hints">${hints
+      .map((h) => {
+        if (h.includes("`")) {
+          return `<li class="hint-line">${formatChecklistWithBackticks(h, true)}</li>`;
+        }
+        return `<li class="hint-line">${escWithLineBreaks(h)}</li>`;
+      })
+      .join("")}</ul></section>`;
+  }
+
   function renderLinks(step) {
     const links = step.links || [];
     const port = getMjpegPort();
@@ -549,11 +563,6 @@
     const saveButtonLabel = isLastStep ? "Save" : "Save and go to next step";
 
     const checklist = step.checklist || [];
-    const hints = step.hints || [];
-    const hintsHtml = hints.length
-      ? `<section><h3>Tips</h3><ul class="hints">${hints.map((h) => `<li>${escapeHtml(h)}</li>`).join("")}</ul></section>`
-      : "";
-
     const noteVal = state.progress.notes[step.id] || "";
     const sig = stepSignal(step);
 
@@ -563,7 +572,7 @@
       ${renderChecklist(step)}
       ${renderLinks(step)}
       ${renderDocs(step)}
-      ${hintsHtml}
+      ${renderHintsSection(step)}
       <section class="notes"><h3>Notes (this step)</h3>
         <p class="terminal-hint">Use this field for command output, versions, ports, or reminders. Saved with the rest of your progress.</p>
         <textarea id="step-note" placeholder="Paste output, dates, non-secret reminders…">${escapeHtml(noteVal)}</textarea>
