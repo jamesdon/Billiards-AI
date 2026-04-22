@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -280,8 +281,9 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         default=os.environ.get("CALIB_OVERLAY_JSON", ""),
         help=(
-            "Optional JSON: break_box BGR/alpha and caption list with x_L,y_W anchors "
-            "(fractions × table length/width in m). Default: <repo>/config/calib_overlay.json if that file exists."
+            "Optional JSON: break_box BGR/alpha and `labels` (id, text, x_L, y_W) or legacy `captions`. "
+            "In the GUI press e for label edit mode (drag, double-click text, s save). "
+            "Default: <repo>/config/calib_overlay.json if present."
         ),
     )
     args = p.parse_args()
@@ -1506,28 +1508,198 @@ def _break_box_style_from_overlay(overlay: dict) -> Tuple[Tuple[int, int, int], 
     )
 
 
-def _captions_from_overlay(
-    overlay: dict, table_length_m: float, table_width_m: float, diagram_captions: List[Tuple[str, Tuple[float, float]]]
-) -> List[Tuple[str, Tuple[float, float]]]:
+def _image_xy_to_table_m(h_image_to_table: np.ndarray, ix: float, iy: float) -> Tuple[float, float]:
+    """Map image pixel (homography src space) to table meters; h maps image→table."""
+    t = h_image_to_table @ np.array([float(ix), float(iy), 1.0], dtype=np.float64)
+    w = float(t[2]) + 1e-12
+    return float(t[0] / w), float(t[1] / w)
+
+
+def _default_overlay_labels(l_m: float, w_m: float) -> List[Dict[str, Any]]:
+    """Kitchen / foot quarter + schematic captions; anchors as x_L,y_W fractions of L,W."""
+    if build_table_diagram_m is None:
+        return []
+    L = float(l_m)
+    W = float(w_m)
+    dg = build_table_diagram_m(L, W)
+    k_poly_m, foot_quarter_m, _ = _kitchen_foot_and_head_string_m(L, W)
+    hx_line = float(k_poly_m[1][0])
+    f0x = float(foot_quarter_m[0][0])
+    kitchen_x = (0.22 * hx_line) / L
+    foot_x = (f0x + 0.22 * (L - f0x)) / L
+    rows: List[Dict[str, Any]] = [
+        {"id": "kitchen", "text": "Kitchen", "x_L": float(kitchen_x), "y_W": 0.5},
+        {"id": "foot_quarter", "text": "Foot quarter", "x_L": float(foot_x), "y_W": 0.5},
+    ]
+    for i, (cap, (xm, ym)) in enumerate(dg.captions):
+        rows.append(
+            {
+                "id": f"schematic_{i}",
+                "text": str(cap),
+                "x_L": float(xm) / L,
+                "y_W": float(ym) / W,
+            }
+        )
+    return rows
+
+
+def _parse_overlay_label_row(row: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(row, dict):
+        return None
+    tid = str(row.get("id", "")).strip() or f"imported_{uuid.uuid4().hex[:8]}"
+    text = str(row.get("text", "")).strip()
+    if not text:
+        return None
+    try:
+        x_L = float(row["x_L"])
+        y_W = float(row["y_W"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    return {"id": tid, "text": text, "x_L": x_L, "y_W": y_W}
+
+
+def _labels_from_legacy_captions(overlay: dict) -> List[Dict[str, Any]]:
     raw = overlay.get("captions")
-    if not isinstance(raw, list) or not raw:
-        return list(diagram_captions)
-    L = float(table_length_m)
-    W = float(table_width_m)
-    out: List[Tuple[str, Tuple[float, float]]] = []
-    for row in raw:
+    if not isinstance(raw, list):
+        return []
+    out: List[Dict[str, Any]] = []
+    for i, row in enumerate(raw):
         if not isinstance(row, dict):
             continue
-        text = str(row.get("text", "")).strip()
-        if not text:
+        r = _parse_overlay_label_row({**row, "id": str(row.get("id") or f"caption_{i}")})
+        if r is not None:
+            out.append(r)
+    return out
+
+
+def _merge_legacy_captions_indexed(
+    defaults: List[Dict[str, Any]], legacy: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """Map legacy `captions` rows in file order onto schematic_* defaults; keep kitchen/foot from defaults."""
+    out: List[Dict[str, Any]] = []
+    i_legacy = 0
+    for d in defaults:
+        did = str(d["id"])
+        if did.startswith("schematic_"):
+            if i_legacy < len(legacy):
+                lr = legacy[i_legacy]
+                out.append(
+                    {
+                        **dict(d),
+                        "text": lr["text"],
+                        "x_L": float(lr["x_L"]),
+                        "y_W": float(lr["y_W"]),
+                    }
+                )
+                i_legacy += 1
+            else:
+                out.append(dict(d))
+        else:
+            out.append(dict(d))
+    while i_legacy < len(legacy):
+        lr = legacy[i_legacy]
+        tid = str(lr.get("id") or f"extra_{i_legacy}")
+        out.append(
+            {
+                "id": tid,
+                "text": lr["text"],
+                "x_L": float(lr["x_L"]),
+                "y_W": float(lr["y_W"]),
+            }
+        )
+        i_legacy += 1
+    return out
+
+
+def _merge_overlay_labels(defaults: List[Dict[str, Any]], loaded: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    by_id = {str(d["id"]): dict(d) for d in loaded if isinstance(d, dict) and d.get("id")}
+    merged: List[Dict[str, Any]] = []
+    for d in defaults:
+        i = str(d["id"])
+        if i in by_id:
+            merged.append({**d, **by_id[i], "id": i})
+        else:
+            merged.append(dict(d))
+    seen = {str(d["id"]) for d in merged}
+    for d in loaded:
+        if not isinstance(d, dict) or not d.get("id"):
             continue
+        i = str(d["id"])
+        if i not in seen:
+            r = _parse_overlay_label_row(d)
+            if r is not None:
+                merged.append(r)
+                seen.add(i)
+    return merged
+
+
+def _build_overlay_labels_list(overlay: dict, l_m: float, w_m: float) -> List[Dict[str, Any]]:
+    defaults = _default_overlay_labels(l_m, w_m)
+    raw_labels = overlay.get("labels")
+    if isinstance(raw_labels, list) and raw_labels:
+        loaded = [r for r in (_parse_overlay_label_row(x) for x in raw_labels) if r is not None]
+        return _merge_overlay_labels(defaults, loaded)
+    legacy = _labels_from_legacy_captions(overlay)
+    if legacy:
+        return _merge_legacy_captions_indexed(defaults, legacy)
+    return list(defaults)
+
+
+def _save_overlay_labels_file(
+    path: Path,
+    overlay_meta: dict,
+    labels: List[Dict[str, Any]],
+) -> None:
+    bb = overlay_meta.get("break_box") if isinstance(overlay_meta.get("break_box"), dict) else {}
+    out = {
+        "_about": (
+            "Overlay for calib_click. break_box: BGR + alpha. labels: id, text, x_L, y_W "
+            "(anchor = x_L*table_length_m, y_W*table_width_m in table coords). "
+            "In the GUI press e to edit labels (drag, double-click text, Del, s save, n new)."
+        ),
+        "break_box": {
+            "fill_bgr": list(bb.get("fill_bgr", [60, 200, 255])),
+            "alpha": float(bb.get("alpha", 0.28)),
+            "edge_bgr": list(bb.get("edge_bgr", [30, 120, 255])),
+            "edge_thickness": int(bb.get("edge_thickness", 2)),
+        },
+        "labels": [{"id": d["id"], "text": d["text"], "x_L": float(d["x_L"]), "y_W": float(d["y_W"])} for d in labels],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(out, indent=2), encoding="utf-8")
+
+
+def _puttext_caption_bbox_display(
+    u: int, v: int, cap: str, font_scale: float = 0.32, thickness: int = 1, pad: int = 6
+) -> Tuple[int, int, int, int]:
+    """Same geometry as calib_click schematic captions: centered on (u,v), v is reference row."""
+    (tw, th), bl = cv2.getTextSize(cap, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+    x0 = u - tw // 2
+    y0 = v - 4
+    return (
+        int(x0 - pad),
+        int(y0 - th - pad),
+        int(x0 + tw + pad),
+        int(y0 + bl + pad),
+    )
+
+
+def _gui_edit_label_text(title: str, initial: str) -> Optional[str]:
+    try:
+        import tkinter as tk
+        from tkinter import simpledialog
+
+        root = tk.Tk()
+        root.withdraw()
         try:
-            x = float(row["x_L"]) * L
-            y = float(row["y_W"]) * W
-        except (KeyError, TypeError, ValueError):
-            continue
-        out.append((text, (float(x), float(y))))
-    return out if out else list(diagram_captions)
+            root.attributes("-topmost", True)
+        except Exception:
+            pass
+        s = simpledialog.askstring(title, "Label text:", initialvalue=initial, parent=root)
+        root.destroy()
+        return None if s is None else str(s)
+    except Exception:
+        return None
 
 
 def main() -> None:
@@ -1598,6 +1770,14 @@ def main() -> None:
     calib_overlay: dict = _load_calib_overlay_json(calib_overlay_path)
     if calib_overlay_path.is_file():
         print(f"Calibration overlay style: {calib_overlay_path}", file=sys.stderr)
+    overlay_labels_mutable: List[Dict[str, Any]] = []
+    overlay_labels_initialized = False
+    edit_overlay_mode = False
+    selected_overlay_label_idx: Optional[int] = None
+    dragging_overlay_idx: Optional[int] = None
+    overlay_label_button_down_idx: Optional[int] = None
+    overlay_label_drag_origin: Optional[Tuple[int, int]] = None
+    overlay_drag_threshold_px = 4
     # (triangle contour Nx1x2 int32, corner index, delta source x, delta source y) for pixel nudges
     corner_nudge_hits: List[Tuple[np.ndarray, int, int, int]] = []
     flip_view_h = False
@@ -1873,6 +2053,23 @@ def main() -> None:
             float(np.clip(x_src, 0.0, float(w_img - 1))),
             float(np.clip(y_src, 0.0, float(h_img - 1))),
         )
+
+    def _overlay_label_at_display(x: int, y: int) -> Optional[int]:
+        if len(corner_points) != 4 or not overlay_labels_mutable:
+            return None
+        l_m, w_m = _table_dims_m(selected_table_size)
+        h_it = _estimate_homography(corner_points, l_m, w_m)
+        for i, row in enumerate(overlay_labels_mutable):
+            xm = float(row["x_L"]) * l_m
+            ym = float(row["y_W"]) * w_m
+            a, b = _table_m_to_image_xy(h_it, (xm, ym))
+            u_f, v_f = _source_to_display(a, b)
+            u, v = int(round(u_f)), int(round(v_f))
+            cap = str(row.get("text", ""))
+            left, top, right, bottom = _puttext_caption_bbox_display(u, v, cap)
+            if left <= x <= right and top <= y <= bottom:
+                return i
+        return None
 
     def _render_background() -> np.ndarray:
         m = _view_matrix()
@@ -2241,7 +2438,7 @@ def main() -> None:
 
     def _draw_table_schematic_and_zones() -> None:
         """Reference diagram: tints, grid, break box, strings, side pockets, diamonds, rack frame, table outline."""
-        nonlocal view
+        nonlocal view, overlay_labels_mutable, overlay_labels_initialized
         l_m, w_m = _table_dims_m(selected_table_size)
         h_it = _estimate_homography(corner_points, l_m, w_m)
         k_poly_m, foot_quarter_m, (hs_a, hs_b) = _kitchen_foot_and_head_string_m(l_m, w_m)
@@ -2251,22 +2448,13 @@ def main() -> None:
             c, d_ = _source_to_display(a, b)
             return int(c), int(d_)
 
-        hx_line = float(k_poly_m[1][0])
-        kitchen_hint_m = (0.22 * hx_line, 0.5 * w_m)
-        f0x = float(foot_quarter_m[0][0])
-        foot_hint_m = (f0x + 0.22 * (l_m - f0x), 0.5 * w_m)
+        if _HAS_TABLE_DIAGRAM and build_table_diagram_m is not None and not overlay_labels_initialized:
+            overlay_labels_mutable[:] = _build_overlay_labels_list(calib_overlay, l_m, w_m)
+            overlay_labels_initialized = True
 
-        def _label_screen_shifted(disp_px: List[Tuple[int, int]], hint_m: Tuple[float, float], pad_px: float) -> Tuple[int, int]:
-            cxi = sum(p[0] for p in disp_px) // max(1, len(disp_px))
-            cyi = sum(p[1] for p in disp_px) // max(1, len(disp_px))
-            ix, iy = _pm(hint_m)
-            vx, vy = float(ix - cxi), float(iy - cyi)
-            n = float(np.hypot(vx, vy)) + 1e-6
-            return int(cxi + pad_px * vx / n), int(cyi + pad_px * vy / n)
-
-        for poly_m, fill_bgr, fill_alpha, edge_bgr, tag, hint_m in (
-            (k_poly_m, (50, 140, 60), 0.22, (70, 200, 90), "Kitchen", kitchen_hint_m),
-            (foot_quarter_m, (50, 55, 58), 0.12, (80, 88, 98), "Foot quarter", foot_hint_m),
+        for poly_m, fill_bgr, fill_alpha, edge_bgr in (
+            (k_poly_m, (50, 140, 60), 0.22, (70, 200, 90)),
+            (foot_quarter_m, (50, 55, 58), 0.12, (80, 88, 98)),
         ):
             disp: List[Tuple[int, int]] = []
             for xm, ym in poly_m:
@@ -2274,20 +2462,10 @@ def main() -> None:
                 dx, dy = _source_to_display(ix, iy)
                 disp.append((int(dx), int(dy)))
             darr = np.array(disp, dtype=np.int32).reshape((-1, 1, 2))
-            overlay = view.copy()
-            cv2.fillPoly(overlay, [darr], fill_bgr, lineType=cv2.LINE_AA)
-            cv2.addWeighted(overlay, float(fill_alpha), view, 1.0 - float(fill_alpha), 0, view)
+            overlay_plane = view.copy()
+            cv2.fillPoly(overlay_plane, [darr], fill_bgr, lineType=cv2.LINE_AA)
+            cv2.addWeighted(overlay_plane, float(fill_alpha), view, 1.0 - float(fill_alpha), 0, view)
             cv2.polylines(view, [darr], isClosed=True, color=edge_bgr, thickness=1, lineType=cv2.LINE_AA)
-            lx, ly = _label_screen_shifted(disp, hint_m, 34.0)
-            (tw, th), bl = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.34, 1)
-            tx = int(lx - tw // 2)
-            ty = int(ly + (th + bl) / 2.0)
-            cv2.putText(
-                view, tag, (tx + 1, ty + 1), cv2.FONT_HERSHEY_SIMPLEX, 0.34, (0, 0, 0), 2, cv2.LINE_AA
-            )
-            cv2.putText(
-                view, tag, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.34, (245, 248, 252), 1, cv2.LINE_AA
-            )
 
         if _HAS_TABLE_DIAGRAM and build_table_diagram_m is not None:
             dg = build_table_diagram_m(l_m, w_m)
@@ -2336,13 +2514,6 @@ def main() -> None:
                 cv2.polylines(
                     view, [tri8], isClosed=True, color=(210, 190, 110), thickness=3, lineType=cv2.LINE_AA
                 )
-            caption_rows = _captions_from_overlay(calib_overlay, l_m, w_m, dg.captions)
-            for cap, anchor in caption_rows:
-                u, v = _pm(anchor)
-                tw, _ = cv2.getTextSize(cap, cv2.FONT_HERSHEY_SIMPLEX, 0.32, 1)[0]
-                x0, y0 = u - tw // 2, v - 4
-                cv2.putText(view, cap, (x0 + 1, y0 + 1), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (0, 0, 0), 2, cv2.LINE_AA)
-                cv2.putText(view, cap, (x0, y0), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (250, 252, 255), 1, cv2.LINE_AA)
         else:
             p0s = _table_m_to_image_xy(h_it, (float(hs_a[0]), float(hs_a[1])))
             p1s = _table_m_to_image_xy(h_it, (float(hs_b[0]), float(hs_b[1])))
@@ -2356,6 +2527,25 @@ def main() -> None:
                 3,
                 lineType=cv2.LINE_AA,
             )
+        if overlay_labels_initialized and overlay_labels_mutable:
+            fs, thk = 0.32, 1
+            for li, row in enumerate(overlay_labels_mutable):
+                cap = str(row.get("text", ""))
+                if not cap:
+                    continue
+                xm = float(row["x_L"]) * l_m
+                ym = float(row["y_W"]) * w_m
+                u, v = _pm((xm, ym))
+                tw, _ = cv2.getTextSize(cap, cv2.FONT_HERSHEY_SIMPLEX, fs, thk)[0]
+                x0, y0 = u - tw // 2, v - 4
+                cv2.putText(view, cap, (x0 + 1, y0 + 1), cv2.FONT_HERSHEY_SIMPLEX, fs, (0, 0, 0), 2, cv2.LINE_AA)
+                cv2.putText(view, cap, (x0, y0), cv2.FONT_HERSHEY_SIMPLEX, fs, (250, 252, 255), 1, cv2.LINE_AA)
+                if edit_overlay_mode:
+                    left, top, right, bottom = _puttext_caption_bbox_display(u, v, cap, fs, thk, pad=8)
+                    sel = li == selected_overlay_label_idx
+                    col = (60, 220, 120) if sel else (140, 190, 255)
+                    tlin = 2 if sel else 1
+                    cv2.rectangle(view, (left, top), (right, bottom), col, tlin, lineType=cv2.LINE_AA)
         outline = [corner_points[i] for i in CORNER_OUTLINE_INDEX]
         poly_pts = [(_source_to_display(float(x), float(y))) for x, y in outline]
         poly = np.array([(int(px), int(py)) for px, py in poly_pts], dtype=np.int32).reshape((-1, 1, 2))
@@ -2369,6 +2559,19 @@ def main() -> None:
 
         if len(corner_points) == 4:
             _draw_table_schematic_and_zones()
+            if edit_overlay_mode:
+                bar_h = max(30, int(round(26 * max(1.0, ui_scale))))
+                cv2.rectangle(view, (0, 0), (w_img, bar_h), (24, 26, 34), -1)
+                cv2.putText(
+                    view,
+                    "LABEL EDIT: drag labels  dbl-click=text  Del/Backspace/d=delete  n=new  s=save  e=exit",
+                    (10, bar_h - 8),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.42 * min(1.0, ui_scale + 0.15),
+                    (235, 240, 250),
+                    1,
+                    cv2.LINE_AA,
+                )
         for i, (x_src, y_src) in enumerate(corner_points):
             x, y = _source_to_display(float(x_src), float(y_src))
             cv2.circle(view, (int(x), int(y)), 8, (0, 255, 255), -1)
@@ -2959,6 +3162,8 @@ def main() -> None:
         nonlocal header_dbl_arm_time, header_dbl_is_second, header_dbl_moved
         nonlocal header_dbl_start_x, header_dbl_start_y
         nonlocal corner_points
+        nonlocal edit_overlay_mode, selected_overlay_label_idx, dragging_overlay_idx
+        nonlocal overlay_label_button_down_idx, overlay_label_drag_origin
         if event == cv2.EVENT_LBUTTONDBLCLK:
             if _hit_panel_drag_handle(x, y):
                 header_dbl_arm_time = None
@@ -2966,6 +3171,17 @@ def main() -> None:
                 panel_dragging = False
                 redraw()
                 return
+            if edit_overlay_mode and len(corner_points) == 4 and overlay_labels_mutable:
+                oli = _overlay_label_at_display(int(x), int(y))
+                if oli is not None:
+                    t0 = str(overlay_labels_mutable[oli].get("text", ""))
+                    new_t = _gui_edit_label_text("Edit label", t0)
+                    if new_t is not None:
+                        st = new_t.strip()
+                        if st:
+                            overlay_labels_mutable[oli]["text"] = st
+                    redraw()
+                    return
         if event == cv2.EVENT_LBUTTONDOWN:
             if not _hit_panel_drag_handle(x, y):
                 header_dbl_arm_time = None
@@ -2991,6 +3207,15 @@ def main() -> None:
                 panel_drag_offset_x = int(x - x1)
                 panel_drag_offset_y = int(y - y1)
                 return
+            if len(corner_points) == 4 and edit_overlay_mode and overlay_labels_mutable:
+                oli = _overlay_label_at_display(int(x), int(y))
+                if oli is not None:
+                    overlay_label_button_down_idx = oli
+                    overlay_label_drag_origin = (int(x), int(y))
+                    selected_overlay_label_idx = oli
+                    dragging_overlay_idx = None
+                    redraw()
+                    return
             if len(corner_points) == 4:
                 hit_nudge = _hit_corner_nudge(int(x), int(y))
                 if hit_nudge is not None:
@@ -3074,6 +3299,27 @@ def main() -> None:
                 _set_active_points(pts)
                 redraw()
         elif event == cv2.EVENT_MOUSEMOVE:
+            if (
+                overlay_label_button_down_idx is not None
+                and edit_overlay_mode
+                and len(corner_points) == 4
+                and dragging_overlay_idx is None
+                and overlay_label_drag_origin is not None
+            ):
+                ox, oy = overlay_label_drag_origin
+                if (int(x) - ox) ** 2 + (int(y) - oy) ** 2 >= overlay_drag_threshold_px * overlay_drag_threshold_px:
+                    dragging_overlay_idx = overlay_label_button_down_idx
+            if dragging_overlay_idx is not None and edit_overlay_mode and len(corner_points) == 4:
+                l_m, w_m = _table_dims_m(selected_table_size)
+                h_it = _estimate_homography(corner_points, l_m, w_m)
+                sx, sy = _display_to_source(float(x), float(y))
+                xm, ym = _image_xy_to_table_m(h_it, sx, sy)
+                j = dragging_overlay_idx
+                if j is not None and 0 <= j < len(overlay_labels_mutable):
+                    overlay_labels_mutable[j]["x_L"] = float(np.clip(xm / l_m, -0.08, 1.08))
+                    overlay_labels_mutable[j]["y_W"] = float(np.clip(ym / w_m, -0.08, 1.08))
+                redraw()
+                return
             if panel_dragging:
                 dx = int(x) - header_dbl_start_x
                 dy = int(y) - header_dbl_start_y
@@ -3113,6 +3359,9 @@ def main() -> None:
             panel_dragging = False
             dragging = False
             active_point_idx = None
+            dragging_overlay_idx = None
+            overlay_label_button_down_idx = None
+            overlay_label_drag_origin = None
 
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
     cv2.setMouseCallback(win, on_mouse)
@@ -3124,7 +3373,8 @@ def main() -> None:
         _refresh_live_frame()
         redraw()
         cv2.imshow(win, view)
-        key = cv2.waitKey(1) & 0xFF
+        key_raw = cv2.waitKey(1)
+        key = key_raw & 0xFF
         if key in (ord("q"), 27):
             if live_capture is not None:
                 live_capture.release()
@@ -3159,6 +3409,47 @@ def main() -> None:
         if key in (ord("9"),):
             selected_rack_style = "9ball"
             redraw()
+        if key in (ord("e"),):
+            edit_overlay_mode = not edit_overlay_mode
+            if not edit_overlay_mode:
+                dragging_overlay_idx = None
+            else:
+                print(
+                    "Label edit mode: drag labels, double-click to edit text, "
+                    "d / Backspace / Del delete selected, n new label, s save JSON, e exit.",
+                    file=sys.stderr,
+                )
+            redraw()
+        if key in (ord("s"),) and edit_overlay_mode:
+            try:
+                _save_overlay_labels_file(calib_overlay_path, calib_overlay, overlay_labels_mutable)
+                loaded = _load_calib_overlay_json(calib_overlay_path)
+                calib_overlay.clear()
+                calib_overlay.update(loaded)
+                print(f"Saved label overlay to {calib_overlay_path}", file=sys.stderr)
+            except Exception as exc:
+                print(f"Overlay save failed: {exc}", file=sys.stderr)
+            redraw()
+        if key in (ord("n"),) and edit_overlay_mode and _HAS_TABLE_DIAGRAM:
+            overlay_labels_mutable.append(
+                {
+                    "id": f"user_{uuid.uuid4().hex[:10]}",
+                    "text": "Label",
+                    "x_L": 0.5,
+                    "y_W": 0.5,
+                }
+            )
+            selected_overlay_label_idx = len(overlay_labels_mutable) - 1
+            redraw()
+        if edit_overlay_mode and selected_overlay_label_idx is not None and overlay_labels_mutable:
+            if key in (8, 127, ord("d")):
+                j = int(selected_overlay_label_idx)
+                if 0 <= j < len(overlay_labels_mutable):
+                    overlay_labels_mutable.pop(j)
+                selected_overlay_label_idx = (
+                    min(j, len(overlay_labels_mutable) - 1) if overlay_labels_mutable else None
+                )
+                redraw()
         if key in (ord("g"),):
             view_step_mode = "coarse" if view_step_mode == "fine" else "fine"
             redraw()
