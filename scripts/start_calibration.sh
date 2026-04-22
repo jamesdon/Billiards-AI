@@ -53,6 +53,7 @@ Environment overrides (optional):
   POCKET_CLASS_MAP  (optional; default: \$PROJECT_ROOT/models/class_map.json)
   POCKET_MIN_CONF   (optional; forwarded as --pocket-min-conf)
   RACK_STYLE        (default: 8ball; also 9ball — schematic rack overlay in calib_click)
+  CALIB_OVERLAY_JSON  (optional; path to JSON for break_box colors and caption positions; see config/calib_overlay.json)
 
 Example:
   bash /home/$USER/Billiards-AI/scripts/start_calibration.sh

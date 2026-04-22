@@ -29,6 +29,9 @@ Billiards-AI/
     class_map.json                  Maps ONNX class index → pipeline label (`ball`, `person`, `cue_stick`, `rack`, `pockets`); committed
     model.onnx                      Exported detector weights (not in git; copy or export here)
 
+  config/
+    calib_overlay.json              Editable `calib_click` schematic: `break_box` BGR/alpha/thickness and `captions` list (`text`, `x_L`, `y_W` fractions × table L/W in m); default path or `--overlay-json` / `CALIB_OVERLAY_JSON`
+
   core/                             Shared logic (no OpenCV/YOLO dependency)
     overlay_state.py              Projector layer toggles + highlight labels (voice-driven)
     __init__.py

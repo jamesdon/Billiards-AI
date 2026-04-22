@@ -1,0 +1,21 @@
+{
+  "_about": "Edit this file, save, then restart the calibration GUI. Anchors: x_L and y_W multiply the current table length (m) and width (m). BGR is OpenCV order (blue, green, red).",
+  "break_box": {
+    "fill_bgr": [60, 200, 255],
+    "alpha": 0.28,
+    "edge_bgr": [30, 120, 255],
+    "edge_thickness": 2
+  },
+  "captions": [
+    { "text": "Head rail", "x_L": 0.02, "y_W": 0.5 },
+    { "text": "End rail", "x_L": 0.98, "y_W": 0.5 },
+    { "text": "Break box", "x_L": 0.125, "y_W": 0.5 },
+    { "text": "Long string", "x_L": 0.48, "y_W": 0.565 },
+    { "text": "Transverse", "x_L": 0.5, "y_W": 0.36 },
+    { "text": "Head string", "x_L": 0.185, "y_W": 0.5 },
+    { "text": "Break line", "x_L": 0.315, "y_W": 0.5 },
+    { "text": "Foot string", "x_L": 0.815, "y_W": 0.5 },
+    { "text": "8: inner 11.25 x 10 in triangle", "x_L": 0.78, "y_W": 0.72 },
+    { "text": "9: inner 6.75 x 10 in diamond", "x_L": 0.74, "y_W": 0.62 }
+  ]
+}

@@ -275,6 +275,15 @@ def _parse_args() -> argparse.Namespace:
         help="Schematic rack: 8ball (inner triangle) or 9ball (inner diamond); see dimensions.com billiards rack sizes.",
     )
     p.add_argument("--out", type=str, default="/home/$USER/Billiards-AI/calibration.json")
+    p.add_argument(
+        "--overlay-json",
+        type=str,
+        default=os.environ.get("CALIB_OVERLAY_JSON", ""),
+        help=(
+            "Optional JSON: break_box BGR/alpha and caption list with x_L,y_W anchors "
+            "(fractions × table length/width in m). Default: <repo>/config/calib_overlay.json if that file exists."
+        ),
+    )
     args = p.parse_args()
     rs = str(args.rack_style).strip().lower().replace(" ", "").replace("_", "")
     if rs in ("9ball", "9", "nineball", "diamond"):
@@ -1467,6 +1476,60 @@ def _load_pocket_onnx(args: argparse.Namespace) -> Any:
         return None
 
 
+def _resolve_calib_overlay_path(args: argparse.Namespace) -> Path:
+    raw = str(getattr(args, "overlay_json", "") or "").strip()
+    if raw:
+        return Path(raw).expanduser()
+    return _REPO_ROOT / "config" / "calib_overlay.json"
+
+
+def _load_calib_overlay_json(path: Path) -> dict:
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception as exc:
+        print(f"Note: could not read overlay JSON {path}: {exc}", file=sys.stderr)
+        return {}
+
+
+def _break_box_style_from_overlay(overlay: dict) -> Tuple[Tuple[int, int, int], float, Tuple[int, int, int], int]:
+    bb = overlay.get("break_box") if isinstance(overlay.get("break_box"), dict) else {}
+    fill = bb.get("fill_bgr", [60, 200, 255])
+    edge = bb.get("edge_bgr", [30, 120, 255])
+    return (
+        (int(fill[0]), int(fill[1]), int(fill[2])),
+        float(bb.get("alpha", 0.28)),
+        (int(edge[0]), int(edge[1]), int(edge[2])),
+        int(bb.get("edge_thickness", 2)),
+    )
+
+
+def _captions_from_overlay(
+    overlay: dict, table_length_m: float, table_width_m: float, diagram_captions: List[Tuple[str, Tuple[float, float]]]
+) -> List[Tuple[str, Tuple[float, float]]]:
+    raw = overlay.get("captions")
+    if not isinstance(raw, list) or not raw:
+        return list(diagram_captions)
+    L = float(table_length_m)
+    W = float(table_width_m)
+    out: List[Tuple[str, Tuple[float, float]]] = []
+    for row in raw:
+        if not isinstance(row, dict):
+            continue
+        text = str(row.get("text", "")).strip()
+        if not text:
+            continue
+        try:
+            x = float(row["x_L"]) * L
+            y = float(row["y_W"]) * W
+        except (KeyError, TypeError, ValueError):
+            continue
+        out.append((text, (float(x), float(y))))
+    return out if out else list(diagram_captions)
+
+
 def main() -> None:
     args = _parse_args()
     out_path = Path(str(args.out)).expanduser()
@@ -1531,6 +1594,10 @@ def main() -> None:
     selected_rack_style: str = str(args.rack_style)
 
     h_img, w_img = img.shape[:2]
+    calib_overlay_path = _resolve_calib_overlay_path(args)
+    calib_overlay: dict = _load_calib_overlay_json(calib_overlay_path)
+    if calib_overlay_path.is_file():
+        print(f"Calibration overlay style: {calib_overlay_path}", file=sys.stderr)
     # (triangle contour Nx1x2 int32, corner index, delta source x, delta source y) for pixel nudges
     corner_nudge_hits: List[Tuple[np.ndarray, int, int, int]] = []
     flip_view_h = False
@@ -2227,12 +2294,13 @@ def main() -> None:
 
             for p, q in dg.grid_segments:
                 cv2.line(view, _pm(p), _pm(q), (60, 64, 74), 1, lineType=cv2.LINE_AA)
-            # Break box: high-contrast tint (distinct from kitchen green and grid slate).
+            # Break box tint (defaults or config/calib_overlay.json).
+            bb_fill, bb_alpha, bb_edge, bb_th = _break_box_style_from_overlay(calib_overlay)
             bpoly = np.array([_pm(xy) for xy in dg.break_box_m], dtype=np.int32).reshape((-1, 1, 2))
             bov = view.copy()
-            cv2.fillPoly(bov, [bpoly], (60, 200, 255), lineType=cv2.LINE_AA)
-            cv2.addWeighted(bov, 0.28, view, 0.72, 0, view)
-            cv2.polylines(view, [bpoly], isClosed=True, color=(30, 120, 255), thickness=2, lineType=cv2.LINE_AA)
+            cv2.fillPoly(bov, [bpoly], bb_fill, lineType=cv2.LINE_AA)
+            cv2.addWeighted(bov, float(bb_alpha), view, 1.0 - float(bb_alpha), 0, view)
+            cv2.polylines(view, [bpoly], isClosed=True, color=bb_edge, thickness=int(bb_th), lineType=cv2.LINE_AA)
             for seg, col, th in (
                 (dg.long_string, (200, 200, 255), 2),
                 (dg.transverse_string, (200, 230, 190), 2),
@@ -2268,7 +2336,8 @@ def main() -> None:
                 cv2.polylines(
                     view, [tri8], isClosed=True, color=(210, 190, 110), thickness=3, lineType=cv2.LINE_AA
                 )
-            for cap, anchor in dg.captions:
+            caption_rows = _captions_from_overlay(calib_overlay, l_m, w_m, dg.captions)
+            for cap, anchor in caption_rows:
                 u, v = _pm(anchor)
                 tw, _ = cv2.getTextSize(cap, cv2.FONT_HERSHEY_SIMPLEX, 0.32, 1)[0]
                 x0, y0 = u - tw // 2, v - 4
