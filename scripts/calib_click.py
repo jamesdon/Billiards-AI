@@ -78,12 +78,34 @@ def _csi_troubleshoot_footer(args: argparse.Namespace) -> str:
     )
 
 
+def _usb_index_capture_backend() -> int:
+    """Integer index capture: Linux uses V4L2; macOS needs AVFoundation (not V4L2)."""
+    if sys.platform == "darwin":
+        av = getattr(cv2, "CAP_AVFOUNDATION", None)
+        if av is not None:
+            return int(av)
+    if sys.platform.startswith("linux"):
+        return int(cv2.CAP_V4L2)
+    return int(getattr(cv2, "CAP_ANY", 0))
+
+
 def _usb_v4l_troubleshoot_footer(args: argparse.Namespace) -> str:
-    return (
-        "Video open failed for V4L2 (--camera usb or a numeric index).\n"
+    base = (
+        f"Video open failed for USB/index mode (--camera usb or a numeric index).\n"
         f"Active settings: camera={args.camera!r} usb-index={args.usb_index} "
         f"{args.width}x{args.height}.\n"
-        "OpenCV opens /dev/video<index>; it is not the Jetson CSI (Argus) path.\n"
+    )
+    if sys.platform == "darwin":
+        return base + (
+            "On macOS, OpenCV uses AVFoundation (not /dev/video or V4L2).\n"
+            "  • System Settings → Privacy & Security → Camera: allow Terminal, iTerm2, or VS Code.\n"
+            "  • Close other apps using the camera (Zoom, Photo Booth, browser tabs).\n"
+            "  • Try another index: --usb-index 1 (or 2) after: bash scripts/start_calibration.sh --usb-index 1\n"
+            "  • Built-in FaceTime camera is usually index 0; external USB may be 1.\n"
+            "For Jetson CSI (Argus), use --camera csi (not usb).\n"
+        )
+    return base + (
+        "On Linux, OpenCV opens /dev/video<index> via V4L2; it is not the Jetson CSI (Argus) path.\n"
         "  • Run: ls -la /dev/video*  and  v4l2-ctl --list-devices  (needs: sudo apt-get install -y v4l-utils)\n"
         "  • If there are no /dev/video* nodes, no USB UVC camera is present—or CSI is not exposed as V4L2 on this image.\n"
         "For the built-in CSI module use: --camera csi  (not usb).\n"
@@ -134,7 +156,7 @@ def _parse_args() -> argparse.Namespace:
         "--camera",
         type=_camera_cli_type,
         default="csi",
-        help="Camera source: csi (Jetson Argus), usb (V4L2 /dev/video<usb-index>), integer index, or a full GStreamer pipeline string.",
+        help="Camera source: csi (Jetson Argus), usb (Linux: V4L2 /dev/video<index>; macOS: AVFoundation index), integer index, or a GStreamer pipeline string.",
     )
     p.add_argument("--usb-index", type=int, default=0)
     p.add_argument("--csi-sensor-id", type=int, default=0)
@@ -250,7 +272,12 @@ def _open_capture_for_source(
     attempts = max(1, int(open_retries)) if use_gst else 1
     last_err: Optional[Exception] = None
     for attempt in range(attempts):
-        cap = cv2.VideoCapture(source, cv2.CAP_GSTREAMER if use_gst else cv2.CAP_V4L2)
+        if use_gst:
+            cap = cv2.VideoCapture(source, cv2.CAP_GSTREAMER)
+        elif isinstance(source, int):
+            cap = cv2.VideoCapture(source, _usb_index_capture_backend())
+        else:
+            cap = cv2.VideoCapture(source)
         if not use_gst and isinstance(source, int):
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, float(width))
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, float(height))
