@@ -2227,11 +2227,12 @@ def main() -> None:
 
             for p, q in dg.grid_segments:
                 cv2.line(view, _pm(p), _pm(q), (60, 64, 74), 1, lineType=cv2.LINE_AA)
+            # Break box: high-contrast tint (distinct from kitchen green and grid slate).
             bpoly = np.array([_pm(xy) for xy in dg.break_box_m], dtype=np.int32).reshape((-1, 1, 2))
             bov = view.copy()
-            cv2.fillPoly(bov, [bpoly], (90, 100, 160), lineType=cv2.LINE_AA)
-            cv2.addWeighted(bov, 0.12, view, 0.88, 0, view)
-            cv2.polylines(view, [bpoly], isClosed=True, color=(120, 140, 200), thickness=1, lineType=cv2.LINE_AA)
+            cv2.fillPoly(bov, [bpoly], (60, 200, 255), lineType=cv2.LINE_AA)
+            cv2.addWeighted(bov, 0.28, view, 0.72, 0, view)
+            cv2.polylines(view, [bpoly], isClosed=True, color=(30, 120, 255), thickness=2, lineType=cv2.LINE_AA)
             for seg, col, th in (
                 (dg.long_string, (200, 200, 255), 2),
                 (dg.transverse_string, (200, 230, 190), 2),

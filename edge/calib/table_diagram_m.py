@@ -181,16 +181,19 @@ def build_table_diagram_m(table_length_m: float, table_width_m: float) -> TableD
     rack_centers: List[Vec2] = fifteen_ball_rack_centers_m(L, W)
     tri8, dia9 = eight_nine_rack_outlines_m(L, W)
 
-    # Label anchors: corners / margins so text does not sit on the main grid and string lines.
+    # Label anchors (table m): sit beside the feature they name, not on top of lines.
+    break_box_cx = 0.5 * hx
+    break_box_cy = 0.5 * (y_lo + y_hi)
     x_rack = _rack_foot_baseline_x_m(L) - 0.12 * L
     captions: List[Tuple[str, Vec2]] = [
-        ("Head rail", (0.04 * L, 0.06 * W)),
-        ("End rail", (0.80 * L, 0.06 * W)),
-        ("Break box", (0.22 * hx, 0.18 * W)),
-        ("Long string  (head to foot, center L)", (0.38 * L, 0.90 * W)),
-        ("Transverse  (side pockets, center W)", (0.78 * L, 0.44 * W)),
-        ("Head string  break line", (0.38 * hx, 0.82 * W)),
-        ("Foot string", (0.5 * (ftx + L) - 0.02 * L, 0.20 * W)),
+        ("Head rail", (0.02 * L, 0.5 * W)),
+        ("End rail", (L - 0.02 * L, 0.5 * W)),
+        ("Break box", (break_box_cx, break_box_cy)),
+        ("Long string", (0.48 * L, 0.5 * W + 0.065 * W)),
+        ("Transverse", (0.5 * L, 0.36 * W)),
+        ("Head string", (hx - 0.065 * L, 0.5 * W)),
+        ("Break line", (hx + 0.065 * L, 0.5 * W)),
+        ("Foot string", (ftx + 0.065 * L, 0.5 * W)),
         ("8: inner 11.25 x 10 in triangle", (max(0.02 * L, x_rack), 0.72 * W)),
         ("9: inner 6.75 x 10 in diamond", (max(0.02 * L, x_rack - 0.04 * L), 0.62 * W)),
     ]
