@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from edge.calib.table_diagram_m import build_table_diagram_m
+from edge.calib.table_layout import foot_string_x_m
 
 
 def test_table_diagram_has_head_and_foot_strings():
@@ -23,6 +24,15 @@ def test_table_diagram_has_head_and_foot_strings():
     assert abs((la[0] - lb[0]) ** 2 + (la[1] - lb[1]) ** 2) ** 0.5 - 2.84 < 0.01  # long string ~ table length
     sa, sb = d.transverse_string
     assert abs((sa[0] - sb[0]) ** 2 + (sa[1] - sb[1]) ** 2) ** 0.5 - 1.42 < 0.01  # transverse ~ table width
+
+
+def test_fifteen_ball_rack_apex_on_foot_string():
+    L, W = 2.84, 1.42
+    d = build_table_diagram_m(L, W)
+    fx = foot_string_x_m(L)
+    apex = d.rack_ball_centers_m[0]
+    assert abs(apex[0] - fx) < 1e-6
+    assert abs(apex[1] - 0.5 * W) < 1e-9
 
 
 def test_centered_placeholder_aspect_ratio():

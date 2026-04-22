@@ -10,7 +10,7 @@ import math
 from dataclasses import dataclass
 from typing import List, Set, Tuple
 
-from .table_layout import head_string_x_m
+from .table_layout import foot_string_x_m, head_string_x_m
 
 Vec2 = Tuple[float, float]
 Seg2 = Tuple[Vec2, Vec2]
@@ -54,7 +54,7 @@ _RACK9_INNER_DIA_ALONG_M: float = 10.0 * 0.0254
 
 def _rack_foot_baseline_x_m(table_length_m: float) -> float:
     """
-    Inset from foot cushion (x = L) where the ball pack / rack back row lies — matches 15-ball layout.
+    Inset from foot cushion (x = L) where the back row of balls sits (15-ball pack depth check).
     """
     L = float(table_length_m)
     rail_inset = max(2.5 * _BALL_D_M, 0.01 * L)
@@ -63,47 +63,49 @@ def _rack_foot_baseline_x_m(table_length_m: float) -> float:
 
 def eight_nine_rack_outlines_m(table_length_m: float, table_width_m: float) -> Tuple[List[Vec2], List[Vec2]]:
     """
-    Return inner wooden rack outlines: 8-ball isosceles triangle (3 verts), 9-ball rhombus (4 verts).
-    Base of the 8-triangle and wide end of 9-diamond run along the foot rail, centered in Y.
+    Return inner wooden rack outlines: 8-ball triangle (3 verts), 9-ball rhombus (4 verts).
+
+    Sizes from https://www.dimensions.com/element/billiards-pool-racks (inner opening):
+    eight-ball 11.25\" × 10\", nine-ball 6.75\" × 10\".
+
+    Apex / lead ball sits on the **foot string** (¼L from foot rail), opening toward the head.
     """
     L = float(table_length_m)
     W = float(table_width_m)
-    x_base = _rack_foot_baseline_x_m(L)
+    ftx = foot_string_x_m(L)
     half_b = 0.5 * _RACK8_INNER_BASE_M
     y_lo = 0.5 * W - half_b
     y_hi = 0.5 * W + half_b
-    x_apex = x_base - _RACK8_INNER_HEAD_TO_BASE_M
-    tri8: List[Vec2] = [(float(x_base), float(y_lo)), (float(x_base), float(y_hi)), (float(x_apex), 0.5 * W)]
-    c_x = x_base - 0.5 * _RACK9_INNER_DIA_ALONG_M
+    x_open = min(ftx + _RACK8_INNER_HEAD_TO_BASE_M, L - 1e-4)
+    tri8: List[Vec2] = [(float(x_open), float(y_lo)), (float(x_open), float(y_hi)), (float(ftx), 0.5 * W)]
+
     half_a = 0.5 * _RACK9_INNER_DIA_ALONG_M
     half_c = 0.5 * _RACK9_INNER_DIA_ACROSS_M
+    x_back = min(ftx + 2.0 * half_a, L - 1e-4)
     d9: List[Vec2] = [
-        (c_x - half_a, 0.5 * W),
-        (c_x, 0.5 * W + half_c),
-        (c_x + half_a, 0.5 * W),
-        (c_x, 0.5 * W - half_c),
+        (float(ftx), 0.5 * W),
+        (float(ftx + half_a), 0.5 * W + half_c),
+        (float(x_back), 0.5 * W),
+        (float(ftx + half_a), 0.5 * W - half_c),
     ]
     return tri8, d9
 
 
 def fifteen_ball_rack_centers_m(table_length_m: float, table_width_m: float) -> List[Vec2]:
     """
-    15-ball equilateral pack: apex (one ball) toward the head, base (five balls) toward the
-    foot rail. Backs the pack off the foot cushion; ball centers use 2-1/4" spacing.
+    15-ball equilateral pack: apex ball on the **foot string** (foot spot line), rows toward the
+    foot rail; 2-1/4\" ball-center spacing (BCA).
     """
     L = float(table_length_m)
     W = float(table_width_m)
     D = _BALL_D_M
     row_step = D * (math.sqrt(3.0) / 2.0)
-    pack_depth = 4.0 * row_step
-    rail_inset = max(2.5 * D, 0.01 * L)
-    x_back = L - rail_inset
-    x_apex = x_back - pack_depth
-    if x_apex < 0.0:
-        x_apex = 0.0
+    foot_x = foot_string_x_m(L)
     centers: List[Vec2] = []
     for r in range(5):
-        x = x_apex + r * row_step
+        x = foot_x - float(r) * row_step
+        if x < 0.0:
+            x = 0.0
         n = r + 1
         for j in range(n):
             y = 0.5 * W + (j - 0.5 * (n - 1)) * D

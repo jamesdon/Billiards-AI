@@ -268,8 +268,20 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="class_map.json for the pocket ONNX; default: <repo>/models/class_map.json",
     )
+    p.add_argument(
+        "--rack-style",
+        type=str,
+        default=os.environ.get("RACK_STYLE", "8ball"),
+        help="Schematic rack: 8ball (inner triangle) or 9ball (inner diamond); see dimensions.com billiards rack sizes.",
+    )
     p.add_argument("--out", type=str, default="/home/$USER/Billiards-AI/calibration.json")
-    return p.parse_args()
+    args = p.parse_args()
+    rs = str(args.rack_style).strip().lower().replace(" ", "").replace("_", "")
+    if rs in ("9ball", "9", "nineball", "diamond"):
+        args.rack_style = "9ball"
+    else:
+        args.rack_style = "8ball"
+    return args
 
 
 def _csi_pipeline(sensor_id: int, width: int, height: int, framerate: int, flip_method: int) -> str:
@@ -1497,18 +1509,26 @@ def main() -> None:
             used_pocket_hull = True
             print("Auto corners: pocket ONNX (hull) + subpixel refine.", file=sys.stderr)
     if not used_pocket_hull:
-        try:
-            corner_points = _estimate_outside_corners(img, l_init_m, w_init_m)
-        except Exception as exc:
+        if pocket_onnx is not None:
             corner_points = _default_corners_fitted(h_init, w_init, l_init_m, w_init_m)
             print(
-                f"AUTO corner detect failed ({exc}); using centered table-aspect placeholder.",
+                "Pocket ONNX: no 4-corner hull from pocket detections; using centered table-aspect placeholder.",
                 file=sys.stderr,
             )
+        else:
+            try:
+                corner_points = _estimate_outside_corners(img, l_init_m, w_init_m)
+            except Exception as exc:
+                corner_points = _default_corners_fitted(h_init, w_init, l_init_m, w_init_m)
+                print(
+                    f"AUTO corner detect failed ({exc}); using centered table-aspect placeholder.",
+                    file=sys.stderr,
+                )
     print("Auto corners (TL,TR,BL,BR):", json.dumps(corner_points))
     active_point_idx: Optional[int] = None
     dragging = False
     view = img.copy()
+    selected_rack_style: str = str(args.rack_style)
 
     h_img, w_img = img.shape[:2]
     flip_view_h = False
@@ -2134,6 +2154,12 @@ def main() -> None:
                 corner_points = _refine_corner_seeds(_g, p_try)
                 print("Re-detect: pocket ONNX hull + refine.", file=sys.stderr)
                 return
+            corner_points = _default_corners_fitted(hi, wi, l_m, w_m)
+            print(
+                "Re-detect: pocket ONNX had no 4-corner hull; using centered table-aspect placeholder.",
+                file=sys.stderr,
+            )
+            return
         try:
             corner_points = _estimate_outside_corners(img, l_m, w_m)
             print("AUTO corners reloaded from current frame (CV).", file=sys.stderr)
@@ -2145,7 +2171,7 @@ def main() -> None:
             )
 
     def _draw_table_schematic_and_zones() -> None:
-        """Reference diagram: tints, grid, break box, strings, side pockets, diamonds, head string, table outline."""
+        """Reference diagram: tints, grid, break box, strings, side pockets, diamonds, rack frame, table outline."""
         nonlocal view
         l_m, w_m = _table_dims_m(selected_table_size)
         h_it = _estimate_homography(corner_points, l_m, w_m)
@@ -2208,15 +2234,24 @@ def main() -> None:
             tri8 = np.array(
                 [list(_pm(p)) for p in dg.rack8_inner_triangle_m], dtype=np.int32
             ).reshape((-1, 1, 2))
-            cv2.polylines(
-                view, [tri8], isClosed=True, color=(200, 180, 100), thickness=2, lineType=cv2.LINE_AA
-            )
             dia9 = np.array(
                 [list(_pm(p)) for p in dg.rack9_inner_diamond_m], dtype=np.int32
             ).reshape((-1, 1, 2))
-            cv2.polylines(
-                view, [dia9], isClosed=True, color=(150, 190, 220), thickness=2, lineType=cv2.LINE_AA
-            )
+            sel = str(selected_rack_style)
+            if sel == "9ball":
+                cv2.polylines(
+                    view, [tri8], isClosed=True, color=(120, 110, 90), thickness=1, lineType=cv2.LINE_AA
+                )
+                cv2.polylines(
+                    view, [dia9], isClosed=True, color=(170, 210, 245), thickness=3, lineType=cv2.LINE_AA
+                )
+            else:
+                cv2.polylines(
+                    view, [dia9], isClosed=True, color=(100, 120, 140), thickness=1, lineType=cv2.LINE_AA
+                )
+                cv2.polylines(
+                    view, [tri8], isClosed=True, color=(210, 190, 110), thickness=3, lineType=cv2.LINE_AA
+                )
             for cap, anchor in dg.captions:
                 u, v = _pm(anchor)
                 tw, _ = cv2.getTextSize(cap, cv2.FONT_HERSHEY_SIMPLEX, 0.32, 1)[0]
@@ -2696,7 +2731,7 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            "Drag yellow handles to each corner pocket inner intersection",
+            "Drag yellow handles to corner-pocket inner throats   Keys 8 / 9 = rack diagram style",
             (panel_left + 12, foot_y2),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.34,
@@ -2974,6 +3009,12 @@ def main() -> None:
             if 0 <= idx < len(UNIT_MENU):
                 selected_units = UNIT_MENU[idx]
                 redraw()
+        if key in (ord("8"),):
+            selected_rack_style = "8ball"
+            redraw()
+        if key in (ord("9"),):
+            selected_rack_style = "9ball"
+            redraw()
         if key in (ord("g"),):
             view_step_mode = "coarse" if view_step_mode == "fine" else "fine"
             redraw()

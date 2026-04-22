@@ -26,6 +26,11 @@ FRAME_WIDTH="${FRAME_WIDTH:-1280}"
 FRAME_HEIGHT="${FRAME_HEIGHT:-720}"
 UNITS="${UNITS:-imperial}"
 POCKET_RADIUS_M="${POCKET_RADIUS_M:-0.07}"
+# Optional YOLO ONNX (`pockets` class): auto-used when `models/model.onnx` exists unless overridden.
+POCKET_ONNX="${POCKET_ONNX:-}"
+POCKET_CLASS_MAP="${POCKET_CLASS_MAP:-}"
+POCKET_MIN_CONF="${POCKET_MIN_CONF:-}"
+RACK_STYLE="${RACK_STYLE:-8ball}"
 
 usage() {
   cat <<'EOF'
@@ -44,6 +49,10 @@ Environment overrides (optional):
   FRAME_HEIGHT      (default: 720)
   UNITS             (default: imperial)
   POCKET_RADIUS_M   (default: 0.07)
+  POCKET_ONNX       (optional; explicit path — empty uses MODEL_PATH or models/model.onnx if present)
+  POCKET_CLASS_MAP  (optional; default: \$PROJECT_ROOT/models/class_map.json)
+  POCKET_MIN_CONF   (optional; forwarded as --pocket-min-conf)
+  RACK_STYLE        (default: 8ball; also 9ball — schematic rack overlay in calib_click)
 
 Example:
   bash /home/$USER/Billiards-AI/scripts/start_calibration.sh
@@ -227,6 +236,17 @@ main() {
 
   echo "Launching calibration GUI from: $CALIB_SCRIPT"
   echo "Output calibration path: $CALIB_OUT"
+  pocket_extra=()
+  if [[ -n "$POCKET_ONNX" ]]; then
+    pocket_extra+=(--pocket-onnx "$POCKET_ONNX")
+  fi
+  if [[ -n "$POCKET_CLASS_MAP" ]]; then
+    pocket_extra+=(--pocket-class-map "$POCKET_CLASS_MAP")
+  fi
+  if [[ -n "$POCKET_MIN_CONF" ]]; then
+    pocket_extra+=(--pocket-min-conf "$POCKET_MIN_CONF")
+  fi
+  pocket_extra+=(--rack-style "$RACK_STYLE")
   exec "$(python_bin)" "$CALIB_SCRIPT" \
     --camera "$CAMERA_SOURCE" \
     --csi-sensor-id "$CSI_SENSOR_ID" \
@@ -238,6 +258,7 @@ main() {
     --units "$UNITS" \
     --pocket-radius-m "$POCKET_RADIUS_M" \
     --out "$CALIB_OUT" \
+    "${pocket_extra[@]}" \
     "$@"
 }
 

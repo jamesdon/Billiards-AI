@@ -23,6 +23,11 @@ def head_string_x_m(table_length_m: float) -> float:
     return float(table_length_m) * HEAD_STRING_FRACTION_OF_LENGTH
 
 
+def foot_string_x_m(table_length_m: float) -> float:
+    """Foot string / foot-spot line: symmetric ¼L from the foot rail (x = L)."""
+    return float(table_length_m) - head_string_x_m(table_length_m)
+
+
 def head_string_segment_xy_m(table_length_m: float, table_width_m: float) -> Tuple[Tuple[float, float], Tuple[float, float]]:
     """
     Return endpoints of the head string: from the second-diamond / width-side
