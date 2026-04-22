@@ -173,17 +173,15 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "Confirm Python 3.10+ will be used for the project venv",
-                "verify": 'Run: `python3 --version` (or `which python3`). Expect 3.10 or newer.',
-                "record": "Paste the version line into Notes if your environment is unusual.",
-                "record_paste": "python3 --version output: <paste one line here>",
+                "verify": "Run `python3 --version` (or `which python3`). Expect Python 3.10 or newer.",
+                "record": "If the version is odd for your team, put the one line of output in Notes.",
             },
             {
                 "item": "Know your absolute repo path",
-                "verify": "This machine’s path is {project_root} (you can also copy it from the sidebar footer). It should match `pwd` in your terminal when `cd`’d into the repo.",
-                "record": "If you use multiple clones, note which machine/path {project_root} refers to in your notes.",
+                "verify": "The repo on this machine is {project_root} (see the sidebar on this page). In a terminal, `cd` to the repo and run `pwd` — the path should match.",
+                "record": "If you have several clones, note in Notes which machine this path refers to.",
             },
         ],
-        "commands": [],
         "links": [],
         "hints": [
             "Progress is kept in the repo file data/setup_wizard_progress.json and a browser copy (localStorage); both update when you save, auto-save, or leave the page.",
@@ -198,9 +196,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "Virtual environment exists at .venv",
-                "verify": 'From the repository root, run: `test -d .venv && echo OK`. You should see `OK`. (If you do not, create a venv first with the “Install” command in the Commands section, then re-check this box.)',
-                "record": "If you recreated the venv, note the date and Python version in Notes.",
-                "record_paste": "test -d .venv: OK\ncd {project_root} && .venv/bin/python3 --version: <paste>",
+                "verify": "From the repository root, run `test -d .venv && echo OK`. You should see `OK`. If not, run step 1) of the next checklist line (core dependencies install) first, then re-check this box.",
+                "record": "If you rebuilt the venv, note the date and `.venv` Python version in Notes.",
             },
             {
                 "item": "Core dependencies install without error",
@@ -214,17 +211,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     "3) Optional — only if you need training tools on this machine, install training extras in the same venv.\n"
                     '`cd "{project_root}" && .venv/bin/python3 -m pip install -r requirements-train.txt`'
                 ),
-                "record": "If pip or the import check failed, paste the last error lines in Notes. If there was a surprising upgrade, note the package name in Notes.",
-            },
-        ],
-        "commands": [
-            {
-                "label": "Install (from repo root)",
-                "command": 'cd "{project_root}" && python3 -m venv .venv && .venv/bin/python3 -m pip install -U pip && .venv/bin/python3 -m pip install -r requirements.txt',
-            },
-            {
-                "label": "Optional: training extras",
-                "command": 'cd "{project_root}" && .venv/bin/python3 -m pip install -r requirements-train.txt',
+                "record": "If pip or the import check failed, paste the last error lines in Notes. If a package upgrade was unexpected, name it in Notes.",
             },
         ],
         "links": [],
@@ -238,21 +225,20 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "models/model.onnx exists",
-                "verify": "Run: `ls -lh models/model.onnx` from repo root. Expect a non-zero file (often ~6–15 MB).",
-                "record": "Note file size and export date in Notes when you refresh the model.",
-                "record_paste": "model.onnx: <paste one line: ls -lh output, or size + date>",
+                "verify": (
+                    "1) If you export from a local training run, from the repository root run:\n"
+                    '`cd "{project_root}" && bash scripts/jetson_yolo_export_latest.sh`'
+                    "\n(You can also copy a trained `model.onnx` into `models/` by any path you trust.)\n\n"
+                    "2) Confirm the file exists and is non-empty:\n"
+                    "`ls -lh models/model.onnx`"
+                    "\nTypical size is on the order of a few to tens of MB."
+                ),
+                "record": "When you replace the model, put size or the `ls -lh` line and the date in Notes if useful.",
             },
             {
                 "item": "class_map.json matches the ONNX output order/count",
-                "verify": "From the repo root, run `more models/class_map.json` to view the file in the terminal (or open the same path in an editor) and compare per-class order to the names/labels in your YOLO data YAML (the dataset file you use for training). Count and ordering must match the ONNX model head and that YAML’s names list.",
-                "record": "In Notes, paste a one-line note that class index order in models/class_map.json matches your YOLO names (no need to use backticks; this is free-form text, not a terminal command).",
-                "record_paste": "class_map <-> YOLO data.yaml: indices 0..N in order: <e.g. ball, person, cue_stick, rack, pockets>",
-            },
-        ],
-        "commands": [
-            {
-                "label": "Export latest train run to models/model.onnx",
-                "command": 'cd "{project_root}" && bash scripts/jetson_yolo_export_latest.sh',
+                "verify": "From the repo root, run `more models/class_map.json` (or open that path in an editor) and compare per-class order to the names in your YOLO `data` YAML. Class count and order must match the ONNX head and that YAML’s `names` list.",
+                "record": "If the mapping is non-obvious, add a short free-form line in Notes (e.g. index order vs names).",
             },
         ],
         "links": [],
@@ -266,25 +252,21 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "calibration.json produced for this camera + table",
-                "verify": "After running the calibration flow, check `ls -l calibration.json` (or your chosen path). Open the file and confirm a 3×3 homography matrix and six pocket entries are present in JSON (see CALIBRATION / Phase 2 docs for the expected structure).",
-                "record": "Save the file path if not the default; note table size preset used.",
-                "record_paste": "calibration path: <default or path>\ntable preset: <e.g. 7ft / 8ft / custom>\nls -l line: <paste>",
+                "verify": (
+                    "1) From the repository root, start the interactive calibration flow (GUI; needs a desktop or forwarded display on Jetson):\n"
+                    '`cd "{project_root}" && bash scripts/start_calibration.sh`'
+                    "\n\n2) Confirm your output file and inspect JSON for a 3×3 homography and six pockets (see CALIBRATION / Phase 2 docs for structure). Example for the default file name:\n"
+                    "`ls -l calibration.json`"
+                ),
+                "record": "If the path is not the default, or you used a table preset, put that in Notes.",
             },
             {
                 "item": "Pocket labels match the schema (Phase 2 style)",
-                "verify": "On Jetson/Linux: `bash scripts/phase2.sh` (optional). Invalid labels should be rejected in logs.",
-                "record": "Paste any Phase 2 PASS/FAIL snippet into Notes.",
-                "record_paste": "phase2.sh last lines:\n<paste PASS/FAIL lines here>",
-            },
-        ],
-        "commands": [
-            {
-                "label": "Interactive calibration GUI",
-                "command": 'cd "{project_root}" && bash scripts/start_calibration.sh',
-            },
-            {
-                "label": "Headless Phase 2 checks (Jetson-oriented)",
-                "command": 'cd "{project_root}" && bash scripts/phase2.sh',
+                "verify": (
+                    "On Jetson or Linux, optional automated checks (invalid labels should show in logs):\n"
+                    '`cd "{project_root}" && bash scripts/phase2.sh`'
+                ),
+                "record": "If you ran `phase2.sh` and the log matters, paste the PASS/FAIL lines in Notes.",
             },
         ],
         "links": [
@@ -312,25 +294,19 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "Automated Phase 3 script completes or manual edge run works",
-                "verify": "Run `bash scripts/phase3.sh` and confirm it ends with PASS, or run the manual edge command and see no traceback.",
-                "record": "Note detect_every_n and any PHASE3_USB_INDEX you used.",
-                "record_paste": "phase3: PASS|FAIL; detect_every_n=…; PHASE3_USB_INDEX=…\n(optional) last log lines: <paste>",
+                "verify": (
+                    "1) Automated (macOS USB defaults; on Jetson set `PHASE3_USB_INDEX` if the script needs it). From the repo root:\n"
+                    '`cd "{project_root}" && source .venv/bin/activate && bash scripts/phase3.sh`'
+                    "\nExpect a PASS line, or at least no Python traceback on the run you care about.\n\n"
+                    "2) Or run edge + MJPEG by hand (use `--camera csi` on Jetson instead of `usb` when appropriate):\n"
+                    '`cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --calib calibration.json --mjpeg-port 8080`'
+                ),
+                "record": "If you had to set `PHASE3_USB_INDEX` or `detect_every_n`, note values in Notes.",
             },
             {
                 "item": "Overlay shows stable track IDs during motion",
-                "verify": "Open the MJPEG link while the camera sees the table; move objects and confirm IDs do not flicker randomly.",
-                "record": "Describe any tuning (confidence, camera) in Notes.",
-                "record_paste": "Overlay check: <OK / issues>; conf_tuning=…; camera notes: …",
-            },
-        ],
-        "commands": [
-            {
-                "label": "Automated Phase 3 (macOS defaults to USB)",
-                "command": 'cd "{project_root}" && source .venv/bin/activate && bash scripts/phase3.sh',
-            },
-            {
-                "label": "Manual edge + MJPEG (example)",
-                "command": 'cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --calib calibration.json --mjpeg-port 8080',
+                "verify": "Open the MJPEG quick link for this step while the camera sees the table; move objects and check that track IDs do not flicker randomly.",
+                "record": "If you change confidence, camera, or port, a short line in Notes helps later.",
             },
         ],
         "links": [
@@ -351,25 +327,23 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "Backend responds on /health",
-                "verify": "With uvicorn running: `curl -s http://127.0.0.1:8000/health` — the response should be JSON with an ok: true (or similar) field (see Phase 4 doc for the exact contract).",
-                "record": "Paste curl output if /health is not default.",
-                "record_paste": "curl -s http://127.0.0.1:8000/health\n<paste body>",
+                "verify": (
+                    "1) Start the API (separate terminal; use port 8000 or change the `curl` URL to match):\n"
+                    '`cd "{project_root}" && .venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 8000`'
+                    "\n\n2) When it is up:\n"
+                    "`curl -s http://127.0.0.1:8000/health`"
+                    "\nExpect JSON with an ok field (see Phase 4 doc for the exact response)."
+                ),
+                "record": "If `/health` is not what you expect, paste the `curl` body in Notes.",
             },
             {
                 "item": "Profiles persist across edge restarts",
-                "verify": "PATCH a nickname via /profiles API (see Phase 4 doc), restart edge, confirm name still appears.",
-                "record": "Note profile IDs you use for testing.",
-                "record_paste": "Profile test: id=…; nickname=…; after restart: <seen Y/N>",
-            },
-        ],
-        "commands": [
-            {
-                "label": "Terminal A — backend",
-                "command": 'cd "{project_root}" && .venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 8000',
-            },
-            {
-                "label": "Terminal B — edge (USB example)",
-                "command": 'cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --identities identities.json --calib calibration.json --mjpeg-port 8080',
+                "verify": (
+                    "1) With edge in the loop, use a USB or CSI run as you prefer (example USB):\n"
+                    '`cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --identities identities.json --calib calibration.json --mjpeg-port 8080`'
+                    "\n\n2) `PATCH` a nickname through `/profiles` (see Phase 4 doc), restart edge, and confirm the name returns after restart."
+                ),
+                "record": "Note a profile id you used for this test, if you want a paper trail.",
             },
         ],
         "links": [
@@ -386,23 +360,22 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "ROBOFLOW_API_KEY available in the shell that downloads data",
-                "verify": "Run `test -n \"$ROBOFLOW_API_KEY\" && echo set` (never paste the key into Notes).",
-                "record": "Write “key configured in shell profile” or similar—no secret text.",
+                "verify": (
+                    "1) In the shell you will use for downloads, run `test -n \"$ROBOFLOW_API_KEY\" && echo set` (never paste the key into Notes).\n\n"
+                    "2) To pull a Universe sample and merge, on the same machine, from the repository root, set the key in that shell and run:\n"
+                    '`cd "{project_root}" && export ROBOFLOW_API_KEY=… && bash scripts/universe_dataset_pipeline.sh`'
+                    "\n(Replace `…` with your key or rely on the variable already in the environment.)"
+                ),
+                "record": "A note like “key is in my shell profile” is enough. Do not store the secret in Notes.",
             },
             {
                 "item": "billiards-data.yaml paths are valid on this machine",
-                "verify": "Open `data/datasets/billiards/billiards-data.yaml` and confirm the path: value is an absolute path and the image folders on disk exist.",
-                "record": "Note dataset version or date of last merge.",
-            },
-        ],
-        "commands": [
-            {
-                "label": "Universe pull + merge (example)",
-                "command": 'cd "{project_root}" && export ROBOFLOW_API_KEY=… && bash scripts/universe_dataset_pipeline.sh',
-            },
-            {
-                "label": "Train + export",
-                "command": 'cd "{project_root}" && bash scripts/jetson_yolo_train.sh && bash scripts/jetson_yolo_export_latest.sh',
+                "verify": (
+                    "1) Open `data/datasets/billiards/billiards-data.yaml` and check that the dataset `path` points at real directories on this machine.\n\n"
+                    "2) To train and export a model on this machine (after the environment step), from the repository root:\n"
+                    '`cd "{project_root}" && bash scripts/jetson_yolo_train.sh && bash scripts/jetson_yolo_export_latest.sh`'
+                ),
+                "record": "If you care about traceability, put dataset or merge date in Notes.",
             },
         ],
         "links": [],
@@ -419,19 +392,17 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "models/ and calibration copied to the Jetson tree",
-                "verify": "On device: `ls models/model.onnx models/class_map.json` and your calib path.",
-                "record": "JetPack / L4T version and device hostname.",
+                "verify": (
+                    "On the device, confirm weights and class map, e.g. `ls models/model.onnx models/class_map.json`, and the calibration file you use on that host.\n\n"
+                    "Optional: bring up the Jetson deployment with Docker (run on the device, from a clone of the repo):\n"
+                    '`cd "{project_root}" && bash scripts/docker_jetson_build.sh && bash scripts/docker_jetson_up.sh`'
+                ),
+                "record": "Note JetPack / L4T version and device hostname if this install is for a runbook.",
             },
             {
                 "item": "CSI camera smoke passes",
-                "verify": "Run `bash scripts/jetson_csi_setup.sh` or short edge run with `--camera csi`.",
-                "record": "Any flip-method or sensor-id values that worked.",
-            },
-        ],
-        "commands": [
-            {
-                "label": "Docker build + up (on device)",
-                "command": 'cd "{project_root}" && bash scripts/docker_jetson_build.sh && bash scripts/docker_jetson_up.sh',
+                "verify": "On the device, run `bash scripts/jetson_csi_setup.sh`, or a short `edge.main` run with `--camera csi` (see DEPLOYMENT_JETSON for flags).",
+                "record": "If a flip method or sensor id was required, put it in Notes.",
             },
         ],
         "links": [],
@@ -445,11 +416,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "Read TEST_PLAN gates for phases you need",
-                "verify": "Open the TEST_PLAN doc in browser (link below) and skim the sections for 5–9.",
-                "record": "Which phases you intend to qualify on first.",
+                "verify": "In the Documentation section on this page, open the TEST_PLAN item (docs/TEST_PLAN.md) and skim the parts for phases 5–9 you plan to use. Use the other doc links on the same page for detail.",
+                "record": "Optionally, note in Notes which phase block you will qualify first.",
             },
         ],
-        "commands": [],
         "links": [],
         "hints": [
             "Phase 5: shot/collision/pocket/foul detectors",
@@ -482,15 +452,13 @@ def _normalize_checklist(raw: list[Any]) -> list[dict[str, Any]]:
                 }
             )
         elif isinstance(item, dict):
-            row: dict[str, Any] = {
-                "item": str(item.get("item", "")),
-                "verify": str(item.get("verify", "")),
-                "record": str(item.get("record", "")),
-            }
-            rp = item.get("record_paste")
-            if isinstance(rp, str) and rp.strip():
-                row["record_paste"] = rp.strip()
-            out.append(row)
+            out.append(
+                {
+                    "item": str(item.get("item", "")),
+                    "verify": str(item.get("verify", "")),
+                    "record": str(item.get("record", "")),
+                }
+            )
         else:
             continue
     return out

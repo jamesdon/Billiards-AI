@@ -62,10 +62,10 @@ def test_setup_page_and_api():
     r3 = client.get("/api/setup/steps")
     assert r3.status_code == 200
     steps2 = r3.json()["steps"]
-    has_template = any(
-        any("record_paste" in str(it) for it in (s.get("checklist") or [])) for s in steps2
+    assert any(
+        any((isinstance(it, dict) and bool(it.get("verify"))) for it in (s.get("checklist") or []))
+        for s in steps2
     )
-    assert has_template
 
     r = client.get("/api/setup/doc", params={"path": "docs/../../../etc/passwd"})
     assert r.status_code == 400

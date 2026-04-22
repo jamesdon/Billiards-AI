@@ -389,10 +389,6 @@
     return out;
   }
 
-  function fillCommand(cmd) {
-    return cmd.replace(/\{project_root\}/g, state.context.project_root || "$PROJECT_ROOT");
-  }
-
   function getCurrentTextSize() {
     const a = document.documentElement.getAttribute("data-text-size");
     if (a === "small" || a === "medium" || a === "large") return a;
@@ -420,13 +416,6 @@
   function copyText(text) {
     navigator.clipboard.writeText(text).then(
       () => showToast("Copied — paste in Terminal"),
-      () => showToast("Copy failed")
-    );
-  }
-
-  function copyTextForNotes(text) {
-    navigator.clipboard.writeText(text).then(
-      () => showToast("Copied — paste in Notes (this step)"),
       () => showToast("Copy failed")
     );
   }
@@ -478,17 +467,13 @@
     while (arr.length < checklist.length) arr.push(false);
 
     return `<section><h3>Checklist</h3>
-      <p class="checklist-intro">Check each box only after you have <strong>verified</strong> it. Use <strong>Record</strong> hints to capture output in Notes below.</p>
+      <p class="checklist-intro">Check a line only after you have done the <strong>How to verify</strong> steps. If <strong>What to record</strong> applies, add that in Notes (this step) or skip if nothing is worth saving.</p>
       ${checklist
         .map((entry, i) => {
           const item = typeof entry === "string" ? { item: entry, verify: "", record: "" } : entry;
           const checked = arr[i] ? " checked" : "";
           const id = `cl-${step.id}-${i}`;
           const rawV = item.verify || "";
-          const copyBtn =
-            rawV.indexOf("{project_root}") >= 0 && (state.context.project_root || "").length > 0
-              ? ` <button type="button" class="btn btn-primary copy-project-path" title="Copy absolute repo path">Copy path</button><br />`
-              : "";
           return `<div class="checklist-block">
             <div class="row-top">
               <input type="checkbox" data-ci="${i}" id="${id}"${checked}/>
@@ -499,7 +484,7 @@
                     ? `<p class="verify"><strong>How to verify:</strong> ${formatChecklistWithBackticks(
                         rawV,
                         true
-                      )}${copyBtn}</p>`
+                      )}</p>`
                     : ""
                 }
                 ${
@@ -507,13 +492,7 @@
                     ? `<p class="record"><strong>What to record:</strong> ${formatChecklistWithBackticks(
                         item.record,
                         false
-                      )}${
-                        item.record_paste
-                          ? ` <span class="record-template-wrap"> <button type="button" class="btn btn-secondary copy-for-notes" data-copy="${encodeURIComponent(
-                              fillProjectRootPlain(item.record_paste)
-                            )}">Copy for Notes (template)</button></span>`
-                          : ""
-                      }</p>`
+                      )}</p>`
                     : ""
                 }
               </div>
@@ -532,23 +511,6 @@
           `<a class="doc-line-link" href="${docHrefForHtmlAttr(d.path)}" target="_blank" rel="noopener"><span class="doc-line-label">${escapeHtml(d.label)}</span> <span class="muted-path">(${escapeHtml(d.path)})</span></a>`
       )
       .join("")}</div></section>`;
-  }
-
-  function renderCommands(step) {
-    const commands = step.commands || [];
-    if (!commands.length) return "";
-    const root = state.context.project_root || "";
-    return `<section><h3>Commands</h3>
-      <p class="terminal-hint">Browsers cannot start your OS terminal automatically. Copy the block below, switch to Terminal, paste (⌘V / Ctrl+Shift+V), then Enter.</p>
-      ${commands
-        .map((c) => {
-          const filled = fillCommand(c.command);
-          const copyAttr = encodeURIComponent(filled);
-          return `<div class="command-block"><div class="label">${escapeHtml(c.label)}</div><pre>${escapeHtml(filled)}</pre>
-            <div class="row-actions"><button type="button" class="btn btn-primary copy-cmd" data-copy="${copyAttr}">Copy command</button></div>
-          </div>`;
-        })
-        .join("")}</section>`;
   }
 
   function renderLinks(step) {
@@ -597,7 +559,6 @@
       <h2>${signalHtml(sig)} ${escapeHtml(step.title)}</h2>
       <p class="summary">${escapeHtml(step.summary || "")}</p>
       ${renderChecklist(step)}
-      ${renderCommands(step)}
       ${renderLinks(step)}
       ${renderDocs(step)}
       ${hintsHtml}
@@ -612,26 +573,6 @@
         <button type="button" class="btn btn-primary" id="btn-save">${escapeHtml(saveButtonLabel)}</button>
       </div>
     `;
-
-    content.querySelectorAll(".command-block .copy-cmd").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const enc = btn.getAttribute("data-copy");
-        if (!enc) {
-          const pre = btn.closest(".command-block")?.querySelector("pre");
-          if (pre) copyText(pre.textContent || "");
-          return;
-        }
-        let text = enc;
-        try {
-          text = decodeURIComponent(enc);
-        } catch (_) {
-          /* use raw */
-        }
-        if (text.length) copyText(text);
-      });
-    });
 
     content.querySelectorAll('.checklist-block input[type="checkbox"]').forEach((el) => {
       el.addEventListener("change", () => {
@@ -692,14 +633,6 @@
 
     $("#btn-save")?.addEventListener("click", saveAndGoToNextStep);
 
-    content.querySelectorAll(".copy-project-path").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const p = state.context.project_root || "";
-        if (p) copyText(p);
-        else showToast("Path not loaded");
-      });
-    });
-
     content.querySelectorAll(".copy-inline-cmd").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         e.preventDefault();
@@ -714,22 +647,6 @@
         }
         if (text.length === 0) return;
         copyText(text);
-      });
-    });
-
-    content.querySelectorAll(".copy-for-notes").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const enc = btn.getAttribute("data-copy");
-        if (!enc) return;
-        let text = enc;
-        try {
-          text = decodeURIComponent(enc);
-        } catch (_) {
-          /* use raw */
-        }
-        if (text.length) copyTextForNotes(text);
       });
     });
   }
