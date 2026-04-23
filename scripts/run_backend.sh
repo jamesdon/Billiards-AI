@@ -22,7 +22,8 @@ if [[ "${HOST}" == "0.0.0.0" ]]; then
 fi
 if "$PY" -c "import socket,sys; s=socket.socket(); s.settimeout(0.35); a=s.connect_ex(('${_CONNECT_HOST}', int('${PORT}'))); sys.exit(0 if a==0 else 1)" 2>/dev/null; then
   echo "run_backend.sh: port ${PORT} is already in use (something is listening on ${_CONNECT_HOST})." >&2
-  echo "If http://127.0.0.1:${PORT}/setup or /health already works, the API is already running—do not start a second copy." >&2
+  echo "If http://127.0.0.1:${PORT}/setup or /health already works, the API is already running — do not start a second copy." >&2
+  echo "Need the camera stream (MJPEG)? That is edge on 8001–8005, not this script — see the setup guide sidebar example." >&2
   echo "To see the listener: lsof -nP -iTCP:${PORT} -sTCP:LISTEN" >&2
   exit 1
 fi
