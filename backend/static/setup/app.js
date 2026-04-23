@@ -435,6 +435,9 @@
     /* File / label fragments, not shell (avoid Copy next to inline filenames) */
     "model.onnx",
     "start_calibration.sh",
+    "run_backend.sh",
+    "scripts/run_backend.sh",
+    "uvicorn",
     /* Shorthand in prose, not a runnable one-liner */
     "edge.main",
   ]);

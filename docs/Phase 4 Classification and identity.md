@@ -8,9 +8,10 @@ Validate ball classes and persistent player/stick profiles with nicknames.
 
 ```bash
 cd "/home/$USER/Billiards-AI"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8000
+./scripts/run_backend.sh
 ```
+
+(`run_backend.sh` uses `python3 -m uvicorn` so it still works if `.venv/bin/uvicorn` points at an old path after renaming the project folder. Override port with `BACKEND_PORT`, e.g. `BACKEND_PORT=8000 ./scripts/run_backend.sh`.)
 
 In another terminal:
 

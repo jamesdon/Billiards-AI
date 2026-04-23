@@ -377,7 +377,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "verify": (
                     "1) Start the API in a separate terminal (this guide’s default is port {api_port} — set `BACKEND_PORT` in "
                     "`run_backend.sh` or the environment to change it; it must match the port in your browser’s URL for this page):\n"
-                    '`cd "{project_root}" && .venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port {api_port}`'
+                    '`cd "{project_root}" && ./scripts/run_backend.sh`'
+                    "\n\nThat script runs python3 -m uvicorn via the venv (not the broken .venv/bin/uvicorn shim after a folder rename). "
                     "\n\n2) When it is up:\n"
                     "`curl -s http://127.0.0.1:{api_port}/health`"
                     "\nExpect JSON with an ok field (see Phase 4 doc for the exact response)."
