@@ -20,7 +20,18 @@ UNIT_SRC="${REPO_ROOT}/scripts/systemd/x11vnc-display0.service"
 UNIT_DST="/etc/systemd/system/x11vnc-display0.service"
 
 export DEBIAN_FRONTEND=noninteractive
-/usr/bin/apt-get update -qq
+# Do not abort if a third-party list (e.g. GitHub CLI) breaks `apt-get update` — install can still succeed.
+set +e
+/usr/bin/apt-get -o Acquire::Retries=3 update -qq
+upd_rc=$?
+set -e
+if [[ "$upd_rc" -ne 0 ]]; then
+  echo "WARNING: apt-get update exited $upd_rc (often a bad GPG key in /etc/apt/sources.list.d)." >&2
+  echo "  Example fix for GitHub CLI: https://github.com/cli/cli/blob/trunk/docs/install_linux.md" >&2
+  echo "  Or temporarily: sudo mv /etc/apt/sources.list.d/github-cli.list /etc/apt/sources.list.d/github-cli.list.disabled" >&2
+  echo "  Continuing with apt-get install x11vnc …" >&2
+fi
+
 /usr/bin/apt-get install -y x11vnc
 
 /usr/bin/install -m 0644 "$UNIT_SRC" "$UNIT_DST"
