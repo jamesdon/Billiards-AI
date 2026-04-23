@@ -122,7 +122,6 @@ a {
   font-size: 0.7rem;
   line-height: 1.4;
   color: var(--muted);
-  white-space: pre-line;
 }
 
 .mjpeg-edge-status.mjpeg-ok {

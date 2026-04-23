@@ -217,12 +217,16 @@
       const j = await r.json();
       if (j.ok) {
         mjpegStatusEl.classList.add("mjpeg-ok");
-        mjpegStatusEl.textContent =
-          "Port " +
-          port +
-          ": edge is up.\nStream: http://127.0.0.1:" +
-          port +
-          "/mjpeg";
+        mjpegStatusEl.textContent = "";
+        mjpegStatusEl.appendChild(
+          document.createTextNode("Port " + port + ": edge is up.")
+        );
+        mjpegStatusEl.appendChild(document.createElement("br"));
+        mjpegStatusEl.appendChild(
+          document.createTextNode(
+            "Stream: http://127.0.0.1:" + port + "/mjpeg"
+          )
+        );
         return;
       }
       mjpegStatusEl.classList.add("mjpeg-bad");
