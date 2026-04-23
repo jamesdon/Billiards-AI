@@ -103,6 +103,33 @@ for v in PHASE3_PORT_N2 PHASE3_PORT_N1 PHASE3_PORT_N3; do
 done
 echo "[Phase3] MJPEG sweep ports: ${PHASE3_PORT_N2} (n=2), ${PHASE3_PORT_N1} (n=1), ${PHASE3_PORT_N3} (n=3)" >&2
 
+# This script spawns its own edge per segment. If you already have edge.main (or anything) on any of
+# these ports—e.g. you tested manually on 8001 and curl /health is ok—bind() will fail with EADDRINUSE.
+phase3_mjpeg_port_is_free() {
+  local p="$1"
+  "$PYTHON_BIN" -c "import socket, sys
+p = int(sys.argv[1])
+s = socket.socket()
+try:
+  s.bind(('127.0.0.1', p))
+  s.close()
+except OSError:
+  sys.exit(1)
+sys.exit(0)
+" "$p" 2>/dev/null
+}
+
+for v in PHASE3_PORT_N2 PHASE3_PORT_N1 PHASE3_PORT_N3; do
+  pr="${!v}"
+  if ! phase3_mjpeg_port_is_free "$pr"; then
+    echo "[Phase3] FATAL: 127.0.0.1:${pr} is already in use. This script must bind each port itself." >&2
+    echo "[Phase3]        Stop the other process first. Common: a manual  edge.main  you left running for smoke tests." >&2
+    echo "[Phase3]        Find listener:  lsof -nP -iTCP:${pr} -sTCP:LISTEN" >&2
+    echo "[Phase3]        Or use other ports, e.g.  PHASE3_PORT_N2=8002 PHASE3_PORT_N1=8003 PHASE3_PORT_N3=8004  (see docs/PORTS.md)" >&2
+    exit 1
+  fi
+done
+
 EDGE_PID=""
 cleanup() {
   if [[ -n "${EDGE_PID}" ]] && kill -0 "${EDGE_PID}" 2>/dev/null; then

@@ -335,7 +335,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     '  --class-map "{project_root}/models/class_map.json" \\\n'
                     '  --calib "{project_root}/calibration.json" \\\n'
                     "  --mjpeg-port {mjpeg_port}`\n"
-                    "**2) Optional** — full detector sweep; if a run looks hung, tail the n2 log:\n"
+                    "**2) Optional** — full detector sweep (stop the edge process from step 1 first: phase3.sh needs ports 8001, 8004, and 8005 for its own short runs, or set PHASE3_PORT_N2, PHASE3_PORT_N1, PHASE3_PORT_N3 to other free 8001–8005). If a run looks hung, tail the n2 log:\n"
                     '`cd "{project_root}" && source .venv/bin/activate && bash scripts/phase3.sh`'
                     "\n`tail -f \"{project_root}/.phase3_n2.log\"`"
                 ),

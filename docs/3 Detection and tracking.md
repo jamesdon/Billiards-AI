@@ -89,6 +89,8 @@ python3 -m edge.main \
 
 ## 4) Run the verification script (`scripts/phase3.sh`) (full sweep, recommended after §3)
 
+**Before `phase3.sh`:** the script **starts and stops** its own `edge.main` on the sweep ports (defaults **8001**, **8004**, **8005**). If you still have a **manual** `edge.main` running from §3 (e.g. `curl http://127.0.0.1:8001/health` works), that process holds **8001** and the script will fail with **Address already in use** unless you **stop** that `edge` first, or set **`PHASE3_PORT_N2` / `PHASE3_PORT_N1` / `PHASE3_PORT_N3`** to three **free** ports in **8001–8005**.
+
 This script performs:
 
 - baseline run at `--detect-every-n 2`
