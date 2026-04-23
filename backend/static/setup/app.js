@@ -11,7 +11,7 @@
     },
     activeId: null,
     saveTimer: null,
-    phase4StatusTimer: null,
+    liveProfilesStatusTimer: null,
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -766,25 +766,25 @@
     });
   }
 
-  /** Real-time `identities.json` / GET /profiles counts (Classification and identity step only). */
-  function renderPhase4LivePanel(step) {
-    if (step.id !== "phase4") return "";
+  /** Real-time `identities.json` / GET /profiles counts (edge vision step: detection + profiles). */
+  function renderLiveProfilesPanel(step) {
+    if (step.id !== "phase3") return "";
     return `<section class="setup-live-profiles" aria-live="polite" aria-atomic="true">
       <h3>Live profile status (same file as GET /profiles)</h3>
-      <p class="setup-live-profiles-line" id="phase4-profiles-status">Loading…</p>
+      <p class="setup-live-profiles-line" id="live-profiles-status">Loading…</p>
       <p class="terminal-hint">Polls the API every 4s. The path is always the repository’s <code>identities.json</code> (same file as <code>GET /profiles</code>). <strong>Green</strong> when at least one player or stick row exists—complete that before checking off naming.</p>
     </section>`;
   }
 
-  function clearPhase4StatusTimer() {
-    if (state.phase4StatusTimer) {
-      clearInterval(state.phase4StatusTimer);
-      state.phase4StatusTimer = null;
+  function clearLiveProfilesStatusTimer() {
+    if (state.liveProfilesStatusTimer) {
+      clearInterval(state.liveProfilesStatusTimer);
+      state.liveProfilesStatusTimer = null;
     }
   }
 
-  function refreshPhase4LiveStatus() {
-    const el = content && content.querySelector("#phase4-profiles-status");
+  function refreshLiveProfilesStatus() {
+    const el = content && content.querySelector("#live-profiles-status");
     if (!el) return;
     fetch("/api/setup/profiles-status", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
@@ -804,11 +804,11 @@
       });
   }
 
-  function mountPhase4LiveIfNeeded(step) {
-    clearPhase4StatusTimer();
-    if (step.id !== "phase4") return;
-    refreshPhase4LiveStatus();
-    state.phase4StatusTimer = setInterval(refreshPhase4LiveStatus, 4000);
+  function mountLiveProfilesIfNeeded(step) {
+    clearLiveProfilesStatusTimer();
+    if (step.id !== "phase3") return;
+    refreshLiveProfilesStatus();
+    state.liveProfilesStatusTimer = setInterval(refreshLiveProfilesStatus, 4000);
   }
 
   function renderChecklist(step) {
@@ -941,7 +941,7 @@
     content.innerHTML = `
       <h2>${signalHtml(sig)} ${escapeHtml(step.title)}</h2>
       <div class="summary">${summaryHtml}</div>
-      ${renderPhase4LivePanel(step)}
+      ${renderLiveProfilesPanel(step)}
       ${renderChecklist(step)}
       ${renderLinks(step)}
       ${renderDocs(step)}
@@ -965,7 +965,7 @@
           .then(({ ok, j }) => {
             if (ok && j.ok) {
               showToast(j.message || "Bootstrap OK");
-              refreshPhase4LiveStatus();
+              refreshLiveProfilesStatus();
             } else
               showToast(
                 (j && (j.detail || j.message)) || (ok ? "Bootstrap skipped" : "Request failed")
@@ -1042,7 +1042,7 @@
       });
     });
 
-    mountPhase4LiveIfNeeded(step);
+    mountLiveProfilesIfNeeded(step);
   }
 
   async function init() {

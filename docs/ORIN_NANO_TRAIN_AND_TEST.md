@@ -23,7 +23,7 @@ Use **`~/Billiards-AI`** (or `cd "$PROJECT_ROOT"`). Plain one-liners also live i
 | **Calibration (interactive)** | `cd ~/Billiards-AI && bash scripts/start_calibration.sh` — writes `calibration.json` (or set `CALIB_OUT`). If `gst-launch-1.0 nvarguscamerasrc ...` reports **No cameras available**, Argus does not see a CSI module (cable/port/driver); use USB: `bash scripts/start_calibration.sh --camera usb`, or fix CSI then retry. |
 | **Calibration (headless check)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 2` |
 | **Backend + CSI smoke (TEST_PLAN §1)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 1` |
-| **Detector + tracking (TEST_PLAN §3)** | Requires `models/model.onnx`. Run `edge.main` per `docs/3` (setup guide **Detection and tracking**). Optional: `bash scripts/jetson_phases_1.sh` runs TEST_PLAN §1 only. |
+| **Detector + tracking (TEST_PLAN §3)** | Requires `models/model.onnx`. Run `edge.main` per `docs/3` (setup guide **Detection, tracking, classification, and identity**). Optional: `bash scripts/jetson_phases_1.sh` runs TEST_PLAN §1 only. |
 | **Live app + MJPEG** | With calib + ONNX in place: `cd ~/Billiards-AI && bash scripts/jetson_edge_smoke_csi.sh` — open `http://<device-ip>:8001/mjpeg` until Ctrl+C |
 | **YOLO train → ONNX → smoke again** | After labeled images exist: `jetson_yolo_train.sh` → `jetson_yolo_export_latest.sh` → `edge.main` smoke per `docs/3`, or `jetson_edge_smoke_csi.sh` again |
 

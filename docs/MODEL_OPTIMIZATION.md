@@ -13,13 +13,13 @@
 
 Per-device variation is handled by **calibration** (homography, pocket geometry), not by retraining the detector, unless the camera or scene is radically different from what the model saw.
 
-The sections below describe dataset → train → export → optional TensorRT. Treat that whole path as **model authoring**; treat copying ONNX into `models/` plus running the detection/tracking smoke in `docs/3 Detection and tracking.md` as **device bring-up**.
+The sections below describe dataset → train → export → optional TensorRT. Treat that whole path as **model authoring**; treat copying ONNX into `models/` plus running the **edge vision** smoke in `docs/3 Detection and tracking.md` / the **`/setup`** step **Detection, tracking, classification, and identity** as **device bring-up**.
 
 ## Why one `ball` class in the detector (§3) vs type in §4
 
 This is a **project default**, not a hard limit of YOLO.
 
-**What the codebase does today:** the detector finds **generic ball boxes** at full-table resolution; `edge/pipeline.py` then tracks them and `edge/classify/ball_classifier.py` infers **type** (cue vs solids vs stripes, game-dependent) from **cropped ROIs** with cheap HSV-style features and temporal smoothing. That is the **classification / identity** layer in `docs/4 Classification and identity.md` (TEST_PLAN **§4**).
+**What the codebase does today:** the detector finds **generic ball boxes** at full-table resolution; `edge/pipeline.py` then tracks them and `edge/classify/ball_classifier.py` infers **type** (cue vs solids vs stripes, game-dependent) from **cropped ROIs** with cheap HSV-style features and temporal smoothing. That is the **classification** half of the combined wizard step; see `docs/4 Classification and identity.md` (TEST_PLAN **§4**).
 
 **Why split “where” from “what”:**
 

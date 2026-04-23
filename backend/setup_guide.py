@@ -266,7 +266,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "model",
         "title": "Detector model (ONNX)",
-        "summary": "Place `models/model.onnx` and `models/class_map.json` in the tree. No separate numbered section in TEST_PLAN — this is the artifact required before “Detection and tracking”. For training or export, see “Dataset and training (optional)”.",
+        "summary": "Place `models/model.onnx` and `models/class_map.json` in the tree. No separate numbered section in TEST_PLAN — this is the artifact required before the **edge vision** step (detection, tracking, classification, profiles). For training or export, see “Dataset and training (optional)”.",
         "checklist": [
             {
                 "item": "models/model.onnx exists",
@@ -298,7 +298,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "calibration",
         "title": "Calibration and coordinate mapping",
-        "summary": "Homography + six pocket points saved to calibration.json (TEST_PLAN §2). On macOS, start_calibration.sh defaults to USB; on Jetson, CSI. Use the interactive GUI (desktop or X11). Complete the checklists on this page only, then use Save / next step. You do not start the full detector+MJPEG table overlay in this step; the next step, Detection and tracking, does that with your model files and this calibration file.",
+        "summary": "Homography + six pocket points saved to calibration.json (TEST_PLAN §2). On macOS, start_calibration.sh defaults to USB; on Jetson, CSI. Use the interactive GUI (desktop or X11). Complete the checklists on this page only, then use Save / next step. You do not start the full detector+MJPEG table overlay in this step; the next step (**Detection, tracking, classification, and identity**) does that with your model files and this calibration file.",
         "checklist": [
             {
                 "item": "calibration.json produced for this camera + table",
@@ -342,71 +342,19 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "phase3",
-        "title": "Detection and tracking",
-        "summary": "Start **edge.main** (MJPEG), not the FastAPI process: if you opened this wizard at `/setup`, the **API is already running**. This step is the live **camera + detector + tracks** smoke (TEST_PLAN §3). You need models/model.onnx, models/class_map.json, and calibration.json. The checklist below is the instruction; stream is in the browser.",
-        "checklist": [
-            {
-                "item": "edge.main is running, MJPEG/health look good, model outputs and track IDs are visible on the stream, and tracks stay stable when objects move",
-                "verify": (
-                    "**API:** Do not run `run_backend.sh` again just to read this page—only if nothing is listening on your API port (sidebar red). **This step starts `edge.main` (MJPEG).**\n\n"
-                    "**1) Start** `edge.main` — In a new terminal, paste and run the block below once (sidebar shows your repo path; on Jetson use "
-                    "`--camera csi` and drop the `--usb-index` lines). **The command includes `--show-track-debug-overlay`** so the MJPEG stream shows **each model output** (class + confidence) and **separate track boxes** with IDs. "
-                    "Omit that flag when you want a clean table view in real use.\n\n"
-                    "```bash\n"
-                    'cd "{project_root}"\n'
-                    'source "{project_root}/.venv/bin/activate"\n'
-                    "python3 -m edge.main \\\n"
-                    "  --camera usb \\\n"
-                    "  --usb-index 0 \\\n"
-                    '  --onnx-model "{project_root}/models/model.onnx" \\\n'
-                    '  --class-map "{project_root}/models/class_map.json" \\\n'
-                    '  --calib "{project_root}/calibration.json" \\\n'
-                    '  --identities "{project_root}/identities.json" \\\n'
-                    "  --show-track-debug-overlay \\\n"
-                    "  --mjpeg-port {mjpeg_port}\n"
-                    "```\n\n"
-                    "**`--identities`:** pass `{project_root}/identities.json` — that is the **only** file the API and Score Keeper use. You can keep the same `edge.main` through this step without restart.\n\n"
-                    "**2) Check the live stream** — With that process still running, set the **MJPEG** field in the sidebar to the same "
-                    "`--mjpeg-port` (default 8001). Use the two buttons to open the **live overlay** and **/health**. On the video you should see a **top-right panel** (ONNX loaded, frame count, inference on/off, counts) and **boxes**: "
-                    "thin labels like `ball 0.87` are **raw detector** results; thicker `trk …` labels are **tracks**. If you see **ONNX: NO**, you did not pass `--onnx-model` / the file is missing. "
-                    "If **Model outputs: 0** on an inference frame, the model found nothing above its threshold. Move the camera or objects. **Track IDs should not flicker at random** when motion is smooth."
-                ),
-                "verify_actions": [
-                    {
-                        "label": "Open MJPEG overlay",
-                        "href_template": "http://127.0.0.1:{mjpeg_port}/mjpeg",
-                    },
-                    {
-                        "label": "Open edge /health",
-                        "href_template": "http://127.0.0.1:{mjpeg_port}/health",
-                    },
-                ],
-                "record": "If you change camera, USB index, MJPEG port, or confidence, a short line in Notes helps later.",
-            },
-        ],
-        "links": [],
-        "hints": [
-            "The sidebar polls GET /health on the MJPEG port you set; it only shows whether edge is listening, not that tracking quality is good.",
-            "CUDA provider warnings on Mac are normal; CoreML/CPU is used.",
-            "`--show-track-debug-overlay` is for bring-up only; drop it for normal play.",
-            "The block includes `--identities` so the **same** `edge.main` can keep running for the next step (Classification and identity) without a restart to add that flag.",
-        ],
-        "doc_refs": [{"label": "3 — Detection and tracking", "path": "docs/3 Detection and tracking.md"}],
-    },
-    {
-        "id": "phase4",
-        "title": "Classification and identity",
+        "title": "Detection, tracking, classification, and identity",
         "summary": (
-            "**(A) Ball type labels** — the classifier assigns **cue / eight / solid / stripe** (and game-specific types) to **ball tracks**; confirm on the **MJPEG** overlay that it looks right for your table. "
-            "**(B) Player and cue-stick profiles** — the repo file **`{project_root}/identities.json`** (shown in **Live profile status**) holds **stable ids** and **display_name** for Score Keeper. Edge **writes** it when it sees person/player and cue_stick/stick; the API **reads and edits** it. Not login or face recognition. "
-            "You are **already in the API**; do not start a second `run_backend.sh` on the same port. **Work the checklist in order** — do not try to set names before you have a profile row."
+            "Single **edge.main** run covers TEST_PLAN **§3 (detection + tracks)** and **§4 (ball labels + player/stick profiles)**. You need `models/model.onnx`, `models/class_map.json`, and `calibration.json`. "
+            "Start **edge** (MJPEG), not a second `run_backend.sh`—if you opened this wizard, the **API is already running**.\n\n"
+            "**(A) Detection/tracking** — raw boxes vs stable **trk** IDs on the video. **(B) Ball class labels** — suffix on ball tracks (cue / solid / stripe / …). "
+            "**(C) Profiles** — **`{project_root}/identities.json`** (see **Live profile status**); edge writes rows for people/cue sticks; Score Keeper names them. **Work the checklist in order**; do not set **display_name** before a profile **id** exists."
         ),
         "checklist": [
             {
-                "item": "`edge.main` is running; MJPEG stream and /health both work",
+                "item": "`edge.main` is running: MJPEG + /health OK, detector output visible, and track boxes stay sensible when things move",
                 "verify": (
-                    "You need a live `edge.main` to exercise ball labels and to **create** player/stick rows from the camera. **If** you left `edge.main` running from **Detection and tracking** with the same flags, do **not** restart it for this step.\n\n"
-                    "If the sidebar **MJPEG** / edge lamp is **red** (or the URL fails), start edge once. Match the **MJPEG** field in the sidebar to `--mjpeg-port`. On Jetson use `--camera csi` and omit `--usb-index` lines.\n\n"
+                    "**API:** only start `run_backend.sh` if the API lamp is red. **This step is `edge.main` only (MJPEG on the sidebar port).**\n\n"
+                    "Paste **once** in a new terminal (Jetson: `--camera csi`, omit `--usb-index`). **`--show-track-debug-overlay`** is for bring-up; drop it for a clean table view later. **`--identities`** is repo **`identities.json`** — the file the API/Score Keeper use — so the **same** process covers detection through profiles without a restart.\n\n"
                     "```bash\n"
                     'cd "{project_root}"\n'
                     'source "{project_root}/.venv/bin/activate"\n'
@@ -420,8 +368,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     "  --show-track-debug-overlay \\\n"
                     "  --mjpeg-port {mjpeg_port}\n"
                     "```\n\n"
-                    "**You are done** when the **Open edge /health** response is **ok** and the **Open MJPEG** page shows the debug overlay (track boxes, top-right panel with ONNX/frame counts). "
-                    "A message that **port 8000 is in use** from `run_backend.sh` is normal—the API is already up."
+                    "Set the sidebar **MJPEG** field to the same port. Use the buttons. On the video: **top-right panel** (ONNX, frame/inference counts), **thin** `ball 0.87` = raw detector, **thicker** `trk …` = **tracks**. **ONNX: NO** means a bad/missing model path. **Model outputs: 0** = nothing above threshold (move the camera). **Track IDs** should not flicker randomly when motion is smooth. A **port 8000 in use** message from `run_backend.sh` is expected if the API is already up."
                 ),
                 "verify_actions": [
                     {
@@ -433,15 +380,15 @@ SETUP_STEPS: list[dict[str, Any]] = [
                         "href_template": "http://127.0.0.1:{mjpeg_port}/health",
                     },
                 ],
-                "record": "If you use a custom MJPEG or USB index, note it in Notes.",
+                "record": "Note camera, USB index, or MJPEG port in Notes if non-default.",
             },
             {
                 "item": "Ball **tracks** show plausible type labels (cue / 8 / solid / stripe) on the video",
                 "verify": (
                     "Open the **Open MJPEG** view (or the tab you already had from the previous line). **Find a ball track** (thicker box, label starts with `trk ball id …` when `--show-track-debug-overlay` is on). The short **suffix** after the track id is the **classifier** output (e.g. solid/stripe/cue), not the raw YOLO class name. "
                     "In the top-right **Vision debug** panel, raw detector boxes are the thin “ball 0.87” style; **tracks** are the thicker ones.\n\n"
-                    "Move balls if needed so at least one ball is tracked. **You are done** when labels are **roughly** right for your table (occasional “unknown” under bad light is not a hard failure; systematic wrong types mean lighting, model, or `class_map` need work—see the previous steps).\n\n"
-                    "**This line is only about (A) ball types.** It does not require profiles."
+                    "Move balls if needed so at least one ball is tracked. **You are done** when labels are **roughly** right for your table (occasional “unknown” under bad light is not a hard failure; systematic wrong types mean lighting, model, or `class_map` need work—see the **Detector model** and **Calibration** steps).\n\n"
+                    "This line is **ball class labels only**; profiles are the next checkboxes."
                 ),
                 "verify_actions": [
                     {
@@ -523,16 +470,21 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {"label": "Edge /health (MJPEG port in sidebar)", "href_template": "http://127.0.0.1:{mjpeg_port}/health"},
         ],
         "hints": [
-            "Jetson: replace `--camera usb` / `--usb-index` with `--camera csi` (see Detection and tracking command).",
+            "Jetson: replace `--camera usb` / `--usb-index` with `--camera csi` (same `edge.main` block as the first checklist line).",
+            "Sidebar GET /health on the MJPEG port only means edge is listening, not that tracking is good on its own—use the video.",
+            "CUDA provider warnings on Mac are normal; CoreML/CPU is used. `--show-track-debug-overlay` is bring-up only.",
             "404 on `PATCH` with a copied example id: you likely left the literal string `PLAYER_ID` or a typo—ids must come from the current `GET /profiles` JSON.",
-            "Empty `GET /profiles` with edge running: only balls in frame (need person or stick in view to create rows), or edge not running with the repo’s default `--identities` path.",
+            "Empty `GET /profiles` with edge running: only balls in frame (need person or stick in view to create rows), or edge is not the same `edge.main` you started with the default `--identities` path.",
         ],
-        "doc_refs": [],
+        "doc_refs": [
+            {"label": "3 — Detection and tracking", "path": "docs/3 Detection and tracking.md"},
+            {"label": "4 — Classification and identity", "path": "docs/4 Classification and identity.md"},
+        ],
     },
     {
         "id": "dataset_training",
         "title": "Dataset and training (optional)",
-        "summary": "Roboflow Universe → merge → train → export. Use when you need a new detector; typical flow is to complete “Detection and tracking” with an existing `model.onnx` first, then return here to refresh weights and re-run detection smoke.",
+        "summary": "Roboflow Universe → merge → train → export. Use when you need a new detector; typical flow is to complete the **Detection, tracking, classification, and identity** step with an existing `model.onnx` first, then return here to refresh weights and re-run the same edge smoke.",
         "checklist": [
             {
                 "item": "ROBOFLOW_API_KEY available in the shell that downloads data",
@@ -614,7 +566,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {"label": "API /health (this server)", "href_template": "http://127.0.0.1:{api_port}/health"},
         ],
         "hints": [
-            "You will not get useful §5+ behavior until §3/§4 and your rules wiring match your deployment (same repo paths, same API URL).",
+            "You will not get useful §5+ behavior until the edge vision step (§3+§4) and your rules wiring match your deployment (same repo paths, same API URL).",
         ],
         "doc_refs": [
             {"label": "TEST_PLAN (gate table)", "path": "docs/TEST_PLAN.md"},

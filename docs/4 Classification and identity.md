@@ -1,8 +1,8 @@
 # 4. Classification and identity
 
-**Canonical runbook:** **`GET /setup`** → **Classification and identity**. All steps live in `backend/setup_guide.py` (`id: phase4`). If this file disagrees with the wizard, the wizard wins.
+**Canonical runbook:** **`GET /setup`** → **Detection, tracking, classification, and identity** (covers **§3** and **§4**; `backend/setup_guide.py` `id: phase3`). If this file disagrees with the wizard, the wizard wins.
 
-**One file for everyone:** player/stick data is always **`<repo>/identities.json`**. The API, Score Keeper, and `edge.main` (default `--identities`) all use that path from code—no environment overrides in normal use.
+**One file for everyone:** player/stick data is always **`<repo>/identities.json`**. The API, Score Keeper, and `edge.main` (default `--identities`) all use that path from code.
 
 ## (A) Ball type labels
 
@@ -14,7 +14,7 @@ The ROI classifier updates **ball tracks** (cue, eight, solid, stripe, …). On 
 
 ## Wizard checklist (five lines, in order)
 
-1. **edge + MJPEG + /health** — same `edge.main` as Detection and tracking is fine; copy-paste uses `{project_root}/identities.json` for `--identities`.
+1. **edge + MJPEG + /health** — one `edge.main` command; `--identities` is `{project_root}/identities.json` (see **`docs/3 Detection and tracking.md`** for the same command context).
 2. **Ball track labels** — quick sanity on the stream.
 3. **Nonempty profiles** — **Live profile status** green, or **Bootstrap** (no camera), or hand-edit **`{project_root}/identities.json`**. Do not rename before you have a real `id`.
 4. **display_name** — Score Keeper or `PATCH` with that id.

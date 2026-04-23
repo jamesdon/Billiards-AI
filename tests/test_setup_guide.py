@@ -61,47 +61,46 @@ def test_setup_page_and_api():
     steps = r.json()["steps"]
     assert len(steps) >= 3
     assert any(s["id"] == "phase3" for s in steps)
-    p4 = next(s for s in steps if s["id"] == "phase4")
-    assert len(p4["checklist"]) == 5
-    p4items = " ".join((c.get("item") or "").lower() for c in p4["checklist"])
-    assert "display_name" in p4items
-    assert "display_name" in p4items
-    p4verify = " ".join((c.get("verify") or "") for c in p4["checklist"])
-    assert "GET /profiles" in p4verify
-    assert "Score Keeper" in p4verify
-    assert "curl" in p4verify
-    assert "trk ball" in p4verify or "trk" in p4verify
-    assert (p4.get("summary") or "").find("api") != -1 or (p4.get("summary") or "").find("API") != -1
-    assert (p4.get("doc_refs") or []) == []
-    # Bootstrap action lives on the "non-empty profiles" checklist line
-    boot = [c for c in p4["checklist"] if any(
+    assert not any(s["id"] == "phase4" for s in steps)
+    p3 = next(s for s in steps if s["id"] == "phase3")
+    assert p3.get("title") == "Detection, tracking, classification, and identity"
+    assert len(p3["checklist"]) == 5
+    p3items = " ".join((c.get("item") or "").lower() for c in p3["checklist"])
+    assert "display_name" in p3items
+    assert "edge.main" in p3items
+    p3verify = " ".join((c.get("verify") or "") for c in p3["checklist"])
+    assert "GET /profiles" in p3verify
+    assert "Score Keeper" in p3verify
+    assert "curl" in p3verify
+    assert "trk ball" in p3verify or "trk" in p3verify
+    assert "§3" in (p3.get("summary") or "") and "§4" in (p3.get("summary") or "")
+    assert len(p3.get("doc_refs") or []) == 2
+    # Bootstrap on the "non-empty profiles" checklist line
+    boot = [c for c in p3["checklist"] if any(
         a.get("action") == "bootstrap_minimal_profiles" for a in (c.get("verify_actions") or [])
     )]
     assert len(boot) == 1
     mjpeg_btns = sum(
         1
-        for c in p4["checklist"]
+        for c in p3["checklist"]
         for a in (c.get("verify_actions") or [])
         if (a.get("label") or "").find("MJPEG") != -1
     )
     assert mjpeg_btns >= 2
-    p4links = p4.get("links") or []
+    p3links = p3.get("links") or []
     assert any(
-        (isinstance(x, dict) and x.get("label") == "GET /profiles (JSON)") for x in p4links
+        (isinstance(x, dict) and x.get("label") == "GET /profiles (JSON)") for x in p3links
     )
     assert any(
-        (isinstance(x, dict) and "Score Keeper" in (x.get("label") or "")) for x in p4links
+        (isinstance(x, dict) and "Score Keeper" in (x.get("label") or "")) for x in p3links
     )
-    p3 = next(s for s in steps if s["id"] == "phase3")
-    assert len(p3["checklist"]) == 1
     v0 = p3["checklist"][0].get("verify") or ""
-    assert "edge.main" in v0 and "phase3" not in v0.lower()
+    assert "edge.main" in v0
     assert "show-track-debug-overlay" in v0
     assert "track" in v0.lower()
     assert p3["checklist"][0].get("verify_actions")
     assert p3["checklist"][0]["verify_actions"][0]["label"] == "Open MJPEG overlay"
     assert p3["checklist"][0]["verify_actions"][1]["label"] == "Open edge /health"
-    assert p3.get("links") == []
 
     r = client.get("/api/setup/doc", params={"path": "README.md"})
     assert r.status_code == 200

@@ -2,7 +2,7 @@
 
 ## Setup wizard (`/setup`) and this document
 
-The browser setup guide uses the same **step titles** as the `## N. …` headings in this file for **§1–§4** and **`docs/1` … `docs/4`**. The guide also lists **Overview**, **Detector model (ONNX)**, **Dataset and training (optional)**, and **Jetson deployment**; the last item **Events, rules, stats, backend, and acceptance** matches **§5–§9** combined (see runbooks **`docs/5` … `docs/9`**).
+The setup guide at **`/setup`** lists **one combined step** for **§3 + §4** (detector stream, tracking, ball labels, and player/stick profiles). Numbered runbooks **§1–§4** and **`docs/1` … `docs/4`** below are still the delivery spec; the wizard maps **§3 and §4** to that single sidebar item. The guide also lists **Overview**, **Detector model (ONNX)**, **Dataset and training (optional)**, and **Jetson deployment**; the last item **Events, rules, stats, backend, and acceptance** matches **§5–§9** combined (see runbooks **`docs/5` … `docs/9`**).
 
 | Step (sidebar title) | This file / doc |
 | --- | --- |
@@ -10,8 +10,7 @@ The browser setup guide uses the same **step titles** as the `## N. …` heading
 | **Environment and startup** | **§1** · `docs/1 …` |
 | **Detector model (ONNX)** | Prerequisite to §3; `models/`, `class_map.json` |
 | **Calibration and coordinate mapping** | **§2** · `docs/2 …` |
-| **Detection and tracking** | **§3** · `docs/3 …` |
-| **Classification and identity** | **§4** · `docs/4 …` |
+| **Detection, tracking, classification, and identity** | **§3** + **§4** · `docs/3 …`, `docs/4 …` |
 | **Dataset and training (optional)** | `MODEL_OPTIMIZATION.md`, training scripts |
 | **Jetson deployment** | `docs/DEPLOYMENT_JETSON.md` |
 | **Events, rules, stats, backend, and acceptance** | **§5–§9** · `docs/5` … `docs/9` |
@@ -91,6 +90,8 @@ Record still frames from the **same CSI camera and framing** you use in producti
 
 ## 3. Detection and tracking
 
+**Setup guide:** the **`/setup`** step **Detection, tracking, classification, and identity** (same step as [§4](#4-classification-and-identity) below) — one `edge.main` + MJPEG run for detection, tracking, ball labels, and profiles. See that step’s checklist; **`docs/3`** and **`docs/4`** are optional background.
+
 ### Objective
 
 Ensure robust ball/player/stick detection and ID continuity.
@@ -114,7 +115,7 @@ Validate ball class inference and persistent player/stick identity.
 
 ### How to run this section (required workflow)
 
-**Primary:** the setup wizard at **`/setup`**, step **Classification and identity** — **five** ordered checklist lines: **edge** (MJPEG + /health) → **ball track labels** on video → **non-empty profiles** in repo **`identities.json`** (live **profiles status** or **bootstrap** / `POST /api/setup/bootstrap-minimal-profiles`) → **`display_name`** → **(recommended) persistence** after one restart. **Optional:** `docs/4 Classification and identity.md` mirrors the flow. **Do not** check off naming until **GET /profiles** has at least one real `id` or you will only see empty arrays or 404s on `PATCH` with placeholder ids.
+**Primary:** the setup wizard at **`/setup`**, the step **Detection, tracking, classification, and identity** (shared with [§3](#3-detection-and-tracking)) — **five** ordered checklist lines: **edge** (MJPEG + /health) → **ball track labels** on video → **non-empty profiles** in repo **`identities.json`** (live **profiles status** or **bootstrap** / `POST /api/setup/bootstrap-minimal-profiles`) → **`display_name`** → **(recommended) persistence** after one restart. **Optional:** `docs/4 Classification and identity.md` supplements this section. **Do not** check off naming until **GET /profiles** has at least one real `id` or you will only see empty arrays or 404s on `PATCH` with placeholder ids.
 
 ### Test cases
 

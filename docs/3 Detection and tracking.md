@@ -1,10 +1,12 @@
 # 3. Detection and tracking
 
+**Setup guide:** the **`/setup`** sidebar step **Detection, tracking, classification, and identity** is the single place for this section **and** for **§4 (classification / profiles)** — one `edge.main` + MJPEG flow. This document covers detector + stream smoke; `docs/4 Classification and identity.md` covers ball labels and `identities.json` once the same stream is up.
+
 ## Goal
 
 Verify ONNX detection and multi-track stability.
 
-**Order:** start **`edge.main`** (§3) with model + class map + calibration, **then** confirm MJPEG and `/health` in the browser. From **Detection and tracking** onward, the setup sidebar can show health lamps for the API and MJPEG port. You do **not** start `edge.main` in **§1** or before `calibration.json` exists.
+**Order:** start **`edge.main`** (§3) with model + class map + calibration, **then** confirm MJPEG and `/health` in the browser. From that step onward, the setup sidebar can show health lamps for the API and MJPEG port. You do **not** start `edge.main` in **§1** or before `calibration.json` exists.
 
 **Prerequisite note:** This section assumes `models/model.onnx` and `models/class_map.json` are already on the device. **Training that model is a separate, optional step** (see `docs/MODEL_OPTIMIZATION.md`); day-to-day new installs typically **reuse the same exported model** and only run calibration plus this detection/tracking smoke.
 
@@ -89,9 +91,9 @@ Add **`--show-track-debug-overlay`** so the stream shows what the model actually
 - **Thin boxes + `class 0.85` text:** each raw **NMS output** from the detector (label and confidence from `class_map`). If this is always **0**, raise confidence in your runbook or check lighting / model / camera.
 - **Thicker boxes + `trk b12 …` text:** **multi-object tracks** (IDs) used by the pipeline.
 
-**Off by default** so a clean table view is normal; use this flag for bring-up and **Detection and tracking** in the setup guide. The same command block in the wizard includes the flag.
+**Off by default** so a clean table view is normal; use this flag for bring-up and the **Detection, tracking, classification, and identity** step in the setup guide. The same command block in the wizard includes the flag.
 
-**Then test (after models load; first response can take 30–90+ s):** in a browser, open `http://127.0.0.1:8001/mjpeg` and `http://127.0.0.1:8001/health` (or the port you passed to `--mjpeg-port`). The setup guide **Detection and tracking** step uses the same order: run this command, **then** use its overlay / health buttons (MJPEG field must match the port you chose).
+**Then test (after models load; first response can take 30–90+ s):** in a browser, open `http://127.0.0.1:8001/mjpeg` and `http://127.0.0.1:8001/health` (or the port you passed to `--mjpeg-port`). The setup guide **Detection, tracking, classification, and identity** step uses the same order: run this command, **then** use its overlay / health buttons (MJPEG field must match the port you chose).
 
 `edge.main` does **not** open a desktop window; video is over HTTP.
 
