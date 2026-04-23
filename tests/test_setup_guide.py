@@ -62,9 +62,9 @@ def test_setup_page_and_api():
     assert len(steps) >= 3
     assert any(s["id"] == "phase3" for s in steps)
     p4 = next(s for s in steps if s["id"] == "phase4")
-    assert len(p4["checklist"]) == 6
+    assert len(p4["checklist"]) == 5
     p4items = " ".join((c.get("item") or "").lower() for c in p4["checklist"])
-    assert "identities" in p4items
+    assert "display_name" in p4items
     assert "display_name" in p4items
     p4verify = " ".join((c.get("verify") or "") for c in p4["checklist"])
     assert "GET /profiles" in p4verify

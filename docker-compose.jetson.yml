@@ -10,10 +10,10 @@ services:
       - AWS_REGION=${AWS_REGION:-}
       - BILLIARDS_DDB_PLAYER_TABLE=${BILLIARDS_DDB_PLAYER_TABLE:-}
       - BILLIARDS_DDB_STICK_TABLE=${BILLIARDS_DDB_STICK_TABLE:-}
-      - BILLIARDS_IDENTITIES_PATH=/data/identities.json
     volumes:
       - ./data:/data
       - ./billiards.db:/app/billiards.db
+      - ./identities.json:/app/identities.json
     restart: unless-stopped
 
   edge:
@@ -32,6 +32,7 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=all
     volumes:
       - ./data:/data
+      - ./identities.json:/app/identities.json
       - ./models:/models
       - /tmp/argus_socket:/tmp/argus_socket
       - /dev:/dev
@@ -51,7 +52,7 @@ services:
       --mjpeg-port ${MJPEG_PORT:-8001}
       --onnx-model ${MODEL_PATH:-/models/model.onnx}
       --class-map ${CLASS_MAP_PATH:-/models/class_map.json}
-      --identities /data/identities.json
+      --identities /app/identities.json
       --calib ${CALIB_PATH:-/data/calibration.json}
       --game ${GAME_TYPE:-8ball}
       --players "${PLAYERS:-Player A,Player B}"

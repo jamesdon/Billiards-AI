@@ -114,7 +114,7 @@ Validate ball class inference and persistent player/stick identity.
 
 ### How to run this section (required workflow)
 
-**Primary:** the setup wizard at **`/setup`**, step **Classification and identity** — **six** ordered checklist lines: shared **identities** path → **edge** (MJPEG + /health) → **ball track labels** on video → **non-empty profiles** (live **profiles status** or **bootstrap** / `POST /api/setup/bootstrap-minimal-profiles`) → **`display_name`** → **(recommended) persistence** after one restart. **Optional:** `docs/4 Classification and identity.md` mirrors the flow. **Do not** check off naming until **GET /profiles** has at least one real `id` or you will only see empty arrays or 404s on `PATCH` with placeholder ids.
+**Primary:** the setup wizard at **`/setup`**, step **Classification and identity** — **five** ordered checklist lines: **edge** (MJPEG + /health) → **ball track labels** on video → **non-empty profiles** in repo **`identities.json`** (live **profiles status** or **bootstrap** / `POST /api/setup/bootstrap-minimal-profiles`) → **`display_name`** → **(recommended) persistence** after one restart. **Optional:** `docs/4 Classification and identity.md` mirrors the flow. **Do not** check off naming until **GET /profiles** has at least one real `id` or you will only see empty arrays or 404s on `PATCH` with placeholder ids.
 
 ### Test cases
 

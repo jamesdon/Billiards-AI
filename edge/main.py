@@ -13,6 +13,7 @@ from core.rules.turn_events import initial_player_turn_begin_event, player_turn_
 from core.rules.uk_pool import UKPoolRules
 from core.types import Event, EventType, GameConfig, GameState, GameType, PlayerState
 
+from core.identities_path import identities_json_str
 from core.identity_store import IdentityStore
 from .calib.calib_store import Calibration
 from .calib.table_geometry import auto_calibration_from_corners, table_geometry_dict
@@ -130,7 +131,12 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--players", type=str, default="Player A,Player B")
     ap.add_argument("--onnx-model", type=str, default=None, help="YOLO-like ONNX model path (optional); convention: models/model.onnx")
     ap.add_argument("--class-map", type=str, default=None, help="JSON mapping class_id->label; convention: models/class_map.json")
-    ap.add_argument("--identities", type=str, default="./identities.json", help="Persisted player/stick profiles")
+    ap.add_argument(
+        "--identities",
+        type=str,
+        default=identities_json_str(),
+        help="Persisted player/stick profiles (default: <repo>/identities.json)",
+    )
     ap.add_argument("--detect-every-n", type=int, default=2)
     ap.add_argument(
         "--voice-phrases-file",

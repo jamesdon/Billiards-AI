@@ -7,7 +7,6 @@ activate_venv
 PYTHON_BIN="$(python_bin)"
 MODEL_PATH="${MODEL_PATH:-}"
 CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/models/class_map.json}"
-IDENTITIES_PATH="${IDENTITIES_PATH:-$PROJECT_ROOT/identities.json}"
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
 if [[ -z "$MODEL_PATH" ]]; then
@@ -21,5 +20,5 @@ fi
   --csi-flip-method "${CSI_FLIP_METHOD}" \
   --onnx-model "$MODEL_PATH" \
   --class-map "$CLASS_MAP_PATH" \
-  --identities "$IDENTITIES_PATH"
+  --identities "$PROJECT_ROOT/identities.json"
 

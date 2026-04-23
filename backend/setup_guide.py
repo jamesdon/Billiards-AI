@@ -33,6 +33,8 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from core.identities_path import identities_json_str
+
 from .lan_url import public_http_base_info
 
 # Repo root: backend/setup_guide.py -> parents[1]
@@ -363,7 +365,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     "  --show-track-debug-overlay \\\n"
                     "  --mjpeg-port {mjpeg_port}\n"
                     "```\n\n"
-                    "**`--identities`:** use the same file the backend will read (default `identities.json` in the repo, or set `BILLIARDS_IDENTITIES_PATH` when starting the API). This lets you **keep one `edge.main` process** through **Classification and identity** without restarting just to add profiles.\n\n"
+                    "**`--identities`:** pass `{project_root}/identities.json` — that is the **only** file the API and Score Keeper use. You can keep the same `edge.main` through this step without restart.\n\n"
                     "**2) Check the live stream** — With that process still running, set the **MJPEG** field in the sidebar to the same "
                     "`--mjpeg-port` (default 8001). Use the two buttons to open the **live overlay** and **/health**. On the video you should see a **top-right panel** (ONNX loaded, frame count, inference on/off, counts) and **boxes**: "
                     "thin labels like `ball 0.87` are **raw detector** results; thicker `trk …` labels are **tracks**. If you see **ONNX: NO**, you did not pass `--onnx-model` / the file is missing. "
@@ -395,23 +397,11 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "id": "phase4",
         "title": "Classification and identity",
         "summary": (
-            "**What you are proving (two different things):** "
-            "**(A) Ball type labels** — after detection, the pipeline assigns **cue / eight / solid / stripe** (and game-specific types) to **ball tracks**; you confirm that looks sane on the **MJPEG** overlay. "
-            "**(B) Player and cue-stick profiles** — `identities.json` holds **stable ids** and **display_name** for the scoreboard. Edge **creates** rows when it sees **person** / **player** and **cue_stick** / **stick** tracks (per `class_map.json`); the API and Score Keeper **read and edit** the same file. This is **not** login or face recognition. "
-            "**You are already using the API** (this page). Do **not** start a second `run_backend.sh` on the same port. "
-            "Work the checklist **in order**; the **Live profile status** box below is tied to the **profiles** half (B) and matches `GET /profiles`."
+            "**(A) Ball type labels** — the classifier assigns **cue / eight / solid / stripe** (and game-specific types) to **ball tracks**; confirm on the **MJPEG** overlay that it looks right for your table. "
+            "**(B) Player and cue-stick profiles** — the repo file **`{project_root}/identities.json`** (shown in **Live profile status**) holds **stable ids** and **display_name** for Score Keeper. Edge **writes** it when it sees person/player and cue_stick/stick; the API **reads and edits** it. Not login or face recognition. "
+            "You are **already in the API**; do not start a second `run_backend.sh` on the same port. **Work the checklist in order** — do not try to set names before you have a profile row."
         ),
         "checklist": [
-            {
-                "item": "Edge and the API use the same `identities` file on disk",
-                "verify": (
-                    "**Why:** Edge **writes** new player/stick profile rows. The API **reads** that file for `GET /profiles` and Score Keeper. If the paths differ, you get empty JSON, “lost” renames, or edits in the wrong file.\n\n"
-                    "**Default (most setups):** one file, `{project_root}/identities.json`. Pass that path to `edge.main --identities` (see next line). "
-                    "Start the API from the repo root with no extra env so it resolves the same `identities.json`, **or** set `BILLIARDS_IDENTITIES_PATH` to the **full path** in the shell that starts the API, restart once, and use that **identical** string in `--identities` for edge.\n\n"
-                    "**You are done** when the path at the start of **Live profile status** (below) is the file you intend, and it matches the `--identities` you will use for `edge.main`."
-                ),
-                "record": "If you use a non-default path, write the full path in Notes (API + edge).",
-            },
             {
                 "item": "`edge.main` is running; MJPEG stream and /health both work",
                 "verify": (
@@ -466,7 +456,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "verify": (
                     "**Prerequisite for naming:** `GET /profiles` must not be two empty lists. The **Live profile status** line turns **green** when `player_count + stick_count` is at least 1 (same data as the buttons below).\n\n"
                     "**Get rows from the camera (normal):** with edge running, put **a person and/or a cue stick** in view (class names depend on your `class_map`, often `person` / `player` and `cue_stick` / `stick`). **Balls alone** do not create a player entry; wait 10–20 s, then refresh or open **Open GET /profiles**.\n\n"
-                    "**No camera?** use **Bootstrap minimal profile** to insert one test player, or save this JSON as the file the API is reading (path from Live status) and re-check `GET`:\n\n"
+                    "**No camera?** use **Bootstrap minimal profile** to insert one test player, or save this JSON as **`{project_root}/identities.json`** and re-check `GET`:\n\n"
                     "```json\n"
                     "{\n"
                     '  "players": [\n'
@@ -475,7 +465,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     '  "sticks": []\n'
                     "}\n"
                     "```\n\n"
-                    "**If counts stay at zero,** the usual cause is a **mismatched identities path** (first checklist line) or no person/stick in frame long enough to persist."
+                    "**If counts stay at zero,** edge may not be persisting yet—keep a person or stick in view 10–20 s, or confirm edge is running with `--identities \"{project_root}/identities.json\"` as in the command above."
                 ),
                 "verify_actions": [
                     {
@@ -513,11 +503,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "record": "If PATCH 404s, you likely used a placeholder id or wrong player/stick path—paste the id you used in Notes.",
             },
             {
-                "item": "(Recommended) The display name still appears after you restart **only** the API or **only** `edge.main` (same file path as before)",
+                "item": "(Recommended) The display name still appears after you restart **only** the API or **only** `edge.main`",
                 "verify": (
-                    "Stop and start **one** process, not both at once if you can help it, using the same `--identities` / `BILLIARDS_IDENTITIES_PATH` as before. Open **Open GET /profiles** again. **You are done** when the edited `display_name` is still there.\n\n"
-                    "If the name disappears, you almost certainly pointed one process at a different file on the second start—go back to the first checklist line. "
-                    "Only if `/setup` itself fails to load should you re-check **Environment and startup** (single `uvicorn` on the API port; avoid two listeners)."
+                    "Stop and start **one** process, not both at once if you can help it. The API and edge must keep using **`{project_root}/identities.json`** (default for both when you use `run_backend.sh` and the same edge command as above). Open **Open GET /profiles (after restart)**. **You are done** when the edited `display_name` is still there.\n\n"
+                    "If `/setup` does not load, re-check **Environment and startup** (one `uvicorn` on the API port)."
                 ),
                 "verify_actions": [
                     {
@@ -536,7 +525,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "hints": [
             "Jetson: replace `--camera usb` / `--usb-index` with `--camera csi` (see Detection and tracking command).",
             "404 on `PATCH` with a copied example id: you likely left the literal string `PLAYER_ID` or a typo—ids must come from the current `GET /profiles` JSON.",
-            "Empty `GET /profiles` with edge running: wrong identities path (API vs edge), or only balls in frame—need person/stick tracks to auto-create rows.",
+            "Empty `GET /profiles` with edge running: only balls in frame (need person or stick in view to create rows), or edge not running with the repo’s default `--identities` path.",
         ],
         "doc_refs": [],
     },
@@ -738,12 +727,6 @@ def _is_econnrefused(exc: BaseException) -> bool:
     if isinstance(inner, OSError) and inner.errno == errno.ECONNREFUSED:
         return True
     return False
-
-
-def _identities_path_str() -> str:
-    """Same default as `backend/profiles.py` (process cwd for relative paths)."""
-    s = (os.environ.get("BILLIARDS_IDENTITIES_PATH") or "./identities.json").strip()
-    return s or "./identities.json"
 
 
 def build_router() -> APIRouter:
@@ -994,7 +977,7 @@ p,li,td,th{{font-size:1em;}}
         """Player/stick counts and resolved identities file path (same as GET /profiles)."""
         from core.identity_store import IdentityStore
 
-        path = _identities_path_str()
+        path = identities_json_str()
         st = IdentityStore(path=path)
         st.load()
         return {
@@ -1018,7 +1001,7 @@ p,li,td,th{{font-size:1em;}}
         from core.identity_store import IdentityStore
         from core.types import PlayerProfile
 
-        path = _identities_path_str()
+        path = identities_json_str()
         st = IdentityStore(path=path)
         st.load()
         if st.players or st.sticks:

@@ -8,7 +8,6 @@ PYTHON_BIN="$(python_bin)"
 MODEL_PATH="${MODEL_PATH:-}"
 CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/models/class_map.json}"
 CALIB_PATH="${CALIB_PATH:-$PROJECT_ROOT/calibration.json}"
-IDENTITIES_PATH="${IDENTITIES_PATH:-$PROJECT_ROOT/identities.json}"
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
 MODE="${MODE:-native}"
@@ -30,7 +29,7 @@ fi
   --onnx-model "$MODEL_PATH" \
   --class-map "$CLASS_MAP_PATH" \
   --calib "$CALIB_PATH" \
-  --identities "$IDENTITIES_PATH" \
+  --identities "$PROJECT_ROOT/identities.json" \
   --players "${PLAYERS:-Player A,Player B}" \
   --game "${GAME_TYPE:-8ball}" \
   --mjpeg-port "${MJPEG_PORT:-8001}"

@@ -772,7 +772,7 @@
     return `<section class="setup-live-profiles" aria-live="polite" aria-atomic="true">
       <h3>Live profile status (same file as GET /profiles)</h3>
       <p class="setup-live-profiles-line" id="phase4-profiles-status">Loading…</p>
-      <p class="terminal-hint">Polls the API every 4s. Resolves <code>BILLIARDS_IDENTITIES_PATH</code> or <code>./identities.json</code> (relative to the server process). <strong>Green</strong> when at least one player or stick row exists—required before you can check off the “profile exists” checklist line and set <code>display_name</code>.</p>
+      <p class="terminal-hint">Polls the API every 4s. The path is always the repository’s <code>identities.json</code> (same file as <code>GET /profiles</code>). <strong>Green</strong> when at least one player or stick row exists—complete that before checking off naming.</p>
     </section>`;
   }
 

@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-import os
 from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from core.identities_path import identities_json_str
 from core.identity_store import IdentityStore
 
 
 def _store() -> IdentityStore:
-    path = os.environ.get("BILLIARDS_IDENTITIES_PATH", "./identities.json")
-    st = IdentityStore(path=path)
+    st = IdentityStore(path=identities_json_str())
     st.load()
     return st
 
