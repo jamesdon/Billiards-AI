@@ -13,6 +13,14 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
   exit 1
 fi
 
+# Avoid mixing unrelated staged work (e.g. calibration deletes) into the model commit.
+if ! git diff --cached --quiet 2>/dev/null; then
+  echo "publish_trained_model.sh: You already have staged changes. Commit or unstage them first, then re-run." >&2
+  echo "Staged paths:" >&2
+  git diff --cached --name-only >&2
+  exit 1
+fi
+
 if [[ ! -f "models/model.onnx" ]]; then
   echo "Missing models/model.onnx — publish only runs after the ONNX exists at that path." >&2
   echo "" >&2
@@ -37,6 +45,16 @@ fi
 
 if git diff --cached --quiet; then
   echo "Nothing to commit: models/model.onnx matches HEAD (no staged changes)."
+  if [[ "${GIT_PUSH:-0}" == "1" ]]; then
+    if git rev-parse --verify '@{u}' >/dev/null 2>&1; then
+      _ahead="$(git rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)"
+      if [[ "${_ahead}" -gt 0 ]]; then
+        git push
+      fi
+    else
+      echo "GIT_PUSH=1 but no upstream; run: git push -u origin <branch>" >&2
+    fi
+  fi
   echo "publish_trained_model.sh: OK (no-op)"
   exit 0
 fi
