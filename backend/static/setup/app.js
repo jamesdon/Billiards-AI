@@ -19,21 +19,14 @@
   const toast = $("#status-toast");
   const prEl = $("#project-root");
   const mjpegInput = $("#mjpeg-port");
-  const mjpegStatusEl = $("#mjpeg-edge-status");
-  let edgeHealthTimer = null;
-
-  /** Show MJPEG edge /health line only on steps where the user is expected to run edge. */
-  const STEPS_WITH_MJPEG_STATUS = new Set([
-    "phase3",
-    "phase4",
-    "dataset_training",
-    "jetson_deploy",
-    "phases_advanced",
-  ]);
-
-  function mjpegStatusStepActive() {
-    return STEPS_WITH_MJPEG_STATUS.has(state.activeId);
-  }
+  const apiHealthLamp = $("#api-health-lamp");
+  const apiPortShown = $("#api-port-shown");
+  const edgePortLamp = $("#edge-port-lamp");
+  const streamLamp = $("#stream-lamp");
+  const edgePortLine = $("#edge-port-line");
+  const mjpegHealthBlock = $("#mjpeg-health-block");
+  const streamHrefEl = $("#stream-href");
+  let healthPollTimer = null;
 
   const TEXT_SIZE_KEY = "billiards-setup-text-size";
   const PROGRESS_LSK = "billiards-setup-progress-v1";
@@ -212,71 +205,101 @@
       .replace(/\{api_port\}/g, String(getApiPort()));
   }
 
-  function setMjpegStatusVisible(show) {
-    if (!mjpegStatusEl) return;
-    if (show) {
-      mjpegStatusEl.removeAttribute("hidden");
-      mjpegStatusEl.setAttribute("aria-hidden", "false");
-    } else {
-      mjpegStatusEl.setAttribute("hidden", "");
-      mjpegStatusEl.setAttribute("aria-hidden", "true");
-      mjpegStatusEl.textContent = "";
-      mjpegStatusEl.classList.remove("mjpeg-ok", "mjpeg-bad");
+  function setLamp(el, s, ariaLabel) {
+    if (!el) return;
+    el.classList.remove("health-lamp--ok", "health-lamp--bad", "health-lamp--unknown");
+    if (s === "ok") el.classList.add("health-lamp--ok");
+    else if (s === "bad") el.classList.add("health-lamp--bad");
+    else el.classList.add("health-lamp--unknown");
+    if (ariaLabel) el.setAttribute("aria-label", ariaLabel);
+  }
+
+  function updateStreamLineHtml(port) {
+    const u = "http://127.0.0.1:" + port + "/mjpeg";
+    const a = streamHrefEl || document.getElementById("stream-href");
+    if (a) {
+      a.href = u;
+      a.textContent = u;
     }
   }
 
-  function reconfigureMjpegEdgePolling() {
-    if (edgeHealthTimer) {
-      clearInterval(edgeHealthTimer);
-      edgeHealthTimer = null;
+  async function refreshApiHealth() {
+    if (!apiHealthLamp) return;
+    setLamp(apiHealthLamp, "unknown", "API health checking");
+    if (apiPortShown) apiPortShown.textContent = String(getApiPort());
+    try {
+      const r = await fetch("/health", { cache: "no-store" });
+      if (!r.ok) {
+        setLamp(apiHealthLamp, "bad", "API /health not OK (HTTP " + r.status + ")");
+        return;
+      }
+      const j = await r.json();
+      if (j && j.ok === true) {
+        setLamp(apiHealthLamp, "ok", "API is up (GET /health returned ok)");
+        return;
+      }
+      setLamp(apiHealthLamp, "bad", "API /health body unexpected");
+    } catch (_) {
+      setLamp(apiHealthLamp, "bad", "API unreachable (is the backend running on this origin?)");
     }
-    if (!mjpegStatusEl) return;
-    if (!mjpegStatusStepActive()) {
-      setMjpegStatusVisible(false);
-      return;
-    }
-    setMjpegStatusVisible(true);
-    void refreshMjpegEdgeHealth();
-    edgeHealthTimer = setInterval(() => {
-      void refreshMjpegEdgeHealth();
-    }, 10000);
   }
 
-  async function refreshMjpegEdgeHealth() {
-    if (!mjpegStatusEl || !mjpegStatusStepActive()) return;
+  async function refreshEdgeAndStreamHealth() {
+    if (!edgePortLamp || !streamLamp || !edgePortLine) return;
     const port = getMjpegPort();
-    mjpegStatusEl.classList.remove("mjpeg-ok", "mjpeg-bad");
-    mjpegStatusEl.textContent = "Checking 127.0.0.1:" + port + "…";
+    mjpegHealthBlock && mjpegHealthBlock.classList.remove("mjpeg-ok", "mjpeg-bad");
+    setLamp(edgePortLamp, "unknown", "Edge health checking");
+    setLamp(streamLamp, "unknown", "Stream unknown");
+    edgePortLine.textContent = "Port " + port + ": checking…";
+    updateStreamLineHtml(port);
+
     try {
       const r = await fetch(
         "/api/setup/edge-health?port=" + encodeURIComponent(String(port))
       );
       if (!r.ok) {
-        mjpegStatusEl.classList.add("mjpeg-bad");
-        mjpegStatusEl.textContent = "Could not run health check (HTTP " + r.status + ").";
+        setLamp(edgePortLamp, "bad", "Edge check failed (HTTP " + r.status + ")");
+        setLamp(streamLamp, "bad", "No MJPEG (edge check failed)");
+        mjpegHealthBlock && mjpegHealthBlock.classList.add("mjpeg-bad");
+        edgePortLine.textContent = "No edge (could not run server check, HTTP " + r.status + ").";
         return;
       }
       const j = await r.json();
       if (j.ok) {
-        mjpegStatusEl.classList.add("mjpeg-ok");
-        mjpegStatusEl.textContent = "";
-        mjpegStatusEl.appendChild(
-          document.createTextNode("Port " + port + ": edge is up.")
-        );
-        mjpegStatusEl.appendChild(document.createElement("br"));
-        mjpegStatusEl.appendChild(
-          document.createTextNode("Stream: http://127.0.0.1:" + port + "/mjpeg")
-        );
+        setLamp(edgePortLamp, "ok", "Edge is up on port " + port);
+        setLamp(streamLamp, "ok", "MJPEG stream available at this port");
+        mjpegHealthBlock && mjpegHealthBlock.classList.add("mjpeg-ok");
+        edgePortLine.textContent = "Port " + port + ": edge is up.";
         return;
       }
-      mjpegStatusEl.classList.add("mjpeg-bad");
       const d = (j.detail && String(j.detail)) || "no response";
-      mjpegStatusEl.textContent = "No edge on port " + port + " (" + d + ").";
+      setLamp(edgePortLamp, "bad", "No edge on port " + port);
+      setLamp(streamLamp, "bad", "No MJPEG (edge not listening)");
+      mjpegHealthBlock && mjpegHealthBlock.classList.add("mjpeg-bad");
+      edgePortLine.textContent = "No edge on port " + port + " (" + d + ").";
     } catch (_) {
-      mjpegStatusEl.classList.add("mjpeg-bad");
-      mjpegStatusEl.textContent =
-        "Health check failed (is this page served from the local backend?).";
+      setLamp(edgePortLamp, "bad", "Edge check failed (backend cannot probe localhost — open from same machine?)");
+      setLamp(streamLamp, "bad", "Stream unavailable");
+      mjpegHealthBlock && mjpegHealthBlock.classList.add("mjpeg-bad");
+      edgePortLine.textContent =
+        "No edge on port " + port + " (health check failed: is the API running locally?).";
     }
+  }
+
+  async function refreshAllHealth() {
+    await refreshApiHealth();
+    await refreshEdgeAndStreamHealth();
+  }
+
+  function startHealthPollers() {
+    if (healthPollTimer) {
+      clearInterval(healthPollTimer);
+      healthPollTimer = null;
+    }
+    void refreshAllHealth();
+    healthPollTimer = setInterval(() => {
+      void refreshAllHealth();
+    }, 10000);
   }
 
   function putProgress() {
@@ -799,8 +822,6 @@
         if (u) window.open(u, "_blank", "noopener");
       });
     });
-
-    reconfigureMjpegEdgePolling();
   }
 
   async function init() {
@@ -839,11 +860,13 @@
       mjpegInput?.addEventListener("change", () => {
         state.progress.mjpeg_port = getMjpegPort();
         scheduleSave();
+        void refreshEdgeAndStreamHealth();
         renderContent();
       });
 
       renderNav();
       renderContent();
+      startHealthPollers();
     } catch (e) {
       content.innerHTML =
         "<p>Could not load setup data. Start the backend: <code>./scripts/run_backend.sh</code> or <code>uvicorn backend.app:app --host 127.0.0.1 --port 8000</code></p>";

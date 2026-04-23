@@ -13,7 +13,10 @@ def test_setup_page_and_api():
     r = client.get("/setup", follow_redirects=False)
     assert r.status_code == 200
     assert "Setup guide" in r.text
-    assert "API BACKEND_PORT: default 8000" in r.text
+    assert "API BACKEND_PORT" in r.text
+    assert "api-port-shown" in r.text
+    assert "api-health-lamp" in r.text
+    assert "edge-port-lamp" in r.text
     assert "MJPEG port: default 8001" in r.text
     assert "Only ports 8001" in r.text
     assert "Text size" in r.text
