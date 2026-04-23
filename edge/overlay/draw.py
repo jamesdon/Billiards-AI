@@ -17,9 +17,56 @@ class OverlayConfig:
     draw_trails: bool = True
 
 
+# BGR, when --show-track-debug-overlay is on (edge.main)
+_TRACK_DEBUG_COLORS: dict = {
+    "ball": (60, 200, 80),
+    "player": (255, 255, 0),
+    "stick": (255, 0, 255),
+    "rack": (0, 128, 255),
+}
+
+
 def _put_text(img: np.ndarray, text: str, xy: Tuple[int, int], color: Tuple[int, int, int]) -> None:
     cv2.putText(img, text, xy, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3, cv2.LINE_AA)
     cv2.putText(img, text, xy, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+
+
+def _draw_track_debug_boxes(out: np.ndarray, snap: object) -> None:
+    if not isinstance(snap, dict):
+        return
+    h, w = int(out.shape[0]), int(out.shape[1])
+    for b in snap.get("boxes") or []:
+        if not isinstance(b, dict):
+            continue
+        kind = str(b.get("kind") or "?")
+        bbox = b.get("bbox")
+        if not bbox or len(bbox) < 4:
+            continue
+        x1, y1, x2, y2 = [int(round(float(v))) for v in bbox[:4]]
+        x1 = max(0, min(w - 1, x1))
+        x2 = max(0, min(w - 1, x2))
+        y1 = max(0, min(h - 1, y1))
+        y2 = max(0, min(h - 1, y2))
+        if x2 < x1:
+            x1, x2 = x2, x1
+        if y2 < y1:
+            y1, y2 = y2, y1
+        col = _TRACK_DEBUG_COLORS.get(kind, (180, 180, 180))
+        cv2.rectangle(out, (x1, y1), (x2, y2), col, 2, cv2.LINE_AA)
+        bid = b.get("id", "?")
+        short_lab = str(b.get("label") or "")[:10]
+        lab = f"{kind[:1]}{bid} {short_lab}".strip()
+        tx, ty = x1, max(14, y1 - 4)
+        cv2.putText(out, lab, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 2, cv2.LINE_AA)
+        cv2.putText(out, lab, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.4, col, 1, cv2.LINE_AA)
+    fr = int(snap.get("frame_idx") or 0)
+    det_ran = bool(snap.get("detector_ran"))
+    n_d = int(snap.get("n_dets") or 0)
+    n_t = int(snap.get("n_tracks") or 0)
+    line = f"[track debug]  frame {fr}  det_run={int(det_ran)}  dets={n_d}  tracks={n_t}"
+    y0 = h - 10
+    cv2.putText(out, line, (8, y0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
+    cv2.putText(out, line, (8, y0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (100, 255, 200), 1, cv2.LINE_AA)
 
 
 def _projector_pixel_span(calib: Calibration) -> Optional[Tuple[float, float, float, float]]:
@@ -275,5 +322,9 @@ def draw_overlay(
 
     if calib is not None:
         _draw_projector_mirror_inset(out, state, calib)
+
+    dbg = getattr(state, "_track_debug_overlay", None)
+    if dbg is not None:
+        _draw_track_debug_boxes(out, dbg)
 
     return out

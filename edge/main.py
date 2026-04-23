@@ -145,6 +145,11 @@ def parse_args() -> argparse.Namespace:
         help="Apply a single English phrase once at startup (overlay / trajectory toggles)",
     )
     ap.add_argument(
+        "--show-track-debug-overlay",
+        action="store_true",
+        help="Draw ball/player/stick/rack track boxes and IDs on the MJPEG stream (debug; off by default for normal use)",
+    )
+    ap.add_argument(
         "--enable-audio-micro-foul",
         action="store_true",
         help="Attach micro-foul audio stub (no live capture yet; correlates with SHOT_START later)",
@@ -247,6 +252,7 @@ def main() -> None:
 
     pipeline = EdgePipeline()
     pipeline.cfg.detect_every_n = int(args.detect_every_n)
+    pipeline.cfg.show_track_debug_overlay = bool(getattr(args, "show_track_debug_overlay", False))
     if args.enable_audio_micro_foul:
         from .audio.capture import AudioRingBuffer
         from .events.micro_foul_audio import MicroFoulAudioDetector

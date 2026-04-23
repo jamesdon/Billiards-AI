@@ -31,6 +31,29 @@ def test_draw_overlay_projector_inset_smoke():
     assert out.dtype == frame.dtype
 
 
+def test_draw_overlay_track_debug_snapshot_smoke():
+    st = GameState(
+        config=GameConfig(game_type=GameType.EIGHT_BALL),
+        players=[PlayerState("A"), PlayerState("B")],
+    )
+    setattr(
+        st,
+        "_track_debug_overlay",
+        {
+            "frame_idx": 3,
+            "detector_ran": True,
+            "n_dets": 2,
+            "n_tracks": 1,
+            "boxes": [
+                {"kind": "ball", "id": 1, "label": "ball", "bbox": (10.0, 20.0, 50.0, 60.0)},
+            ],
+        },
+    )
+    frame = np.zeros((120, 160, 3), dtype=np.uint8)
+    out = draw_overlay(frame, st, calib=None)
+    assert out.shape == frame.shape
+
+
 def test_draw_overlay_without_H_projector_no_crash():
     H = np.eye(3, dtype=np.float64)
     calib = Calibration(H=Homography(H=H), pockets=[], table_length_m=2.84, table_width_m=1.42)

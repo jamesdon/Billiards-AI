@@ -83,6 +83,8 @@ python3 -m edge.main \
   --mjpeg-port 8001
 ```
 
+Add **`--show-track-debug-overlay`** to draw **ball / player / stick / rack** track boxes and IDs on the MJPEG stream (detector frame count + raw detection count in the bottom line). **Off by default** so normal play is uncluttered; use only while debugging detection and ID stability.
+
 **Then test (after models load; first response can take 30–90+ s):** in a browser, open `http://127.0.0.1:8001/mjpeg` and `http://127.0.0.1:8001/health` (or the port you passed to `--mjpeg-port`). The setup guide **Detection and tracking** step uses the same order: run this command, **then** use its overlay / health buttons (MJPEG field must match the port you chose).
 
 `edge.main` does **not** open a desktop window; video is over HTTP.

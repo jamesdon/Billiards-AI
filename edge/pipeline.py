@@ -40,6 +40,7 @@ class EdgePipelineConfig:
 
     detect_every_n: int = 2
     track_max_age_s: float = 0.5  # mirrored in tracker
+    show_track_debug_overlay: bool = False
 
 
 @dataclass
@@ -279,6 +280,77 @@ class EdgePipeline:
             setattr(state, "_ui_banner", self._ui_stick_banner)
         else:
             setattr(state, "_ui_banner", None)
+
+        self._apply_track_debug_overlay(
+            state=state,
+            dets=dets,
+            tracks_px=tracks_px,
+            player_tracks=player_tracks,
+            stick_tracks=stick_tracks,
+            rack_tracks=rack_tracks,
+        )
+
+    def _apply_track_debug_overlay(
+        self,
+        state: GameState,
+        dets: List[BallObservation],
+        tracks_px: Dict[BallId, Tuple[Tuple[float, float], Tuple[float, float, float, float], str]],
+        player_tracks: Dict[BallId, Tuple[Tuple[float, float], Tuple[float, float, float, float], str]],
+        stick_tracks: Dict[BallId, Tuple[Tuple[float, float], Tuple[float, float, float, float], str]],
+        rack_tracks: Dict[BallId, Tuple[Tuple[float, float], Tuple[float, float, float, float], str]],
+    ) -> None:
+        if not self.cfg.show_track_debug_overlay:
+            setattr(state, "_track_debug_overlay", None)
+            return
+        boxes: List[Dict[str, object]] = []
+        for tid, (_, bbox, label) in tracks_px.items():
+            boxes.append(
+                {
+                    "kind": "ball",
+                    "id": int(tid),
+                    "label": str(label),
+                    "bbox": (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])),
+                }
+            )
+        for tid, (_, bbox, label) in player_tracks.items():
+            boxes.append(
+                {
+                    "kind": "player",
+                    "id": int(tid),
+                    "label": str(label),
+                    "bbox": (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])),
+                }
+            )
+        for tid, (_, bbox, label) in stick_tracks.items():
+            boxes.append(
+                {
+                    "kind": "stick",
+                    "id": int(tid),
+                    "label": str(label),
+                    "bbox": (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])),
+                }
+            )
+        for tid, (_, bbox, label) in rack_tracks.items():
+            boxes.append(
+                {
+                    "kind": "rack",
+                    "id": int(tid),
+                    "label": str(label),
+                    "bbox": (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])),
+                }
+            )
+        det_ran = self.detector is not None and (self._frame_idx % max(1, self.cfg.detect_every_n) == 0)
+        setattr(
+            state,
+            "_track_debug_overlay",
+            {
+                "frame_idx": int(self._frame_idx),
+                "detector_ran": bool(det_ran),
+                "n_dets": int(len(dets)) if det_ran else 0,
+                "n_tracks": int(len(boxes)),
+                "boxes": boxes,
+            },
+        )
 
     def _update_ball_tracks(
         self,

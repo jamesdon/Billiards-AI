@@ -57,8 +57,8 @@ Billiards-AI/
 
   edge/
     __init__.py
-    main.py                         Edge entrypoint (MJPEG binds right after CLI parse; calibration load; optional `--voice-line` / `--voice-phrases-file` / `--enable-audio-micro-foul`; camera -> overlay -> stream)
-    pipeline.py                     Build/run the module graph; wires trajectory assist, vision phase, shot-hint stubs, optional micro-foul detector
+    main.py                         Edge entrypoint (MJPEG binds right after CLI parse; calibration load; optional `--show-track-debug-overlay` for MJPEG track boxes; optional `--voice-line` / `--voice-phrases-file` / `--enable-audio-micro-foul`; camera -> overlay -> stream)
+    pipeline.py                     Build/run the module graph; `EdgePipelineConfig.show_track_debug_overlay` feeds `state._track_debug_overlay` for optional MJPEG boxes; wires trajectory assist, vision phase, shot-hint stubs, optional micro-foul detector
     io/
       __init__.py
       camera_opencv.py              OpenCV/GStreamer camera capture (NVIDIA CSI primary on Jetson); raises if capture opens but returns no frames
