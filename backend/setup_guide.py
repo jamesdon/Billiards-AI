@@ -3,11 +3,15 @@ Guided setup wizard: step metadata + optional persisted progress (local JSON).
 
 Open in browser after starting the backend: GET /setup
 
+**The wizard text in `SETUP_STEPS` is the source of truth for first-time system setup.**
+Long-form `docs/*.md` files are optional background; the checklist + How to verify blocks must be
+enough to complete the flow without them.
+
 The setup wizard (static/setup/app.js) treats Markdown-style triple backtick fences as
 paste-ready command blocks (Copy in **How to verify** only). Single backticks are inline
 code only. Put runnable shell in ``` ``` blocks, not only in `inline` backticks.
 
-Docs: GET /api/setup/doc?path=docs%2FTEST_PLAN.md (markdown rendered to HTML)
+Docs (optional): GET /api/setup/doc?path=docs%2FTEST_PLAN.md (markdown rendered to HTML)
 
 Optional local script launch: POST /api/setup/launch (requires SETUP_ALLOW_LAUNCH=1 and 127.0.0.1).
 """
@@ -390,23 +394,66 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "id": "phase4",
         "title": "Classification and identity",
         "summary": (
-            "**What this proves (TEST_PLAN §4):** (1) **Ball classes** from the detector/classifier behave as expected in play. (2) **Player and cue-stick “profiles”** are stable ids in `identities.json` with editable **display names** used on the scoreboard—"
-            "they are **not** app logins, face recognition, or “labeling end users” in a security sense; edge creates rows when it sees `person`/`player` and `cue_stick`/`stick` tracks, and you set nicknames. "
-            "Follow the **Workflow: start → success** in `docs/4` (phases **A–F** with **gates**). Use **Score Keeper → Player & stick names** (same as GET/PATCH /profiles) for the D step."
+            "**Objective:** (1) **Ball classes** behave as expected in play. (2) **Player / cue-stick profiles** are rows in `identities.json` (stable `id` + `display_name` for the scoreboard). "
+            "These are **not** app logins or face recognition—edge creates rows when it sees people or cue sticks in frame. "
+            "**Everything you need is in the checklist below** (phases **A–F**). The **Live status** panel above the checklist polls the same file as `GET /profiles`."
         ),
         "checklist": [
             {
-                "item": "Workflow A–F complete: non-empty GET /profiles, display_name set, optional persistence after restart (see doc)",
+                "item": "Phases A–F below are complete: profiles non-empty, display name set, optional restart check done",
                 "verify": (
-                    "**Prescriptive runbook (tables, gates, troubleshooting):** open **4 — Classification and identity** in Documentation → section **Workflow: start → success**.\n\n"
-                    "**A–B** — **Backend** on **{api_port}**; **`edge.main`** with `--identities \"{project_root}/identities.json\"` (must match `BILLIARDS_IDENTITIES_PATH` or the API’s default file). If **Detection and tracking** already used that flag, **keep the same edge process**.\n"
-                    "**C (gate)** — **GET /profiles** until `players` or `sticks` is non-empty: people and/or cue in frame, or minimal file in `docs/4`. **Buttons below** open JSON and Score Keeper.\n"
-                    "**D (gate)** — **Score Keeper** → **Player & stick names** → **Save** **or** `PATCH` with a real `id` from GET. **Do not** put the literal `PLAYER_ID` in the URL.\n"
-                    "**E–F** — Restart **backend or edge** (same `--identities`); **GET /profiles** should still show the name. Check **Sign-off** in the doc.\n\n"
-                    "**Optional curl** after you have a real `id` (replace `REAL_ID`):\n\n"
+                    "**Phase A — Preconditions (gate: one identities path for both API and edge).** "
+                    "Decide the file both processes will use. Default: `identities.json` in the repo root when you start the API from that directory. "
+                    "If you set `BILLIARDS_IDENTITIES_PATH`, set it to the **same** path you pass as `--identities` on `edge.main`. "
+                    "Use an **absolute** path in commands if you are unsure about the working directory.\n\n"
+                    "**Phase B — Start backend, then edge (gate: `/health` OK, edge running).**\n\n"
+                    "Terminal 1 — backend (from repo root so the default identities file matches `{project_root}/identities.json` unless you override `BILLIARDS_IDENTITIES_PATH`):\n\n"
                     "```bash\n"
-                    "curl -s -X PATCH \"http://127.0.0.1:{api_port}/profiles/player/REAL_ID\" -H \"Content-Type: application/json\" -d '{\"display_name\":\"TestName\"}'\n"
-                    "```\n"
+                    'cd "{project_root}"\n'
+                    "./scripts/run_backend.sh\n"
+                    "```\n\n"
+                    "Check API health: **Quick link** *Backend /health* or `curl -s http://127.0.0.1:{api_port}/health`.\n\n"
+                    "Terminal 2 — `edge.main` with **`--identities` pointing to that same file**. "
+                    "If you **already** completed **Detection and tracking** with the block below, **do not** restart edge only for this step—use the same process. "
+                    "On Jetson use `--camera csi` and remove USB lines. On this Mac, USB is fine:\n\n"
+                    "```bash\n"
+                    'cd "{project_root}"\n'
+                    'source "{project_root}/.venv/bin/activate"\n'
+                    "python3 -m edge.main \\\n"
+                    "  --camera usb \\\n"
+                    "  --usb-index 0 \\\n"
+                    '  --onnx-model "{project_root}/models/model.onnx" \\\n'
+                    '  --class-map "{project_root}/models/class_map.json" \\\n'
+                    '  --calib "{project_root}/calibration.json" \\\n'
+                    '  --identities "{project_root}/identities.json" \\\n'
+                    "  --show-track-debug-overlay \\\n"
+                    "  --mjpeg-port {mjpeg_port}\n"
+                    "```\n\n"
+                    "**Phase C — At least one profile row (gate: Live status is green OR `GET /profiles` non-empty).** "
+                    "Watch the **Live status** panel (updates every few seconds) or use **Open GET /profiles**. "
+                    "If counts stay zero: (1) keep edge running; (2) show **people** and/or a **cue stick** in frame (balls alone are not enough for a *player* row). "
+                    "Re-check until you have at least one `players` or `sticks` entry.\n\n"
+                    "**Automated (only when the file is still empty):** use **Bootstrap minimal profile** — the API writes a single test player id `setup-smoke-1` so you can finish phase C without a camera. If it says the file is not empty, use camera/edge or edit the file manually (next fence).\n\n"
+                    "Manual (optional): if you prefer to create the file by hand, save exactly this as the identities path the API uses, then re-check `GET /profiles`:\n\n"
+                    "```json\n"
+                    "{\n"
+                    '  "players": [\n'
+                    '    { "id": "manual-smoke-1", "display_name": "Test", "color_signature": [] }\n'
+                    "  ],\n"
+                    '  "sticks": []\n'
+                    "}\n"
+                    "```\n\n"
+                    "**Phase D — Set a display name (gate: you see the new name in `GET /profiles`).** "
+                    "Use **Open Score Keeper** → **Player & stick names** → type a name → **Save** → **Refresh list**.\n\n"
+                    "**Curl (optional):** copy a real `id` from the JSON. The string `PLAYER_ID` in old examples is **not** a real id—your PATCH URL must look like `.../profiles/player/p-abc123...`, not `.../player/PLAYER_ID`.\n\n"
+                    "```bash\n"
+                    "curl -s http://127.0.0.1:{api_port}/profiles\n"
+                    "curl -s -X PATCH \"http://127.0.0.1:{api_port}/profiles/player/REAL_ID_FROM_JSON\" -H \"Content-Type: application/json\" -d '{\"display_name\":\"TestName\"}'\n"
+                    "curl -s http://127.0.0.1:{api_port}/profiles\n"
+                    "```\n\n"
+                    "**Phase E — Persistence (recommended gate: name survives one restart).** "
+                    "Stop and restart **only the backend** or **only** `edge.main` (same `--identities` as before). `GET /profiles` must still show **TestName** (or the name you set).\n\n"
+                    "**Phase F — Sign-off:** you have a non-empty profile list, a saved `display_name`, and (recommended) you confirmed it survives a restart."
                 ),
                 "verify_actions": [
                     {
@@ -417,22 +464,29 @@ SETUP_STEPS: list[dict[str, Any]] = [
                         "label": "Open Score Keeper",
                         "href_template": "http://127.0.0.1:{api_port}/scorekeeper",
                     },
+                    {
+                        "label": "Open backend /health",
+                        "href_template": "http://127.0.0.1:{api_port}/health",
+                    },
+                    {
+                        "label": "Bootstrap minimal profile (if empty)",
+                        "action": "bootstrap_minimal_profiles",
+                    },
                 ],
-                "record": "If the name did not round-trip, put the profile id and response snippet in Notes.",
+                "record": "If the name did not round-trip, put the profile id and the last `GET /profiles` response in Notes.",
             },
         ],
         "links": [
             {"label": "GET /profiles (JSON)", "href_template": "http://127.0.0.1:{api_port}/profiles"},
             {"label": "Score Keeper (edit names)", "href_template": "http://127.0.0.1:{api_port}/scorekeeper"},
-            {"label": "Backend /health (debug)", "href_template": "http://127.0.0.1:{api_port}/health"},
+            {"label": "Backend /health", "href_template": "http://127.0.0.1:{api_port}/health"},
         ],
         "hints": [
             "Replace --camera usb with csi on Jetson.",
             "“Profiles” are table-entity labels in `identities.json`; not face or person-in-the-room “user” detection.",
-            "For one identities file, point both edge `--identities` and `BILLIARDS_IDENTITIES_PATH` (if set) at the same path.",
-            "404 for PATCH …/player/PLAYER_ID is expected: `PLAYER_ID` is not a real id. GET /profiles first and copy an `id` from the list.",
+            "404 on PATCH with `PLAYER_ID` means you used the **example word** in the path—use a real `id` from `GET /profiles`.",
         ],
-        "doc_refs": [{"label": "4 — Classification and identity", "path": "docs/4 Classification and identity.md"}],
+        "doc_refs": [],
     },
     {
         "id": "dataset_training",
@@ -610,6 +664,14 @@ def _client_localhost(request: Request) -> bool:
     return host in ("127.0.0.1", "::1", "localhost")
 
 
+def _client_localhost_or_testclient(request: Request) -> bool:
+    """True for local browser, or ASGI test clients (e.g. Starlette `testclient`)."""
+    if _client_localhost(request):
+        return True
+    h = (getattr(request.client, "host", None) or "").strip()
+    return h in ("testclient",)
+
+
 def _is_econnrefused(exc: BaseException) -> bool:
     if isinstance(exc, OSError) and exc.errno == errno.ECONNREFUSED:
         return True
@@ -617,6 +679,12 @@ def _is_econnrefused(exc: BaseException) -> bool:
     if isinstance(inner, OSError) and inner.errno == errno.ECONNREFUSED:
         return True
     return False
+
+
+def _identities_path_str() -> str:
+    """Same default as `backend/profiles.py` (process cwd for relative paths)."""
+    s = (os.environ.get("BILLIARDS_IDENTITIES_PATH") or "./identities.json").strip()
+    return s or "./identities.json"
 
 
 def build_router() -> APIRouter:
@@ -861,5 +929,57 @@ p,li,td,th{{font-size:1em;}}
     def put_progress(body: SetupProgress) -> SetupProgress:
         _save_progress(body)
         return body
+
+    @router.get("/api/setup/profiles-status")
+    def setup_profiles_status() -> dict[str, Any]:
+        """Player/stick counts and resolved identities file path (same as GET /profiles)."""
+        from core.identity_store import IdentityStore
+
+        path = _identities_path_str()
+        st = IdentityStore(path=path)
+        st.load()
+        return {
+            "identities_path": path,
+            "identities_path_resolved": str(Path(path).resolve()),
+            "player_count": len(st.players),
+            "stick_count": len(st.sticks),
+            "nonempty": (len(st.players) + len(st.sticks)) > 0,
+        }
+
+    @router.post("/api/setup/bootstrap-minimal-profiles")
+    def setup_bootstrap_minimal_profiles(request: Request) -> dict[str, Any]:
+        """
+        If the identities file has no player/stick rows, write one minimal player for API/UI smoke
+        (localhost or TestClient only). Use when you cannot get a person/cue in frame for phase C.
+        """
+        if not _client_localhost_or_testclient(request):
+            raise HTTPException(
+                status_code=403, detail="Bootstrap is only allowed from this machine (localhost / test client)"
+            )
+        from core.identity_store import IdentityStore
+        from core.types import PlayerProfile
+
+        path = _identities_path_str()
+        st = IdentityStore(path=path)
+        st.load()
+        if st.players or st.sticks:
+            return {
+                "ok": False,
+                "detail": "Identities file already has profiles; do not overwrite. Use camera/edge, or clear the file if you know what you are doing.",
+                "player_count": len(st.players),
+                "stick_count": len(st.sticks),
+            }
+        st.upsert_player(
+            PlayerProfile(
+                id="setup-smoke-1",
+                display_name="Setup",
+                color_signature=[],
+            )
+        )
+        st.save()
+        return {
+            "ok": True,
+            "message": "Wrote one minimal player with id `setup-smoke-1` (display_name Setup). Continue with phase D: rename in Score Keeper or PATCH.",
+        }
 
     return router

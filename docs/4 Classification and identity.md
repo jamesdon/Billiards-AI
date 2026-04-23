@@ -1,5 +1,7 @@
 # 4. Classification and identity
 
+**Canonical first-time runbook:** the setup wizard at **`GET /setup`** → step **Classification and identity** (see `backend/setup_guide.py` `phase4`). It includes full phases A–F, a live panel fed by `/api/setup/profiles-status`, and optional **Bootstrap minimal profile** for empty files. You can delete or ignore this file if the wizard is enough.
+
 ## Goal
 
 Validate ball classes and persistent **player/stick profile** records (stable ids and nicknames in `identities.json` via the backend). This is **not** face recognition, logins, or “user detection” in the security sense: profiles are file-backed labels tied to tracking, as produced when edge and the API run together.
@@ -8,7 +10,7 @@ Validate ball classes and persistent **player/stick profile** records (stable id
 
 ## Workflow: start → success
 
-Follow these **phases in order**. Each **gate** tells you when you may continue. The full runbook below is reference; this table is the procedure.
+Follow these **phases in order**. Each **gate** tells you when you may continue. (Same table is spelled out in the setup wizard without requiring this file.)
 
 | Phase | What you do | Gate (do not continue until) |
 | --- | --- | --- |

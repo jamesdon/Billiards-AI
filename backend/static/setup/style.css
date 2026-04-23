@@ -908,3 +908,32 @@ pre.setup-fence code {
     min-height: 50vh;
   }
 }
+
+/* Classification and identity — live GET /profiles counts */
+.setup-live-profiles {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem 0.9rem;
+  margin-bottom: 1rem;
+}
+.setup-live-profiles h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.setup-live-profiles .setup-live-profiles-line {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+.setup-live-ok {
+  color: #6ecf8f;
+}
+.setup-live-warn {
+  color: var(--warn);
+}
+.setup-live-err {
+  color: var(--bad);
+}

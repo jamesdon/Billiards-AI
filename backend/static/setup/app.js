@@ -11,6 +11,7 @@
     },
     activeId: null,
     saveTimer: null,
+    phase4StatusTimer: null,
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -765,6 +766,51 @@
     });
   }
 
+  /** Real-time `identities.json` / GET /profiles counts (Classification and identity step only). */
+  function renderPhase4LivePanel(step) {
+    if (step.id !== "phase4") return "";
+    return `<section class="setup-live-profiles" aria-live="polite" aria-atomic="true">
+      <h3>Live profile status (same file as GET /profiles)</h3>
+      <p class="setup-live-profiles-line" id="phase4-profiles-status">Loading…</p>
+      <p class="terminal-hint">Polls the API every 4s. Resolves <code>BILLIARDS_IDENTITIES_PATH</code> or <code>./identities.json</code> (relative to the server process). Turn <strong>green</strong> when at least one player or stick exists (phase C gate).</p>
+    </section>`;
+  }
+
+  function clearPhase4StatusTimer() {
+    if (state.phase4StatusTimer) {
+      clearInterval(state.phase4StatusTimer);
+      state.phase4StatusTimer = null;
+    }
+  }
+
+  function refreshPhase4LiveStatus() {
+    const el = content && content.querySelector("#phase4-profiles-status");
+    if (!el) return;
+    fetch("/api/setup/profiles-status", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
+      .then((j) => {
+        const p = j.player_count | 0;
+        const s = j.stick_count | 0;
+        const res = (j.identities_path_resolved || j.identities_path || "").toString();
+        const ok = p + s > 0;
+        el.className = "setup-live-profiles-line" + (ok ? " setup-live-ok" : " setup-live-warn");
+        el.textContent = res + " — " + p + " player(s), " + s + " stick(s). " + (ok
+          ? "Phase C gate: OK (non-empty)."
+          : "Phase C: still empty — keep people/cue in frame, or use Bootstrap (below) if the server may write an empty file.");
+      })
+      .catch(() => {
+        el.className = "setup-live-profiles-line setup-live-err";
+        el.textContent = "Could not load /api/setup/profiles-status. Is the backend running?";
+      });
+  }
+
+  function mountPhase4LiveIfNeeded(step) {
+    clearPhase4StatusTimer();
+    if (step.id !== "phase4") return;
+    refreshPhase4LiveStatus();
+    state.phase4StatusTimer = setInterval(refreshPhase4LiveStatus, 4000);
+  }
+
   function renderChecklist(step) {
     const checklist = step.checklist || [];
     if (!checklist.length) return "";
@@ -803,7 +849,13 @@
                   Array.isArray(item.verify_actions) && item.verify_actions.length
                     ? `<div class="verify-actions" role="group" aria-label="Step actions">${item.verify_actions
                         .map((a) => {
-                          if (!a || !a.href_template) return "";
+                          if (!a) return "";
+                          if (a.action === "bootstrap_minimal_profiles") {
+                            return `<button type="button" class="btn btn-primary verify-action-btn" data-bootstrap-profiles="1">${escapeHtml(
+                              a.label || "Bootstrap"
+                            )}</button>`;
+                          }
+                          if (!a.href_template) return "";
                           const href = resolveLinkHref(a.href_template);
                           return `<button type="button" class="btn btn-primary verify-action-btn" data-open-href="${escapeHtml(
                             href
@@ -889,6 +941,7 @@
     content.innerHTML = `
       <h2>${signalHtml(sig)} ${escapeHtml(step.title)}</h2>
       <div class="summary">${summaryHtml}</div>
+      ${renderPhase4LivePanel(step)}
       ${renderChecklist(step)}
       ${renderLinks(step)}
       ${renderDocs(step)}
@@ -904,6 +957,23 @@
         <button type="button" class="btn btn-primary" id="btn-save">${escapeHtml(saveButtonLabel)}</button>
       </div>
     `;
+
+    content.querySelectorAll(".verify-action-btn[data-bootstrap-profiles]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        fetch("/api/setup/bootstrap-minimal-profiles", { method: "POST" })
+          .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
+          .then(({ ok, j }) => {
+            if (ok && j.ok) {
+              showToast(j.message || "Bootstrap OK");
+              refreshPhase4LiveStatus();
+            } else
+              showToast(
+                (j && (j.detail || j.message)) || (ok ? "Bootstrap skipped" : "Request failed")
+              );
+          })
+          .catch(() => showToast("Bootstrap request failed"));
+      });
+    });
 
     content.querySelectorAll(".launch-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -971,6 +1041,8 @@
         if (u) window.open(u, "_blank", "noopener");
       });
     });
+
+    mountPhase4LiveIfNeeded(step);
   }
 
   async function init() {

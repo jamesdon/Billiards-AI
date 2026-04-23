@@ -68,10 +68,13 @@ def test_setup_page_and_api():
     assert "GET /profiles" in p4v
     assert "Score Keeper" in p4v
     assert "curl" in p4v
+    assert "Phase A" in p4v and "Phase C" in p4v and "Phase D" in p4v
+    assert (p4.get("doc_refs") or []) == []
     va4 = p4["checklist"][0].get("verify_actions") or []
-    assert len(va4) >= 2
+    assert len(va4) == 4
     assert va4[0].get("label") == "Open GET /profiles"
     assert "href_template" in va4[0]
+    assert va4[-1].get("action") == "bootstrap_minimal_profiles"
     p4links = p4.get("links") or []
     assert any(
         (isinstance(x, dict) and x.get("label") == "GET /profiles (JSON)") for x in p4links
@@ -136,6 +139,22 @@ def test_setup_page_and_api():
     assert "ok" in eh
     assert eh.get("ok") is False
     assert eh.get("reason") == "connection_refused"
+
+    r = client.get("/api/setup/profiles-status")
+    assert r.status_code == 200
+    ps = r.json()
+    assert "player_count" in ps and "stick_count" in ps
+    assert "nonempty" in ps
+    assert "identities_path_resolved" in ps
+
+    r = client.post("/api/setup/bootstrap-minimal-profiles")
+    assert r.status_code == 200
+    bj = r.json()
+    assert "ok" in bj
+    if bj.get("ok"):
+        assert "setup-smoke-1" in (bj.get("message") or "")
+    else:
+        assert "already" in (bj.get("detail") or "").lower()
 
     r = client.put(
         "/api/setup/progress",
