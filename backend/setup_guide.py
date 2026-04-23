@@ -323,9 +323,9 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "summary": "Start edge.main, open the table MJPEG overlay, and check /health (TEST_PLAN §3). You need models/model.onnx, models/class_map.json, and the calibration.json from the previous step. You do not need another doc to begin: the checklist below is the only instruction. Output is over HTTP in the browser, not an OpenCV window.",
         "checklist": [
             {
-                "item": "You start edge.main with the ONNX, class map, and calibration the repo expects",
+                "item": "edge.main is running, MJPEG/health look good, and track IDs stay stable when objects move",
                 "verify": (
-                    "In a new terminal, paste and run the block below once (sidebar shows your repo path; on Jetson use --camera csi and drop the --usb-index lines). Default: macOS + USB 0.\n"
+                    "**1) Start `edge.main`** — In a new terminal, paste and run the block below once (sidebar shows your repo path; on Jetson use `--camera csi` and drop the `--usb-index` lines). Default: macOS + USB 0.\n"
                     '`cd "{project_root}"\n'
                     'source "{project_root}/.venv/bin/activate"\n'
                     "python3 -m edge.main \\\n"
@@ -334,16 +334,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     '  --onnx-model "{project_root}/models/model.onnx" \\\n'
                     '  --class-map "{project_root}/models/class_map.json" \\\n'
                     '  --calib "{project_root}/calibration.json" \\\n'
-                    "  --mjpeg-port {mjpeg_port}`"
-                ),
-                "record": "If you change camera, USB index, or MJPEG port, a short line in Notes helps later.",
-            },
-            {
-                "item": "Overlay shows stable track IDs during motion",
-                "verify": (
-                    "After the command in step 1 is running, **test it:** set the MJPEG field in the sidebar to the same --mjpeg-port you used (default 8001). "
-                    "Use the two buttons below to open the **live overlay** and **/health** in the browser. "
-                    "On the table, move objects: track IDs should not flicker at random."
+                    "  --mjpeg-port {mjpeg_port}`\n"
+                    "\n**2) Check the live stream and tracking** — With that process still running, set the **MJPEG** field in the sidebar to the same `--mjpeg-port` (default 8001). Use the two buttons to open the **live overlay** and **/health**. On the table, move objects: **track IDs should not flicker at random**."
                 ),
                 "verify_actions": [
                     {
@@ -355,13 +347,12 @@ SETUP_STEPS: list[dict[str, Any]] = [
                         "href_template": "http://127.0.0.1:{mjpeg_port}/health",
                     },
                 ],
-                "record": "If you change confidence, camera, or port, a short line in Notes helps later.",
+                "record": "If you change camera, USB index, MJPEG port, or confidence, a short line in Notes helps later.",
             },
         ],
         "links": [],
         "hints": [
-            "On this step and later, the sidebar polls GET /health on the MJPEG port you set (via this backend). It only tells you an edge process is listening; it does not start `edge.main` for you.",
-            "Checklist line 1 is the `edge.main` command. Checklist line 2 is the quality bar: stable track IDs while things move.",
+            "The sidebar polls GET /health on the MJPEG port you set; it only shows whether edge is listening, not that tracking quality is good.",
             "CUDA provider warnings on Mac are normal; CoreML/CPU is used.",
         ],
         "doc_refs": [{"label": "3 — Detection and tracking", "path": "docs/3 Detection and tracking.md"}],
@@ -372,22 +363,12 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "summary": "Ball **classes** (from `class_map` / ONNX) plus **file-backed** player/stick **profiles** in `identities.json` (TEST_PLAN §4). This is not face, login, or “who is in the room” user detection; see the checklist and docs/4.",
         "checklist": [
             {
-                "item": "GET /profiles returns real profile records",
-                "verify": (
-                    "The API on {api_port} must be up. If you are reading **this** page from that backend, it already is; do not start a second `run_backend` on {api_port}. If not, run:\n"
-                    '`cd "{project_root}" && ./scripts/run_backend.sh`'
-                    "\n\nLoad profiles: open **GET /profiles** below, or in a terminal run\n"
-                    '`curl -s "http://127.0.0.1:{api_port}/profiles" | python3 -m json.tool`'
-                    "\n\nYou should see JSON for **player** and **stick** entries: stable `id` strings, `display_name`, and other fields. Those ids tie **track-linked** entities to names stored in `identities.json`; there is no separate visual “user recognition” model in this step."
-                ),
-                "record": "Optionally copy one `player/…` or `stick/…` `id` you will rename in the next line.",
-            },
-            {
                 "item": "PATCH nickname, restart edge, same id and name",
                 "verify": (
+                    "Use **GET /profiles** (Quick link below, or `curl -s http://127.0.0.1:{api_port}/profiles | python3 -m json.tool`) to see **player** and **stick** entries with `id` and `display_name` (file-backed in `identities.json`; not face “user” recognition). Pick an `id` to rename.\n\n"
                     "1) Start edge with a writable `identities.json` (example USB; match your `--mjpeg-port` to the sidebar field):\n"
                     '`cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --identities identities.json --calib calibration.json --mjpeg-port {mjpeg_port}`'
-                    "\n\n2) `PATCH` a display name for an id you saw from GET /profiles, e.g.:\n"
+                    "\n\n2) `PATCH` a display name for a profile `id` from GET /profiles, e.g.:\n"
                     '`curl -s -X PATCH "http://127.0.0.1:{api_port}/profiles/player/PLAYER_PROFILE_ID" -H "Content-Type: application/json" -d \'{"display_name":"TestName"}\'`'
                     "\n(replace `PLAYER_PROFILE_ID` with a real id; `stick/…` path per docs/4 if you test a stick).\n\n"
                     "3) Stop that edge, start the **same** command again, then `GET /profiles` once more. The **same** profile id should still show **`display_name`: `TestName`**—that is persistence in the file, not a live re-identify pass."

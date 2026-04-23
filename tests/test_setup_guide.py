@@ -42,18 +42,21 @@ def test_setup_page_and_api():
     assert len(steps) >= 3
     assert any(s["id"] == "phase3" for s in steps)
     p4 = next(s for s in steps if s["id"] == "phase4")
-    assert p4["checklist"][0]["item"] == "GET /profiles returns real profile records"
+    assert len(p4["checklist"]) == 1
+    assert "PATCH" in (p4["checklist"][0].get("item") or "")
     assert "GET /profiles" in (p4["checklist"][0].get("verify") or "")
     p4links = p4.get("links") or []
     assert any(
         (isinstance(x, dict) and x.get("label") == "GET /profiles (JSON)") for x in p4links
     )
     p3 = next(s for s in steps if s["id"] == "phase3")
+    assert len(p3["checklist"]) == 1
     v0 = p3["checklist"][0].get("verify") or ""
     assert "edge.main" in v0 and "phase3" not in v0.lower()
-    assert p3["checklist"][1].get("verify_actions")
-    assert p3["checklist"][1]["verify_actions"][0]["label"] == "Open MJPEG overlay"
-    assert p3["checklist"][1]["verify_actions"][1]["label"] == "Open edge /health"
+    assert "track IDs" in v0
+    assert p3["checklist"][0].get("verify_actions")
+    assert p3["checklist"][0]["verify_actions"][0]["label"] == "Open MJPEG overlay"
+    assert p3["checklist"][0]["verify_actions"][1]["label"] == "Open edge /health"
     assert p3.get("links") == []
 
     r = client.get("/api/setup/doc", params={"path": "README.md"})
