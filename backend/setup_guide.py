@@ -281,7 +281,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "calibration",
         "title": "Calibration and coordinate mapping",
-        "summary": "Homography + pocket labels (TEST_PLAN §2). On macOS, `start_calibration.sh` defaults to USB; Jetson uses CSI. Use the GUI on a desktop session (or X11-forwarded Jetson).",
+        "summary": "Homography + six pocket points saved to calibration.json (TEST_PLAN §2). On macOS, start_calibration.sh defaults to USB; on Jetson, CSI. Use the interactive GUI (desktop or X11). Complete the checklists on this page only, then use Save / next step. You do not start the full detector+MJPEG table overlay in this step; the next step, Detection and tracking, does that with your model files and this calibration file.",
         "checklist": [
             {
                 "item": "calibration.json produced for this camera + table",
@@ -308,11 +308,6 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "launch": "start_calibration",
                 "note": "Runs scripts/start_calibration.sh (USB on macOS by default, CSI on Linux). Requires SETUP_ALLOW_LAUNCH=1 and localhost; allow Camera for your terminal app.",
             },
-            {
-                "label": "Preview live table overlay (MJPEG via edge)",
-                "href_template": "http://127.0.0.1:{mjpeg_port}/mjpeg",
-                "note": "Needs `models/model.onnx` + `models/class_map.json` and a running edge (see **Detection and tracking** for the `edge.main` one-liner with `--onnx-model`, `--class-map`, `--calib`). Set MJPEG port below to match (default 8001, docs/PORTS.md).",
-            },
         ],
         "hints": [
             "macOS: `start_calibration.sh` defaults to a USB camera and only requires venv + NumPy<2 + `import cv2` (pip opencv, no GStreamer). Jetson: CSI + GStreamer-backed OpenCV for production. Grant Camera to Terminal / iTerm / VS Code."
@@ -325,7 +320,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "phase3",
         "title": "Detection and tracking",
-        "summary": "Smoke-test detector + tracker (TEST_PLAN §3). Headless: view output in a browser via MJPEG (not an OpenCV window).",
+        "summary": "Start edge.main, open the table MJPEG overlay, and check /health (TEST_PLAN §3). You need models/model.onnx, models/class_map.json, and the calibration.json from the previous step. You do not need another doc to begin: the checklist below is the only instruction. Output is over HTTP in the browser, not an OpenCV window.",
         "checklist": [
             {
                 "item": "You start edge.main with the ONNX, class map, and calibration the repo expects (then optional phase3.sh)",
