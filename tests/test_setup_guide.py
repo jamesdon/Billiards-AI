@@ -62,20 +62,29 @@ def test_setup_page_and_api():
     assert len(steps) >= 3
     assert any(s["id"] == "phase3" for s in steps)
     p4 = next(s for s in steps if s["id"] == "phase4")
-    assert len(p4["checklist"]) == 1
-    assert "display" in (p4["checklist"][0].get("item") or "").lower()
-    p4v = p4["checklist"][0].get("verify") or ""
-    assert "GET /profiles" in p4v
-    assert "Score Keeper" in p4v
-    assert "curl" in p4v
-    assert "Phase 1" in p4v and "Phase 3" in p4v and "Phase 4" in p4v
-    assert "do not start a second" in p4v.lower() or "port 8000 already in use" in p4v.lower()
+    assert len(p4["checklist"]) == 6
+    p4items = " ".join((c.get("item") or "").lower() for c in p4["checklist"])
+    assert "identities" in p4items
+    assert "display_name" in p4items
+    p4verify = " ".join((c.get("verify") or "") for c in p4["checklist"])
+    assert "GET /profiles" in p4verify
+    assert "Score Keeper" in p4verify
+    assert "curl" in p4verify
+    assert "trk ball" in p4verify or "trk" in p4verify
+    assert (p4.get("summary") or "").find("api") != -1 or (p4.get("summary") or "").find("API") != -1
     assert (p4.get("doc_refs") or []) == []
-    va4 = p4["checklist"][0].get("verify_actions") or []
-    assert len(va4) == 4
-    assert va4[0].get("label") == "Open GET /profiles"
-    assert "href_template" in va4[0]
-    assert va4[-1].get("action") == "bootstrap_minimal_profiles"
+    # Bootstrap action lives on the "non-empty profiles" checklist line
+    boot = [c for c in p4["checklist"] if any(
+        a.get("action") == "bootstrap_minimal_profiles" for a in (c.get("verify_actions") or [])
+    )]
+    assert len(boot) == 1
+    mjpeg_btns = sum(
+        1
+        for c in p4["checklist"]
+        for a in (c.get("verify_actions") or [])
+        if (a.get("label") or "").find("MJPEG") != -1
+    )
+    assert mjpeg_btns >= 2
     p4links = p4.get("links") or []
     assert any(
         (isinstance(x, dict) and x.get("label") == "GET /profiles (JSON)") for x in p4links

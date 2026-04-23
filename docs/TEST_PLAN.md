@@ -114,7 +114,7 @@ Validate ball class inference and persistent player/stick identity.
 
 ### How to run this section (required workflow)
 
-**Primary:** the setup wizard at **`/setup`**, step **Classification and identity** — phases **1–5** (identities path → **edge** if needed → non-empty profiles → rename → persistence), live **profiles status**, and optional **bootstrap** when the identities file is empty (`POST /api/setup/bootstrap-minimal-profiles`). **Optional:** `docs/4 Classification and identity.md` mirrors the same numbering. Do not skip **phase 3** (non-empty profiles before renaming) or you will only see empty arrays or 404s on `PATCH` with placeholder ids.
+**Primary:** the setup wizard at **`/setup`**, step **Classification and identity** — **six** ordered checklist lines: shared **identities** path → **edge** (MJPEG + /health) → **ball track labels** on video → **non-empty profiles** (live **profiles status** or **bootstrap** / `POST /api/setup/bootstrap-minimal-profiles`) → **`display_name`** → **(recommended) persistence** after one restart. **Optional:** `docs/4 Classification and identity.md` mirrors the flow. **Do not** check off naming until **GET /profiles** has at least one real `id` or you will only see empty arrays or 404s on `PATCH` with placeholder ids.
 
 ### Test cases
 
@@ -126,7 +126,7 @@ Validate ball class inference and persistent player/stick identity.
 ### Gate
 
 - acceptable confusion matrix + stable profile IDs
-- **operational (profiles):** at least one `GET /profiles` row, `display_name` set and visible on repeat **GET** after optional backend/edge restart (per **docs/4** phase **E**)
+- **operational (profiles):** at least one `GET /profiles` row, `display_name` set and visible on repeat **GET** after optional backend/edge restart (per **docs/4** / wizard last checklist line)
 
 ## 5. Event and foul detection
 

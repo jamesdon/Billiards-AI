@@ -395,26 +395,28 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "id": "phase4",
         "title": "Classification and identity",
         "summary": (
-            "**Objective:** (1) **Ball classes** behave as expected in play. (2) **Player / cue-stick profiles** are rows in `identities.json` (stable `id` + `display_name` for the scoreboard). "
-            "These are **not** app logins or face recognition—edge creates rows when it sees people or cue sticks in frame. "
-            "**If you are reading this page, the API is already running** (otherwise `/setup` would not load). Do **not** start a second `run_backend.sh` on the same port—use the **sidebar traffic lights** and the note below. "
-            "Follow **phases 1–5** in the checklist. The **Live status** panel polls the same file as `GET /profiles`."
+            "**What you are proving (two different things):** "
+            "**(A) Ball type labels** — after detection, the pipeline assigns **cue / eight / solid / stripe** (and game-specific types) to **ball tracks**; you confirm that looks sane on the **MJPEG** overlay. "
+            "**(B) Player and cue-stick profiles** — `identities.json` holds **stable ids** and **display_name** for the scoreboard. Edge **creates** rows when it sees **person** / **player** and **cue_stick** / **stick** tracks (per `class_map.json`); the API and Score Keeper **read and edit** the same file. This is **not** login or face recognition. "
+            "**You are already using the API** (this page). Do **not** start a second `run_backend.sh` on the same port. "
+            "Work the checklist **in order**; the **Live profile status** box below is tied to the **profiles** half (B) and matches `GET /profiles`."
         ),
         "checklist": [
             {
-                "item": "Phases 1–5 below: identities path, edge up, at least one profile, display name set, (recommended) persistence check",
+                "item": "Edge and the API use the same `identities` file on disk",
                 "verify": (
-                    "**When this is actionable (API already up):** you only **start** things if something is **missing** or **red** in the sidebar. "
-                    "If the **API** traffic light is **green** and you opened this wizard, skip any instruction that says “start the backend.” "
-                    "If you see *port 8000 already in use* from `run_backend.sh`, that is **normal**—it means a server is already bound; do not start another copy.\n\n"
-                    "**Phase 1 — Point edge and the API at the same file (usually: nothing to do).** "
-                    "**Why you care:** Edge **writes** new player/cue rows to a JSON file. This API **reads** that file for `GET /profiles` and Score Keeper. If edge uses `/tmp/a.json` and the API reads `~/project/b.json`, you will see **empty** lists, names that **vanish**, or edits in the wrong place—two different files.\n\n"
-                    "**What to do:** On a normal dev setup, use **one** file: `{project_root}/identities.json`. Your **edge** command already passes `--identities` there (see phase 2 block). Your **API** uses that same path if you start it from the repo root with no extra env, or if `BILLIARDS_IDENTITIES_PATH` is unset (then it is `./identities.json` **relative to where uvicorn was started**). "
-                    "**Action only if you use a custom path:** set `export BILLIARDS_IDENTITIES_PATH=/full/path/to/identities.json` in the **same** shell (or service) you use to start the API, restart the API, and pass that **exact** string to `edge.main --identities`.\n\n"
-                    "**You’re done with phase 1 when:** the path shown in **Live status** (below) is the file you want both sides to use, and it matches the `--identities` you use for edge. If you didn’t change defaults, that’s a quick mental check, not a long task.\n\n"
-                    "**Phase 2 — `edge.main` running with that file (gate: sidebar **MJPEG** / edge lamp green, or `Open edge /health` returns ok).** "
-                    "You need edge for live camera–created profiles. **If you already finished Detection and tracking** with `--identities \"{project_root}/identities.json\"` and the stream still runs, **do not restart** edge only for this step. "
-                    "**If edge is not running** (MJPEG red / connection refused), start it once. Same flags as the previous step; on Jetson use `--camera csi` and drop USB lines:\n\n"
+                    "**Why:** Edge **writes** new player/stick profile rows. The API **reads** that file for `GET /profiles` and Score Keeper. If the paths differ, you get empty JSON, “lost” renames, or edits in the wrong file.\n\n"
+                    "**Default (most setups):** one file, `{project_root}/identities.json`. Pass that path to `edge.main --identities` (see next line). "
+                    "Start the API from the repo root with no extra env so it resolves the same `identities.json`, **or** set `BILLIARDS_IDENTITIES_PATH` to the **full path** in the shell that starts the API, restart once, and use that **identical** string in `--identities` for edge.\n\n"
+                    "**You are done** when the path at the start of **Live profile status** (below) is the file you intend, and it matches the `--identities` you will use for `edge.main`."
+                ),
+                "record": "If you use a non-default path, write the full path in Notes (API + edge).",
+            },
+            {
+                "item": "`edge.main` is running; MJPEG stream and /health both work",
+                "verify": (
+                    "You need a live `edge.main` to exercise ball labels and to **create** player/stick rows from the camera. **If** you left `edge.main` running from **Detection and tracking** with the same flags, do **not** restart it for this step.\n\n"
+                    "If the sidebar **MJPEG** / edge lamp is **red** (or the URL fails), start edge once. Match the **MJPEG** field in the sidebar to `--mjpeg-port`. On Jetson use `--camera csi` and omit `--usb-index` lines.\n\n"
                     "```bash\n"
                     'cd "{project_root}"\n'
                     'source "{project_root}/.venv/bin/activate"\n'
@@ -428,10 +430,43 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     "  --show-track-debug-overlay \\\n"
                     "  --mjpeg-port {mjpeg_port}\n"
                     "```\n\n"
-                    "Set the **MJPEG port** in the sidebar to match `--mjpeg-port` (default 8001).\n\n"
-                    "**Phase 3 — At least one profile row (gate: Live status green, or `GET /profiles` non-empty).** "
-                    "Use the panel or **Open GET /profiles**. If counts stay zero: keep people and/or a **cue stick** in view (not balls only). "
-                    "**If the file is still empty and you have no camera:** use **Bootstrap minimal profile** (one test row) or paste the JSON block below, then re-check.\n\n"
+                    "**You are done** when the **Open edge /health** response is **ok** and the **Open MJPEG** page shows the debug overlay (track boxes, top-right panel with ONNX/frame counts). "
+                    "A message that **port 8000 is in use** from `run_backend.sh` is normal—the API is already up."
+                ),
+                "verify_actions": [
+                    {
+                        "label": "Open MJPEG overlay",
+                        "href_template": "http://127.0.0.1:{mjpeg_port}/mjpeg",
+                    },
+                    {
+                        "label": "Open edge /health",
+                        "href_template": "http://127.0.0.1:{mjpeg_port}/health",
+                    },
+                ],
+                "record": "If you use a custom MJPEG or USB index, note it in Notes.",
+            },
+            {
+                "item": "Ball **tracks** show plausible type labels (cue / 8 / solid / stripe) on the video",
+                "verify": (
+                    "Open the **Open MJPEG** view (or the tab you already had from the previous line). **Find a ball track** (thicker box, label starts with `trk ball id …` when `--show-track-debug-overlay` is on). The short **suffix** after the track id is the **classifier** output (e.g. solid/stripe/cue), not the raw YOLO class name. "
+                    "In the top-right **Vision debug** panel, raw detector boxes are the thin “ball 0.87” style; **tracks** are the thicker ones.\n\n"
+                    "Move balls if needed so at least one ball is tracked. **You are done** when labels are **roughly** right for your table (occasional “unknown” under bad light is not a hard failure; systematic wrong types mean lighting, model, or `class_map` need work—see the previous steps).\n\n"
+                    "**This line is only about (A) ball types.** It does not require profiles."
+                ),
+                "verify_actions": [
+                    {
+                        "label": "Open MJPEG overlay",
+                        "href_template": "http://127.0.0.1:{mjpeg_port}/mjpeg",
+                    },
+                ],
+                "record": "If something is always UNKNOWN or wrong, note lighting and a sample label in Notes.",
+            },
+            {
+                "item": "At least one **player** or **stick** profile exists in `identities.json` (Live status = green) **or** you bootstrapped for API-only smoke",
+                "verify": (
+                    "**Prerequisite for naming:** `GET /profiles` must not be two empty lists. The **Live profile status** line turns **green** when `player_count + stick_count` is at least 1 (same data as the buttons below).\n\n"
+                    "**Get rows from the camera (normal):** with edge running, put **a person and/or a cue stick** in view (class names depend on your `class_map`, often `person` / `player` and `cue_stick` / `stick`). **Balls alone** do not create a player entry; wait 10–20 s, then refresh or open **Open GET /profiles**.\n\n"
+                    "**No camera?** use **Bootstrap minimal profile** to insert one test player, or save this JSON as the file the API is reading (path from Live status) and re-check `GET`:\n\n"
                     "```json\n"
                     "{\n"
                     '  "players": [\n'
@@ -440,17 +475,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     '  "sticks": []\n'
                     "}\n"
                     "```\n\n"
-                    "**Phase 4 — Set a display name (gate: new name in `GET /profiles`).** "
-                    "**Open Score Keeper** → **Player & stick names** → **Save** → **Refresh**. "
-                    "Optional curl: copy a real `id` from the JSON; never use the placeholder word `PLAYER_ID` in the path.\n\n"
-                    "```bash\n"
-                    "curl -s http://127.0.0.1:{api_port}/profiles\n"
-                    "curl -s -X PATCH \"http://127.0.0.1:{api_port}/profiles/player/REAL_ID_FROM_JSON\" -H \"Content-Type: application/json\" -d '{\"display_name\":\"TestName\"}'\n"
-                    "curl -s http://127.0.0.1:{api_port}/profiles\n"
-                    "```\n\n"
-                    "**Phase 5 — Persistence and done (recommended).** "
-                    "Restart **only** the backend or **only** `edge.main` once (same `--identities`). Confirm `GET /profiles` still shows the name. "
-                    "**Only if the wizard or `/health` fails** should you go back to **Environment and startup** / `run_backend.sh`—and then only a **single** API instance on the port you use (see `lsof` if you get “port in use”)."
+                    "**If counts stay at zero,** the usual cause is a **mismatched identities path** (first checklist line) or no person/stick in frame long enough to persist."
                 ),
                 "verify_actions": [
                     {
@@ -458,19 +483,49 @@ SETUP_STEPS: list[dict[str, Any]] = [
                         "href_template": "http://127.0.0.1:{api_port}/profiles",
                     },
                     {
-                        "label": "Open Score Keeper",
-                        "href_template": "http://127.0.0.1:{api_port}/scorekeeper",
-                    },
-                    {
-                        "label": "Open edge /health (MJPEG port)",
-                        "href_template": "http://127.0.0.1:{mjpeg_port}/health",
-                    },
-                    {
                         "label": "Bootstrap minimal profile (if empty)",
                         "action": "bootstrap_minimal_profiles",
                     },
                 ],
-                "record": "If the name did not round-trip, put the profile id and the last `GET /profiles` response in Notes.",
+                "record": "If you had to bootstrap, say so in Notes (camera unavailable vs other).",
+            },
+            {
+                "item": "A **display_name** is set for a real `id` and shows up in `GET /profiles`",
+                "verify": (
+                    "Open **Open Score Keeper** → **Player & stick names** → edit → **Save** → **Refresh list**, or use `curl` with an id copied from **Open GET /profiles** (not a placeholder like `PLAYER_ID`):\n\n"
+                    "```bash\n"
+                    "curl -s http://127.0.0.1:{api_port}/profiles\n"
+                    "curl -s -X PATCH \"http://127.0.0.1:{api_port}/profiles/player/REAL_ID_FROM_JSON\" -H \"Content-Type: application/json\" -d '{\"display_name\":\"TestName\"}'\n"
+                    "curl -s http://127.0.0.1:{api_port}/profiles\n"
+                    "```\n\n"
+                    "Use `/profiles/stick/…` for stick ids. **You are done** when the last `GET` shows your new name next to the same `id`."
+                ),
+                "verify_actions": [
+                    {
+                        "label": "Open Score Keeper",
+                        "href_template": "http://127.0.0.1:{api_port}/scorekeeper",
+                    },
+                    {
+                        "label": "Open GET /profiles",
+                        "href_template": "http://127.0.0.1:{api_port}/profiles",
+                    },
+                ],
+                "record": "If PATCH 404s, you likely used a placeholder id or wrong player/stick path—paste the id you used in Notes.",
+            },
+            {
+                "item": "(Recommended) The display name still appears after you restart **only** the API or **only** `edge.main` (same file path as before)",
+                "verify": (
+                    "Stop and start **one** process, not both at once if you can help it, using the same `--identities` / `BILLIARDS_IDENTITIES_PATH` as before. Open **Open GET /profiles** again. **You are done** when the edited `display_name` is still there.\n\n"
+                    "If the name disappears, you almost certainly pointed one process at a different file on the second start—go back to the first checklist line. "
+                    "Only if `/setup` itself fails to load should you re-check **Environment and startup** (single `uvicorn` on the API port; avoid two listeners)."
+                ),
+                "verify_actions": [
+                    {
+                        "label": "Open GET /profiles (after restart)",
+                        "href_template": "http://127.0.0.1:{api_port}/profiles",
+                    },
+                ],
+                "record": "If the name did not round-trip, put the id and the last `GET` body in Notes.",
             },
         ],
         "links": [
@@ -479,10 +534,9 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {"label": "Edge /health (MJPEG port in sidebar)", "href_template": "http://127.0.0.1:{mjpeg_port}/health"},
         ],
         "hints": [
-            "This page is served by the API; do not start a second backend on 8000 if the sidebar already shows the API as up (see Phase 1–2).",
-            "Replace --camera usb with csi on Jetson.",
-            "“Profiles” are table-entity labels in `identities.json`; not face or person-in-the-room “user” detection.",
-            "404 on PATCH with `PLAYER_ID` means you used a **placeholder** in the path—use a real `id` from `GET /profiles`.",
+            "Jetson: replace `--camera usb` / `--usb-index` with `--camera csi` (see Detection and tracking command).",
+            "404 on `PATCH` with a copied example id: you likely left the literal string `PLAYER_ID` or a typo—ids must come from the current `GET /profiles` JSON.",
+            "Empty `GET /profiles` with edge running: wrong identities path (API vs edge), or only balls in frame—need person/stick tracks to auto-create rows.",
         ],
         "doc_refs": [],
     },

@@ -1,137 +1,44 @@
 # 4. Classification and identity
 
-**Canonical first-time runbook:** the setup wizard at **`GET /setup`** → step **Classification and identity** (`setup_guide.py` `phase4`). It uses **phases 1–5** (no separate “start backend” step while you are already in the wizard), a live panel from `/api/setup/profiles-status`, and optional **Bootstrap minimal profile**. You can ignore this file if the wizard is enough.
+**Canonical runbook:** the setup guide at **`GET /setup`**, sidebar step **Classification and identity**. All checklist text, buttons, and the live **profile status** panel are defined in `backend/setup_guide.py` (`id: phase4`). This file is an optional **mirror** of that flow—if anything disagrees, the wizard wins.
 
-## Goal
+## What you are proving
 
-Validate ball classes and persistent **player/stick profile** records (stable ids and nicknames in `identities.json` via the backend). This is **not** face recognition, logins, or “user detection” in the security sense: profiles are file-backed labels tied to tracking, as produced when edge and the API run together.
+| Track | Meaning |
+| --- | --- |
+| **(A) Ball type labels** | The **fast classifier** (HSV heuristics on ball ROIs) updates each **ball track** with types such as cue / eight / solid / stripe. You confirm labels on the **MJPEG** overlay look sane with `--show-track-debug-overlay` (track lines start with `trk ball id …`). |
+| **(B) Player and stick profiles** | File-backed rows in `identities.json` (`id`, `display_name`, …). Edge **creates** them when it persists **person/player** and **cue_stick/stick** tracks; the API exposes **`GET /profiles`** and Score Keeper edits names. **Not** login, face ID, or “user detection” in a security sense. |
 
----
+Ball classification **(A)** and profile rows **(B)** are independent: you can have correct ball labels with zero profiles (balls only in frame), or profiles for bring-up with less focus on per-ball typing.
 
-## Workflow: start → success
+## Checklist order (six lines in the wizard)
 
-Follow these **phases in order**. Each **gate** tells you when you may continue. (Same table is spelled out in the setup wizard without requiring this file.)
+1. **Same `identities` file** — API and `edge.main --identities` must point at one on-disk file (`BILLIARDS_IDENTITIES_PATH` vs repo-root `./identities.json` if unset). The live status line at the top of the step shows the resolved path.
+2. **`edge.main` + MJPEG + /health** — Edge must be up (often already from **Detection and tracking**). Buttons open the stream and health URL.
+3. **Ball track labels** — On MJPEG, inspect ball **tracks** (thick boxes); suffix after the track id is the classifier. Raw thin boxes are detector-only.
+4. **Non-empty profiles** — Live status **green** or **Bootstrap** / hand-written JSON for API-only smoke. **Do not** try to `PATCH` names until at least one `id` exists in `GET /profiles`.
+5. **`display_name` set** — Score Keeper or `PATCH /profiles/player/{id}` or `/profiles/stick/{id}` with a **real** id from JSON (never the literal `PLAYER_ID` from examples).
+6. **(Recommended) Persistence** — Restart **only** the API or **only** edge once; `GET /profiles` should still show the name.
 
-| Phase | What you do | Gate (do not continue until) |
-| --- | --- | --- |
-| **1. Same file for API and edge** | Default: one `identities.json` in the repo; edge uses `--identities` to that path; API reads it (or set `BILLIARDS_IDENTITIES_PATH` to match). | **Live status** / mental check: not two different paths. |
-| **2. Edge running** | Start `edge.main` with that flag **only if** it is not already up (e.g. **§3**). Check MJPEG **edge /health** in the sidebar. | Edge answers; stream can run. |
-| **3. Non-empty profiles** | `GET /profiles`, live panel, camera in view, or **Bootstrap** / minimal JSON. | At least one `players` or `sticks` row. |
-| **4. Set a name** | Score Keeper or `PATCH` with a **real** id. | New `display_name` in `GET /profiles`. |
-| **5. Persistence (recommended)** | Restart API or edge once; same identities file. | Name still on disk. |
+## Quick links (defaults)
 
-**If you are reading `/setup` in a browser, the API is already running—do not start a second `run_backend.sh` on the same port.** Only use **Environment and startup** / `run_backend.sh` when nothing is listening or the sidebar API lamp is red. “Port already in use” from the script means a server is already there.
-
-### 1. Same identities file (why and what to do)
-
-**Why:** Edge **writes** profiles to disk; the API **reads** that file. Two different paths ⇒ empty `GET /profiles`, missing names, or “it saved but I don’t see it.”
-
-**Default:** one file `{project_root}/identities.json`—edge already passes `--identities` there; start the API from the repo root (or set `BILLIARDS_IDENTITIES_PATH` to that full path and restart the API). **Custom path:** set `BILLIARDS_IDENTITIES_PATH` before starting the API, then use the **identical** string for `edge.main --identities`.
-
-**You still need** §3-class bring-up (`model.onnx`, `class_map.json`, camera) for live rows from the table.
-
-### 2. Edge (not the API in the common case)
-
-If **Detection and tracking** already left `edge.main` running with `--identities`, keep it. Otherwise start `edge.main` with the same `--identities` path as phase 1 (see **§3** command block in the setup wizard). **Do not** re-run `run_backend.sh` just to read the wizard.
-
-### 3. Until `GET /profiles` is non-empty
-
-1. Run:
-
-   ```bash
-   curl -s "http://127.0.0.1:8000/profiles"
-   ```
-
-   Or open the setup guide **GET /profiles** quick link.
-
-2. **If** both arrays are empty:
-   - **Normal** if no person/stick tracks have been persisted yet. Keep **edge** running. Ensure the frame includes **people** and/or a **cue stick** (YOLO classes that map to player/stick — not balls alone). Wait and **GET** again.
-   - **Path mismatch:** confirm edge’s `--identities` and the API’s file are the same on disk (`ls -l` both paths if unsure).
-   - **No camera / API-only smoke test:** write a **minimal** `identities.json` (see [Minimal file (no camera)](#minimal-file-no-camera)) at the path the backend loads, then **GET** again.
-
-3. **Gate:** JSON contains at least one `"id"` under `players` or `sticks`.
-
-### 4. Set a display name
-
-**Preferred (UI):** open `http://127.0.0.1:8000/scorekeeper` → **Player & stick names** → type name → **Save** → **Refresh list** → confirm.
-
-**CLI:** copy a real `id` from the **GET** output. Do **not** use the string `PLAYER_ID` from examples.
-
-```bash
-curl -s -X PATCH "http://127.0.0.1:8000/profiles/player/REAL_ID_FROM_GET" \
-  -H "Content-Type: application/json" \
-  -d '{"display_name":"TestName"}'
-```
-
-**Gate:** `GET /profiles` shows `display_name: "TestName"` (or your string) for that `id`.
-
-### 5. Persistence check (recommended)
-
-1. Stop **only** the backend **or** **only** `edge.main`. Start it again with the **same** `--identities` / `BILLIARDS_IDENTITIES_PATH` as before.
-2. `GET /profiles` again.
-3. **Gate:** the `display_name` you set in **D** is still present.
-
-### Sign-off (this step is success)
-
-- [ ] `GET /profiles` lists at least one profile (`players` or `sticks`).
-- [ ] A `display_name` was set (Score Keeper or `PATCH`) and **GET** reflects it.
-- [ ] (Recommended) After **E**, names still match — confirms persistence to disk.
-
----
+- `GET /profiles` — same JSON as the live panel.
+- Score Keeper — **Player & stick names**.
+- `POST /api/setup/bootstrap-minimal-profiles` — one test row when the file is empty and you cannot use the camera (exposed as a button in the wizard).
 
 ## If something goes wrong
 
-| Symptom | Likely cause | What to do |
-| --- | --- | --- |
-| `GET /profiles` always `[]` / `[]` | No tracks yet, or file path split | Put people/cue in frame; align `--identities` and API path; see [C](#c-until-getprofiles-is-non-empty). |
-| `no player profile with id 'PLAYER_ID'` | Example curl used **literally** | Use a real `id` from `GET /profiles` in the URL. |
-| 404 for a copied id | Typo or wrong kind (player vs stick) | Use `/profiles/player/…` for ids under `players`, `/profiles/stick/…` for `sticks`. |
-| Name reverts after restart | Different identities file on second start | Fix path; use absolute paths in scripts. |
+| Symptom | Likely cause |
+| --- | --- |
+| Always empty `GET /profiles` with edge running | Mismatched identities path, or only balls in frame (no person/stick tracks to create rows). |
+| 404 on `PATCH` | Wrong id, typo, or `player` vs `stick` path. |
+| Name vanishes after restart | Second start used a different `identities` file or cwd. |
 
----
+## Deeper context (optional)
 
-## Reference: one long-running `edge.main`
+With the default `models/class_map.json`, YOLO emits generic **ball** detections; **cue / eight / colors** for balls often come from the **ball classifier** on tracks. **`person` / `player`** and **`cue_stick` / `stick`** detections feed **profile** creation in `edge/pipeline.py` and `edge/classify/player_stick_id.py`.
 
-If **§3** already started `edge.main` with `--identities` set to the file the API uses, **do not** restart edge only for this step. Add profiles by having people/sticks in frame, then use Score Keeper or `GET`/`PATCH`.
+## TEST_PLAN gate (§4)
 
----
-
-## Reference: `curl` examples (placeholders)
-
-These commands use **words like `PLAYER_ID` as documentation**, not real ids:
-
-```bash
-curl -s "http://127.0.0.1:8000/profiles"
-curl -s -X PATCH "http://127.0.0.1:8000/profiles/player/REAL_ID_FROM_curl_profiles" -H "Content-Type: application/json" -d '{"display_name":"Alex"}'
-curl -s -X PATCH "http://127.0.0.1:8000/profiles/stick/REAL_STICK_ID_FROM_curl_profiles" -H "Content-Type: application/json" -d '{"display_name":"Break Cue"}'
-```
-
----
-
-## Minimal file (no camera)
-
-If you need a non-empty `GET /profiles` without a live person/stick (rename API only), save this as the **exact** file path the backend loads (e.g. repo-root `identities.json` when uvicorn cwd is the repo), then `GET` / `PATCH` / `GET`:
-
-```json
-{
-  "players": [
-    { "id": "manual-smoke-1", "display_name": "Test", "color_signature": [] }
-  ],
-  "sticks": []
-}
-```
-
-`PATCH` example: `PATCH /profiles/player/manual-smoke-1` with `{"display_name":"Alex"}`.
-
----
-
-## Deeper context (optional read)
-
-### Why can `{"players":[],"sticks":[]}` be normal?
-
-Profiles are **not** pre-seeded. Edge creates them when the detector sees class labels that map to people or sticks. With the default `models/class_map.json`, that means **`person` / `player` tracks** and **`cue_stick` / `stick` tracks** (see `edge/pipeline.py` and `edge/classify/player_stick_id.py`). Ball-only frames do not create a player row.
-
-### Pass criteria (TEST_PLAN alignment)
-
-- Ball class behavior matches expectations in play.
-- Player/stick profile **ids** are stable enough for your table setup; **display names** persist in `identities.json` through API restarts (and edge restarts when using the same file).
+- Ball labels acceptable for your conditions; **and**
+- At least one profile row, `display_name` set, name survives optional restart per the last checklist line.
