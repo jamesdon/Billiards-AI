@@ -283,10 +283,10 @@ NumPy 1.x. Pin NumPy `<2` in the venv and rerun Phase 2.
 
 If Phase 2 fails with `OSError: [Errno 98] Address already in use` when binding the
 MJPEG HTTP server, another process (often a previous `edge.main`) is already using
-that port. `scripts/phase2.sh` leaves `MJPEG_PORT` unset by default and chooses the
-first free port in `18080–18255` on `127.0.0.1` for the valid-calibration smoke; the
-invalid-label check uses `MJPEG_PORT+1`. To force a specific port, run with
-`MJPEG_PORT=8080 bash scripts/phase2.sh` (or stop the process holding the port).
+that port. `scripts/phase2.sh` defaults to **`MJPEG_PORT=8080`**: the valid-calibration
+smoke uses that port, and the invalid-label check uses **`MJPEG_PORT+1`** (e.g. 8080 and
+8081). `MJPEG_PORT` must be **8000–9998** so both ports stay in **8000–9999**. If 8080 is
+taken, run with e.g. `MJPEG_PORT=8082 bash scripts/phase2.sh` or free the process on 8080.
 
 If Argus logs **`No cameras available`** (often from `gstnvarguscamerasrc`), the
 kernel/Argus stack does not see any CSI sensor. That is not an OpenCV bug: check

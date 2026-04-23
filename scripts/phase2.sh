@@ -50,30 +50,17 @@ phase2_build_cam_args() {
 
 phase2_build_cam_args
 
-# Avoid colliding with a long-running edge (or anything else) on 8080: pick a free
-# localhost port unless MJPEG_PORT is set explicitly (even to 8080).
-if [[ -z "${MJPEG_PORT:-}" ]]; then
-  MJPEG_PORT="$(
-    "$PYTHON_BIN" - <<'PY'
-import socket
-for p in range(18080, 18256):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        s.bind(("127.0.0.1", p))
-    except OSError:
-        continue
-    finally:
-        s.close()
-    print(p)
-    break
-else:
-    raise SystemExit("no free TCP port in 18080-18255 for phase2 MJPEG smoke")
-PY
-  )"
-  echo "[Phase2] Auto-selected MJPEG_PORT=${MJPEG_PORT} (export MJPEG_PORT=8080 to pin a port)." >&2
-else
-  echo "[Phase2] Using MJPEG_PORT=${MJPEG_PORT} from environment." >&2
+# Fixed, documented defaults (8000–9999). Valid + invalid calib smokes use port and port+1.
+MJPEG_PORT="${MJPEG_PORT:-8080}"
+if ! [[ "$MJPEG_PORT" =~ ^[0-9]+$ ]]; then
+  echo "[Phase2] MJPEG_PORT must be a non-negative integer (got: ${MJPEG_PORT})" >&2
+  exit 1
 fi
+if (( MJPEG_PORT < 8000 || MJPEG_PORT > 9998 )); then
+  echo "[Phase2] MJPEG_PORT must be 8000-9998 (uses ${MJPEG_PORT} and $((MJPEG_PORT + 1)) for the two smokes; both must be ≤9999)." >&2
+  exit 1
+fi
+echo "[Phase2] MJPEG ports: valid-calibration ${MJPEG_PORT}, invalid-label $((MJPEG_PORT + 1)) (set MJPEG_PORT to override; default 8080)" >&2
 
 # GNU coreutils timeout is not on all macOS installs; fall back to no timeout.
 run_with_timeout() {
@@ -140,7 +127,7 @@ phase2_hint_valid_log() {
   local log="$1"
   [[ -f "$log" ]] || return 0
   if grep -qE "Address already in use|Errno 98" "$log" 2>/dev/null; then
-    echo "[Phase2] Hint: MJPEG port is in use. Pin a free port: MJPEG_PORT=18081 bash scripts/phase2.sh" >&2
+    echo "[Phase2] Hint: MJPEG port is in use. Free it or set another in 8000-9998, e.g. MJPEG_PORT=8081 bash scripts/phase2.sh" >&2
   fi
   if grep -qE "No cameras available" "$log" 2>/dev/null; then
     echo "[Phase2] Hint: Argus reports no CSI sensors (ribbon, wrong CSI port, or unsupported module)." >&2

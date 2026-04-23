@@ -132,8 +132,8 @@ Billiards-AI/
     run_backend.sh                  FastAPI: `.venv/bin/python3 -m uvicorn backend.app:app` (avoids broken `uvicorn` shim if repo path changed after `venv` creation)
     run_phase.sh                    Entry point for phase scripts
     phase1.sh                       Environment + backend + CSI smoke checks
-    phase2.sh                       Headless calibration validation (no GUI); valid-calibration MJPEG smoke uses `PHASE2_CAMERA` (unset → **usb** on macOS/Darwin, **csi** on Linux/Jetson; or explicit `usb` / numeric V4L index) plus `CSI_*` / `PHASE2_USB_INDEX`; invalid-label `edge.main` uses the same camera args; picks a free localhost MJPEG port in 18080–18255 when `MJPEG_PORT` is unset
-    phase3.sh                       Detection/tracking verification sweep (n=1/2/3); when `MJPEG_PORT` is unset, picks a free localhost port in 18080–18255 (else uses env; same idea as `phase2.sh`) so 8080 is not required
+    phase2.sh                       Headless calibration validation (no GUI); default `MJPEG_PORT=8080` (8000–9998: uses port and port+1); `PHASE2_CAMERA` (unset → **usb** on macOS/Darwin, **csi** on Linux/Jetson; or explicit `usb` / numeric V4L index) plus `CSI_*` / `PHASE2_USB_INDEX`; invalid-label `edge.main` same camera args
+    phase3.sh                       Detection/tracking verification sweep (n=1/2/3); default `MJPEG_PORT=8080` (8000–9996: sweep uses port, port+2, port+3; all in 8000–9999)
     phase4.sh                       Identity/profile persistence checks
     phase5.sh                       Foul event injection sanity checks
     phase6.sh                       Rules test execution
