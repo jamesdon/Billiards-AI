@@ -209,7 +209,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         ],
         "links": [],
         "hints": [
-            "Wizard order vs doc phases (docs/TEST_PLAN.md): step 1 = Phase 1 (environment); step 2 = detector ONNX (prereq to Phase 3 smoke, not a gate phase in the plan); step 3 = Phase 2 (calibration); step 4 = Phase 3 (detection/tracking); step 5 = Phase 4 (identity); step 6 = optional training path; step 7 = Jetson runbook; step 8 = Phases 5–9. The first number in the nav is the wizard step, not the same digit as 'Phase N' in every row.",
+            "Naming: each step title is the same phrase as in docs/TEST_PLAN.md where that file has a matching Phase section (e.g. “Environment and startup” = Phase 1). Steps without a Phase line in the plan — “Detector model (ONNX)” and “Dataset and training (optional)” — are the ONNX artifact and the optional train/refresh path. Order in the sidebar is bring-up order, not Phase number order.",
             "Progress is kept in the repo file data/setup_wizard_progress.json and a browser copy (localStorage); both update when you save, auto-save, or leave the page.",
             "Status lights: red = not started, yellow = in progress, green = complete.",
         ],
@@ -217,8 +217,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "environment",
-        "title": "1. Environment & dependencies (Phase 1)",
-        "summary": "Create the venv and install Python dependencies. Same scope as TEST_PLAN Phase 1. On Jetson, follow Phase 1 docs for distro OpenCV + GStreamer.",
+        "title": "Environment and startup",
+        "summary": "Create the venv and install Python dependencies (TEST_PLAN Phase 1). On Jetson, follow docs/Phase 1 Environment and startup.md for distro OpenCV + GStreamer.",
         "checklist": [
             {
                 "item": "Virtual environment exists at .venv",
@@ -248,8 +248,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "model",
-        "title": "2. Detector model (ONNX)",
-        "summary": "Use ONNX at models/model.onnx and models/class_map.json. Not a separately numbered row in TEST_PLAN — it is the artifact Phase 3 smoke tests need. For training/refresh, see step 6.",
+        "title": "Detector model (ONNX)",
+        "summary": "Place `models/model.onnx` and `models/class_map.json` in the tree. No separate Phase in TEST_PLAN — this is the artifact required before “Detection and tracking”. For training or export, see “Dataset and training (optional)”.",
         "checklist": [
             {
                 "item": "models/model.onnx exists",
@@ -277,8 +277,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "calibration",
-        "title": "3. Calibration (table + camera) (Phase 2)",
-        "summary": "Homography + pocket labels: TEST_PLAN Phase 2. On macOS, the starter script uses a USB camera by default; Jetson uses CSI. Use the GUI on a desktop session (or X11-forwarded Jetson).",
+        "title": "Calibration and coordinate mapping",
+        "summary": "Homography + pocket labels (TEST_PLAN Phase 2). On macOS, `start_calibration.sh` defaults to USB; Jetson uses CSI. Use the GUI on a desktop session (or X11-forwarded Jetson).",
         "checklist": [
             {
                 "item": "calibration.json produced for this camera + table",
@@ -321,7 +321,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "phase3",
-        "title": "4. Detection & tracking (Phase 3)",
+        "title": "Detection and tracking",
         "summary": "Smoke-test detector + tracker (TEST_PLAN Phase 3). Headless: view output in a browser via MJPEG (not an OpenCV window).",
         "checklist": [
             {
@@ -362,7 +362,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "links": [],
         "hints": [
             "The sidebar line only polls GET /health on the MJPEG port you selected (via this backend). It tells you an edge process is listening; it does not run scripts/phase3.sh or know whether the last run passed.",
-            "Checklist line 1 is the Phase 3 smoke: run the phase3 script (full sweep) or at least start edge manually with your ONNX + calib. Checklist line 2 is the quality bar: stable track IDs while things move.",
+            "Checklist line 1 is the smoke run: `scripts/phase3.sh` (full sweep) or edge manually with ONNX + calib. Checklist line 2 is the quality bar: stable track IDs while things move.",
             "Re-running scripts/phase3.sh overwrites .phase3_n1.log, .phase3_n2.log, and .phase3_n3.log at the repo root each time.",
             "CUDA provider warnings on Mac are normal; CoreML/CPU is used.",
         ],
@@ -370,8 +370,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "phase4",
-        "title": "5. Identity & profiles (Phase 4)",
-        "summary": "Backend + edge with identities.json (TEST_PLAN Phase 4). Persistent player/stick profiles.",
+        "title": "Classification and identity",
+        "summary": "Backend + edge with `identities.json` (TEST_PLAN Phase 4). Persistent player/stick profiles and class-aware behavior as in docs/Phase 4 Classification and identity.md.",
         "checklist": [
             {
                 "item": "Backend responds on /health",
@@ -406,8 +406,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "dataset_training",
-        "title": "6. Dataset & training (optional)",
-        "summary": "Roboflow Universe → merge → train → export. Only when refreshing the detector; comes after the bring-up path (steps 1–5) in this wizard, not 'before' Phase 3 in time — you normally run Phase 3 with an existing model first.",
+        "title": "Dataset and training (optional)",
+        "summary": "Roboflow Universe → merge → train → export. Use when you need a new detector; typical flow is to complete “Detection and tracking” with an existing `model.onnx` first, then return here to refresh weights and re-run detection smoke.",
         "checklist": [
             {
                 "item": "ROBOFLOW_API_KEY available in the shell that downloads data",
@@ -438,8 +438,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "jetson_deploy",
-        "title": "7. Jetson deployment",
-        "summary": "Copy artifacts to the device, use CSI camera, optional Docker + TensorRT.",
+        "title": "Jetson deployment",
+        "summary": "On-device runbook: copy artifacts, CSI camera, optional Docker + TensorRT (`docs/DEPLOYMENT_JETSON.md`).",
         "checklist": [
             {
                 "item": "models/ and calibration copied to the Jetson tree",
@@ -462,8 +462,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "phases_advanced",
-        "title": "8. Events, rules, backend depth (Phases 5–9)",
-        "summary": "Deeper integration: fouls, rules, stats, persistence, acceptance testing.",
+        "title": "Phases 5–9: events, rules, stats, backend, acceptance",
+        "summary": "Maps to TEST_PLAN Phases 5 through 9: event/foul detection, rules, stats, backend persistence, end-to-end acceptance. Read that file and linked phase docs for gates.",
         "checklist": [
             {
                 "item": "Read TEST_PLAN gates for phases you need",

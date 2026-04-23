@@ -1,19 +1,23 @@
 # Test Plan
 
-## Setup wizard (`/setup`) vs phases here
+## Setup wizard (`/setup`) and this document
 
-The browser guide at `http://127.0.0.1:8000/setup` uses **numbered steps 1–8** in the left nav. Those numbers are **not** always the same as **Phase 1–9** in this file:
+The guided UI at `http://127.0.0.1:8000/setup` lists steps **in bring-up order**. **Step titles** are aligned with this file on purpose:
 
-| Wizard step (nav) | What it covers | `TEST_PLAN` / doc phase |
-| --- | --- | --- |
-| 1. Environment & dependencies | venv, `requirements.txt` | **Phase 1** |
-| 2. Detector model (ONNX) | `models/model.onnx`, `class_map.json` | Prereq to Phase 3 smoke (training/export: step 6, `MODEL_OPTIMIZATION.md`) |
-| 3. Calibration | homography, pockets | **Phase 2** |
-| 4. Detection & tracking | `phase3.sh` / edge + MJPEG | **Phase 3** |
-| 5. Identity & profiles | `/profiles`, `identities.json` | **Phase 4** |
-| 6. Dataset & training (optional) | Roboflow, train, export | Optional; not a pass/fail gate in the same sense as 1–5 |
-| 7. Jetson deployment | device copy, Docker, CSI | `DEPLOYMENT_JETSON.md` |
-| 8. Events, rules, … (Phases 5–9) | fouls, rules, stats, acceptance | **Phases 5–9** in this file |
+- Where this document has a **Phase N: …** heading, the matching guide step uses the **same title after the colon** (e.g. **Environment and startup** = Phase 1).
+- **Detector model (ONNX)** and **Dataset and training (optional)** are not Phases in this file; they name the model artifact and the optional train/refresh path (`MODEL_OPTIMIZATION.md`).
+
+| Guide step (exact title) | Role |
+| --- | --- |
+| Overview | How to use the guide |
+| **Environment and startup** | **Phase 1** — venv, `requirements.txt` |
+| **Detector model (ONNX)** | Prerequisite to Phase 3 smoke; `models/`, `class_map.json` |
+| **Calibration and coordinate mapping** | **Phase 2** — homography, pockets |
+| **Detection and tracking** | **Phase 3** — `phase3.sh`, edge, MJPEG |
+| **Classification and identity** | **Phase 4** — `/profiles`, `identities.json` |
+| **Dataset and training (optional)** | Roboflow, train, export (when refreshing weights) |
+| **Jetson deployment** | On-device / Docker; `DEPLOYMENT_JETSON.md` |
+| **Phases 5–9: events, rules, stats, backend, acceptance** | **Phases 5–9** below (one step points at all) |
 
 This plan is organized by major delivery phases. Each phase has:
 
