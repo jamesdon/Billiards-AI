@@ -234,6 +234,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "hints": [
             "Progress is kept in the repo file data/setup_wizard_progress.json and a browser copy (localStorage); both update when you save, auto-save, or leave the page.",
             "Status lights: red = not started, yellow = in progress, green = complete.",
+            "Jetson / Linux **aarch64**: the next step (**Environment**) is **not** the same as a generic `python3 -m venv && pip install` laptop recipe—open **`docs/1 Environment and startup.md` §1a** for distro OpenCV + GStreamer (CSI).",
         ],
         "doc_refs": [{"label": "README", "path": "README.md"}, {"label": "Architecture", "path": "docs/ARCHITECTURE.md"}],
     },
@@ -277,7 +278,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     'cd "{project_root}" && .venv/bin/python3 -m pip install -r requirements-train.txt\n'
                     "```\n\n"
                     "On **Linux ARM64 + CSI**, use a **separate** clone/venv for training, or expect to repair OpenCV per "
-                    "**`README.md`** (Jetson repair block) and **`docs/1`** §1a."
+                    "**`README.md`** (Jetson repair block) and **`docs/1`** §1a.\n\n"
+                    "**If you already installed `requirements-train.txt` on the Jetson CSI venv** and `import cv2` works but "
+                    "CSI fails, you likely have pip OpenCV (**`GStreamer: NO`**). Prefer the repair flow in **`README.md`** "
+                    "before checking off CSI-related later steps."
                 ),
                 "record": "If pip or the import check failed, paste the last error lines in Notes. If a package upgrade was unexpected, name it in Notes.",
             },
@@ -291,25 +295,29 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "model",
         "title": "Detector model (ONNX)",
-        "summary": "Place `models/model.onnx` and `models/class_map.json` in the tree. No separate numbered section in TEST_PLAN — this is the artifact required before the **edge vision** step (detection, tracking, classification, profiles). For training or export, see “Dataset and training (optional)”.",
+        "summary": "Ensure `models/model.onnx` and `models/class_map.json` exist. **Most devices:** `git pull` after someone pushed the ONNX from a trainer machine—**no local Ultralytics runs required** on the Jetson. Training/export is optional; see “Dataset and training (optional)”.",
         "checklist": [
             {
                 "item": "models/model.onnx exists",
                 "verify": (
-                    "**If `models/model.onnx` is missing**, you either **train + export** on this clone or **copy** an ONNX "
-                    "that matches **`models/class_map.json`** (normal deploy: copy team file; see **`docs/MODEL_OPTIMIZATION.md`**).\n\n"
-                    "**Path A — already trained here** (`runs/detect/*/weights/best.pt` exists): from the repository root run:\n\n"
+                    "**Start here on a fresh clone (typical Jetson edge box):** the team checks **`models/model.onnx`** into "
+                    "**`main`**. Pull it—**do not** run `jetson_yolo_export_latest.sh` until `runs/detect/*/weights/best.pt` "
+                    "exists **on this machine**, or the script will correctly say “no runs”.\n\n"
+                    "```bash\n"
+                    'cd "{project_root}" && git pull origin main\n'
+                    "ls -lh models/model.onnx models/class_map.json\n"
+                    "```\n\n"
+                    "**Path A — train/export on this clone** (`runs/detect/*/weights/best.pt` exists after training):\n\n"
                     "```bash\n"
                     'cd "{project_root}" && bash scripts/jetson_yolo_export_latest.sh\n'
                     "bash scripts/publish_trained_model.sh\n"
                     "# optional: GIT_PUSH=1 bash scripts/publish_trained_model.sh\n"
                     "```\n\n"
-                    "**Path B — no training runs yet:** install dataset images under `data/datasets/billiards/images/train/` "
-                    "(and val), then `bash scripts/jetson_yolo_train.sh`, then run **`jetson_yolo_export_latest.sh`** again. "
-                    "Capture/label hints: **`docs/MODEL_OPTIMIZATION.md`**, **`scripts/jetson_capture_training_frames.sh`**.\n\n"
-                    "**Path C — ONNX produced elsewhere:** Prefer merging via **git** (train machine runs **`publish_trained_model.sh`** "
-                    "and pushes). If you must hand-copy once, place the file at **`models/model.onnx`** and run "
-                    "**`bash scripts/publish_trained_model.sh`** so the binary is tracked like any other artifact.\n\n"
+                    "**Path B — no runs and no ONNX after `git pull`:** train here (dataset under `data/datasets/.../images/train` "
+                    "and val) with **`bash scripts/jetson_yolo_train.sh`**, then Path A, or obtain `model.onnx` from a teammate "
+                    "and place it under **`models/`** (see **`docs/MODEL_OPTIMIZATION.md`**).\n\n"
+                    "**Path C — hand-copy once (offline):** copy the file to **`models/model.onnx`** (must match "
+                    "`models/class_map.json`).\n\n"
                     "Confirm on disk (typical size a few to tens of MB):\n\n"
                     "```bash\n"
                     "ls -lh models/model.onnx\n"
@@ -324,7 +332,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
         ],
         "links": [],
-        "hints": ["Default letterbox is 640×640; ONNX input shape must match (see detector code)."],
+        "hints": [
+            "Default letterbox is 640×640; ONNX input shape must match (see detector code).",
+            "Edge device with no `runs/detect/.../best.pt`: **`git pull`** for `models/model.onnx` before trying export scripts.",
+        ],
         "doc_refs": [{"label": "MODEL_OPTIMIZATION", "path": "docs/MODEL_OPTIMIZATION.md"}],
     },
     {
