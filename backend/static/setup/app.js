@@ -44,7 +44,7 @@
   const DEFAULT_SIDEBAR_PX = 300;
   const MAIN_MIN_PX = 280;
   /** Must match inline <head> script in index.html (root px drives all rem). */
-  const TEXT_ROOT_PX = { small: "17px", medium: "22.5px", large: "28px" };
+  const TEXT_ROOT_PX = { small: "16px", medium: "22px", large: "28px" };
 
   function applyTextSize(size) {
     if (size !== "small" && size !== "medium" && size !== "large") size = "medium";

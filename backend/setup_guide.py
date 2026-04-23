@@ -63,10 +63,9 @@ def _api_port_from_request(request: Request) -> int:
         return DEFAULT_API_PORT
 
 # Must match `TEXT_ROOT_PX` in `static/setup/index.html` and `app.js` (html root / rem base).
-# small = former medium; medium = midpoint(small, large); large unchanged.
 _TEXT_SIZE_TO_PX: dict[str, str] = {
-    "small": "17px",
-    "medium": "22.5px",
+    "small": "16px",
+    "medium": "22px",
     "large": "28px",
 }
 
