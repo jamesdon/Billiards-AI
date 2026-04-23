@@ -4,7 +4,7 @@
 
 Verify ONNX detection and multi-track stability.
 
-**Where to run the live pipeline:** the setup wizard’s **Detection and tracking** step lists the same `edge.main` one-liner the UI uses (relative paths from the repo root). From this step onward, the sidebar can show a short **edge** line (up / not listening on the MJPEG port you set). You do **not** start `edge.main` in **§1** or before `calibration.json` exists — you need model + class map + calibration first, otherwise startup errors are expected.
+**Order:** start **`edge.main`** (§3) with model + class map + calibration, **then** confirm MJPEG and `/health` in the browser. **Optionally** run **`scripts/phase3.sh`** (§4) for a full sweep. From **Detection and tracking** onward, the setup sidebar can show a short **edge** line. You do **not** start `edge.main` in **§1** or before `calibration.json` exists.
 
 **Prerequisite note:** This section assumes `models/model.onnx` and `models/class_map.json` are already on the device. **Training that model is a separate, optional step** (see `docs/MODEL_OPTIMIZATION.md`); day-to-day new installs typically **reuse the same exported model** and only run calibration plus this detection/tracking smoke.
 
@@ -67,7 +67,27 @@ cp "/ABSOLUTE/PATH/TO/best.onnx" "/home/$USER/Billiards-AI/models/model.onnx"
 /usr/bin/ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
 ```
 
-## 3) Run the verification script (`scripts/phase3.sh`) (recommended)
+## 3) Start `edge.main` manually (do this first; then test MJPEG/health)
+
+From the **repository root**, venv active, default: **macOS** + **USB** index 0. Adjust paths if your clone or files live elsewhere. **Jetson (CSI):** use `--camera csi` and omit `--usb-index` (see §5 for a longer CSI example).
+
+```bash
+cd "/Users/jdonn/AppDev/Billiards-AI"
+source "/Users/jdonn/AppDev/Billiards-AI/.venv/bin/activate"
+python3 -m edge.main \
+  --camera usb \
+  --usb-index 0 \
+  --onnx-model "/Users/jdonn/AppDev/Billiards-AI/models/model.onnx" \
+  --class-map "/Users/jdonn/AppDev/Billiards-AI/models/class_map.json" \
+  --calib "/Users/jdonn/AppDev/Billiards-AI/calibration.json" \
+  --mjpeg-port 8001
+```
+
+**Then test (after models load; first response can take 30–90+ s):** in a browser, open `http://127.0.0.1:8001/mjpeg` and `http://127.0.0.1:8001/health` (or the port you passed to `--mjpeg-port`). The setup guide **Detection and tracking** step uses the same order: run this command, **then** use its overlay / health buttons (MJPEG field must match the port you chose).
+
+`edge.main` does **not** open a desktop window; video is over HTTP. Grant **Camera** to your terminal on macOS if prompted.
+
+## 4) Run the verification script (`scripts/phase3.sh`) (full sweep, recommended after §3)
 
 This script performs:
 
@@ -106,7 +126,7 @@ EDGE_TIMEOUT_SECONDS=1200 \
 
 **macOS (Apple Silicon):** `scripts/phase3.sh` defaults to **`PHASE3_CAMERA=usb`** (there is no Jetson CSI). Grant **Camera** permission to the app that runs the shell (Terminal, iTerm, or Cursor) under **System Settings → Privacy & Security → Camera**. If the wrong webcam is selected, try **`PHASE3_USB_INDEX=1`**. An ONNXRuntime message that **CUDAExecutionProvider** is unavailable is normal; CoreML or CPU is used instead. The phase script uses **`timeout`** when available; stock macOS has no `/usr/bin/timeout`, so the helper falls back to **`gtimeout`** (Homebrew `coreutils`) or runs **without** a wall-clock cap—either is fine for local smoke tests. Scripts call **`sleep`** from your `PATH` (not `/usr/bin/sleep`), which avoids hosts where that path is missing.
 
-## 4) Optional manual single-run command
+## 5) Optional manual single-run command (Jetson / CSI)
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -132,5 +152,6 @@ On macOS for a manual run, use `--camera usb` (and `--usb-index` if needed) inst
 
 - no detector/tracker crashes
 - IDs remain stable for moving balls/players/sticks in normal play
-- sweep logs exist for `n=1,2,3` and each run reaches MJPEG endpoint
+- manual `edge.main` (§3) serves MJPEG and `/health` on the chosen port
+- optional: `scripts/phase3.sh` (§4) — sweep logs exist for `n=1,2,3` and each run reaches MJPEG endpoint
 

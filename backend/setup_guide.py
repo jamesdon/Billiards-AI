@@ -324,26 +324,32 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "summary": "Smoke-test detector + tracker (TEST_PLAN §3). Headless: view output in a browser via MJPEG (not an OpenCV window).",
         "checklist": [
             {
-                "item": "Automated `scripts/phase3.sh` run completes or manual edge run works",
+                "item": "You start `edge.main` with the ONNX, class map, and calibration the repo expects (then optional `phase3.sh`)",
                 "verify": (
-                    "1) Automated (macOS USB defaults; on Jetson set `PHASE3_USB_INDEX` if the script needs it). From the repo root:\n"
+                    "**1) In a new terminal, run the edge process** (edit paths only if you keep files outside the clone). "
+                    "Default: macOS + USB index `0` from the repo root; **Jetson:** use `--camera csi` and drop `--usb-index`.\n"
+                    '`cd "{project_root}"\n'
+                    'source "{project_root}/.venv/bin/activate"\n'
+                    "python3 -m edge.main \\\n"
+                    "  --camera usb \\\n"
+                    "  --usb-index 0 \\\n"
+                    '  --onnx-model "{project_root}/models/model.onnx" \\\n'
+                    '  --class-map "{project_root}/models/class_map.json" \\\n'
+                    '  --calib "{project_root}/calibration.json" \\\n'
+                    "  --mjpeg-port {mjpeg_port}`\n"
+                    "**2) Optional —** full detector sweep: "
                     '`cd "{project_root}" && source .venv/bin/activate && bash scripts/phase3.sh`'
-                    "\nExpect a PASS line, or at least no Python traceback on the run you care about. "
-                    "If startup looks hung after a Starting line, wait for ONNX and the camera, or in another terminal follow the n2 log. The `tail` line below includes a Copy button:\n"
-                    '`tail -f "{project_root}/.phase3_n2.log"`'
-                    "\n\n2) Or run edge + MJPEG by hand (use `--camera csi` on Jetson instead of `usb` when appropriate; `--mjpeg-port` must match the sidebar and buttons on this page):\n"
-                    '`cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --calib calibration.json --mjpeg-port {mjpeg_port}`'
+                    " (macOS USB defaults; Jetson: set `PHASE3_USB_INDEX` if needed). If startup looks hung, wait for ONNX + camera, or tail "
+                    '`tail -f "{project_root}/.phase3_n2.log"`.'
                 ),
                 "record": "If you had to set `PHASE3_USB_INDEX` or `detect_every_n`, note values in Notes.",
             },
             {
                 "item": "Overlay shows stable track IDs during motion",
                 "verify": (
-                    "Set the MJPEG port in the left sidebar to the same value your running edge process uses for its MJPEG port "
-                    "(the --mjpeg-port flag). "
-                    "Use the two buttons in this same checklist item (no separate Quick links section for this) to open the live "
-                    "video and the JSON /health check. With the camera on the table, move objects: track IDs "
-                    "should not flicker at random."
+                    "After the command in step 1 is running, **test it:** set the MJPEG field in the sidebar to the same `--mjpeg-port` you used (default 8001). "
+                    "Use the two buttons below to open the **live overlay** and **`/health`**. "
+                    "On the table, move objects: track IDs should not flicker at random."
                 ),
                 "verify_actions": [
                     {
@@ -360,8 +366,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
         ],
         "links": [],
         "hints": [
-            "On this step and later, the sidebar polls GET /health on the MJPEG port you set (via this backend). It only tells you an edge process is listening; it does not run scripts/phase3.sh or know whether the last run passed.",
-            "Checklist line 1 is the smoke run: `scripts/phase3.sh` (full sweep) or edge manually with ONNX + calib. Checklist line 2 is the quality bar: stable track IDs while things move.",
+            "On this step and later, the sidebar polls GET /health on the MJPEG port you set (via this backend). It only tells you an edge process is listening; it does not run `edge.main` or `scripts/phase3.sh` for you.",
+            "Checklist line 1 is the `edge.main` command (then optional `phase3.sh`). Checklist line 2 is the quality bar: stable track IDs while things move.",
             "Re-running scripts/phase3.sh overwrites .phase3_n1.log, .phase3_n2.log, and .phase3_n3.log at the repo root each time.",
             "CUDA provider warnings on Mac are normal; CoreML/CPU is used.",
         ],
