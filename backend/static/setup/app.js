@@ -249,11 +249,9 @@
           document.createTextNode(
             "Port " +
               port +
-              ": no edge (MJPEG) on that port. This guide is served by the API on port " +
+              ": no edge (MJPEG) listener. The setup guide is already served on port " +
               apiP +
-              " — if this page loaded, that server is already running; do not start a second run_backend on port " +
-              apiP +
-              ". Start edge in a separate shell (see example), or change the MJPEG number here to match edge’s --mjpeg-port."
+              " — you do not need to start the API again. In another shell, start edge (see example) or set this MJPEG field to match a running edge (same as --mjpeg-port)."
           )
         );
         mjpegStatusEl.appendChild(document.createElement("br"));
@@ -438,6 +436,7 @@
     /* File / label fragments, not shell (avoid Copy next to inline filenames) */
     "model.onnx",
     "start_calibration.sh",
+    "run_backend",
     "run_backend.sh",
     "scripts/run_backend.sh",
     "uvicorn",

@@ -130,7 +130,7 @@ Billiards-AI/
 
   scripts/
     common.sh                       Shared env/bootstrap helpers (venv + PYTHONNOUSERSITE)
-    run_backend.sh                  FastAPI: `.venv/bin/python3 -m uvicorn backend.app:app` (avoids broken `uvicorn` shim if repo path changed after `venv` creation)
+    run_backend.sh                  FastAPI: `.venv/bin/python3 -m uvicorn backend.app:app` (avoids broken `uvicorn` shim if repo path changed after `venv` creation); pre-checks the listen port; exits with a short hint if the port is already in use (e.g. setup guide already up)
     run_phase.sh                    Entry point for phase scripts
     phase1.sh                       Environment + backend + CSI smoke checks
     phase2.sh                       Headless calibration validation (no GUI); fixed MJPEG **8002** / **8003** (`PHASE2_PORT_VALID` / `PHASE2_PORT_INVALID`); `PHASE2_CAMERA` (unset → **usb** on macOS/Darwin, **csi** on Linux/Jetson; or explicit `usb` / numeric V4L index) plus `CSI_*` / `PHASE2_USB_INDEX`
