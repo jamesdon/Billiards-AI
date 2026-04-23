@@ -356,6 +356,7 @@ body.is-resizing-sidebar * {
 main {
   width: 100%;
   max-width: 57.5rem; /* 920px */
+  min-width: 0;
   min-height: 0;
   align-self: stretch;
   box-sizing: border-box;
@@ -438,6 +439,12 @@ section h3 {
   display: flex;
   gap: 0.65rem;
   align-items: flex-start;
+}
+
+/* Let the text column shrink so fenced commands wrap instead of clipping (flex default min-width: auto). */
+.checklist-block .row-top > div:last-child {
+  min-width: 0;
+  flex: 1 1 0;
 }
 
 .checklist-block .row-top input[type="checkbox"] {
@@ -569,6 +576,7 @@ button.btn-primary {
 
 .setup-fence-wrap {
   max-width: 100%;
+  min-width: 0;
   margin: 0.5rem 0 0.65rem;
 }
 
@@ -584,15 +592,19 @@ pre.setup-fence {
   border: 1px solid var(--border);
   overflow-x: auto;
   max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   font-size: 0.82rem;
   line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 pre.setup-fence code {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  white-space: pre;
-  word-break: normal;
+  white-space: inherit;
+  word-break: inherit;
   display: block;
 }
 
