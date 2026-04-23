@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field, replace
 from typing import List, Optional, Tuple
 
@@ -10,6 +11,38 @@ from core.types import BallObservation
 
 from .detector_base import DetectorConfig
 from .postprocess import yolo_like_to_observations
+
+
+def _onnx_provider_preference_order() -> list[str]:
+    """Prefer platform-appropriate EPs so we do not request unavailable providers (avoids ORT warnings)."""
+    if sys.platform == "darwin":
+        return ["CoreMLExecutionProvider", "CPUExecutionProvider"]
+    if sys.platform == "win32":
+        return [
+            "TensorrtExecutionProvider",
+            "CUDAExecutionProvider",
+            "DmlExecutionProvider",
+            "CPUExecutionProvider",
+        ]
+    return [
+        "TensorrtExecutionProvider",
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider",
+    ]
+
+
+def _onnx_providers_for_session() -> list[str]:
+    import onnxruntime as ort
+
+    avail = set(ort.get_available_providers())
+    chosen = [p for p in _onnx_provider_preference_order() if p in avail]
+    if chosen:
+        return chosen
+    if "CPUExecutionProvider" in avail:
+        return ["CPUExecutionProvider"]
+    if avail:
+        return [next(iter(avail))]
+    return ["CPUExecutionProvider"]
 
 
 @dataclass
@@ -23,7 +56,7 @@ class OnnxRuntimeDetector:
     def __post_init__(self) -> None:
         import onnxruntime as ort
 
-        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        providers = _onnx_providers_for_session()
         self.sess = ort.InferenceSession(self.model_path, providers=providers)
         if self.input_name is None:
             self.input_name = self.sess.get_inputs()[0].name

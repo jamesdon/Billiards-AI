@@ -66,7 +66,7 @@ Billiards-AI/
     vision/
       __init__.py
       detector_base.py              Detector interface
-      detector_onnxruntime.py        ONNXRuntime detector (portable baseline; Jetson GPU EP when installed)
+      detector_onnxruntime.py        ONNXRuntime detector (picks from `get_available_providers()` in platform order: macOS CoreML→CPU, Linux TensorRT→CUDA→CPU, Windows adds DirectML; avoids requesting missing EPs and silences spurious warnings)
       detector_tensorrt.py           TensorRT detector (optional)
       postprocess.py                NMS + class mapping
     tracking/
