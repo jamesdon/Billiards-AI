@@ -61,12 +61,29 @@ a {
   overflow: hidden;
 }
 
-.sidebar h1 {
-  font-size: 0.95rem;
-  font-weight: 600;
+/* Top row: Setup guide + Score Keeper (planned). */
+.sidebar-app-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
   margin: 0 0.85rem 0.5rem;
   line-height: 1.3;
   flex-shrink: 0;
+}
+
+.sidebar .sidebar-title-main {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.sidebar .sidebar-title-aux {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.01em;
 }
 
 .api-backend-line {
