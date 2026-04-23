@@ -101,7 +101,7 @@ Billiards-AI/
     overlay/
       __init__.py
       draw.py                       Render IDs, trails, scoreboard; camera projector-layer preview + optional top-right **projector inset** when `H_projector` is set (mirrors break box/string, hints, trajectory)
-      stream_mjpeg.py               MJPEG stream server (GET /health, /mjpeg; threaded server so /mjpeg cannot block /health; SO_REUSEADDR)
+      stream_mjpeg.py               MJPEG stream server (GET /health, /mjpeg; threaded server so /mjpeg cannot block /health; SO_REUSEADDR; friendly RuntimeError if port in use)
       stream_webrtc.py              WebRTC streamer (optional)
       stream_rtsp.py                RTSP publisher (optional)
     voice/
@@ -117,7 +117,7 @@ Billiards-AI/
     __init__.py
     app.py                          FastAPI app (`/event`, `/state`, `/live/state`, WebSocket hub); `/` → `/setup`; mounts `static/`
     setup_guide.py                  Guided setup: `GET /api/setup/steps`, `GET/PUT /api/setup/progress`, `GET /api/setup/edge-health?port=` (server probes `http://127.0.0.1:{port}/health` for `edge.main` MJPEG, since the browser cannot read that origin from `:8000` without CORS), `GET /api/setup/doc?path=&textSize=` (Markdown→HTML; `textSize` read case-insensitively from query; first-paint size from query, then `setup_text_size` cookie, then `medium`; all viewer `href` values entity-encode `&` as `&amp;` so Safari does not truncate URLs; root font from `html[data-text-size]` + `!important`; `Set-Cookie` on each doc view), optional `POST /api/setup/launch` when `SETUP_ALLOW_LAUNCH=1`
-    static/setup/                   Setup wizard UI (`index.html`, `app.js`, `style.css`); `setup_text_size` cookie + `localStorage` `billiards-setup-text-size`; sidebar MJPEG port + live edge-health line; doc links add `&textSize=`; checklist “How to verify” holds backticked shell with **Copy**; no separate Command blocks; progress in `localStorage` and `data/setup_wizard_progress.json`; resizable sidebar; `pagehide`/`beforeunload` keepalive save
+    static/setup/                   Setup wizard UI (`index.html`, `app.js`, `style.css`); `setup_text_size` cookie + `localStorage` `billiards-setup-text-size`; sidebar MJPEG port + live edge-health line; doc links add `&textSize=`; checklist “How to verify” backticks get **Copy** only for likely full shell lines (skips env-var names, `--flag` fragments, etc.); no separate Command blocks; progress in `localStorage` and `data/setup_wizard_progress.json`; resizable sidebar; `pagehide`/`beforeunload` keepalive save
     reducer.py                      LiveGameReducer: merges snapshots + shot/pocket/collision/rail/foul events for `GET /live/state`
     ws.py                           WebSocket broadcast of live state/events
     store.py                        SQLite storage

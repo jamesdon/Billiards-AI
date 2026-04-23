@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import errno
+import sys
 import threading
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -64,6 +66,14 @@ class _Handler(BaseHTTPRequestHandler):
         return
 
 
+def _port_bind_failed_in_use(err: OSError) -> bool:
+    if err.errno == errno.EADDRINUSE:
+        return True
+    if sys.platform == "win32" and err.errno in (10048,):  # WSAEADDRINUSE
+        return True
+    return "address already in use" in str(err).lower()
+
+
 @dataclass
 class MjpegServer:
     host: str = "0.0.0.0"
@@ -78,7 +88,16 @@ class MjpegServer:
 
     def start(self) -> None:
         self._stop.clear()
-        httpd = _ThreadingReuseHTTPServer((self.host, self.port), _Handler)
+        try:
+            httpd = _ThreadingReuseHTTPServer((self.host, self.port), _Handler)
+        except OSError as e:
+            if _port_bind_failed_in_use(e):
+                raise RuntimeError(
+                    f"MJPEG port {self.port} is already in use. Stop the other process (e.g. a previous "
+                    f"`edge.main` or a browser tab still holding the stream) or use `--mjpeg-port` with a "
+                    f"free port (e.g. 8081)."
+                ) from e
+            raise
         httpd.mjpeg_server = self  # type: ignore[attr-defined]
         self._httpd = httpd
         t = threading.Thread(target=httpd.serve_forever, daemon=True)

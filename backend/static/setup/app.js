@@ -390,6 +390,12 @@
     if (NO_COPY_BACKTICKS.has(t)) return false;
     /* Notes / label lines (e.g. "0..4 ball..pockets"), not shell */
     if (/\d+\.\.\d+.*\.\./.test(t) && /ball|pocket/i.test(t)) return false;
+    /* e.g. PHASE3_USB_INDEX, CUDA_VISIBLE_DEVICES — not a full shell command */
+    if (/^[A-Z][A-Z0-9_]+$/.test(t)) return false;
+    /* e.g. `--camera csi` (inline flags, not a runnable line) */
+    if (t.startsWith("--") && !/\b(cd|source|bash|sh|python3?)\b/i.test(t) && !/&&|;\s*\S|^\s*ssh\s/.test(t)) {
+      return false;
+    }
     if (t.length < 2) return false;
     if (t.length === 2 && t !== "ls") return false;
     if (t.length === 3 && t !== "pwd" && t !== "ls" && t !== "set") return false;
