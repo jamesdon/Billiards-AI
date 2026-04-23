@@ -17,10 +17,10 @@ class OverlayConfig:
     draw_trails: bool = True
 
 
-# BGR, when --show-track-debug-overlay is on (edge.main)
-_TRACK_DEBUG_COLORS: dict = {
+# BGR, when --show-track-debug-overlay is on (edge.main) — **tracks** by role
+_TRACK_KIND_COLORS: dict = {
     "ball": (60, 200, 80),
-    "player": (255, 255, 0),
+    "player": (0, 255, 255),
     "stick": (255, 0, 255),
     "rack": (0, 128, 255),
 }
@@ -31,10 +31,72 @@ def _put_text(img: np.ndarray, text: str, xy: Tuple[int, int], color: Tuple[int,
     cv2.putText(img, text, xy, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 
 
-def _draw_track_debug_boxes(out: np.ndarray, snap: object) -> None:
+def _raw_det_bgr_for_label(lab: str) -> tuple[int, int, int]:
+    s = (lab or "").lower().strip()
+    if s in ("ball", "0", "1", "cue_ball", "object_ball") or "ball" in s:
+        return (50, 200, 50)
+    if s in ("person", "player") or "person" in s:
+        return (0, 220, 255)
+    if s in ("cue_stick", "stick") or "stick" in s:
+        return (255, 80, 255)
+    if s == "rack" or "rack" in s:
+        return (0, 140, 255)
+    if "pocket" in s:
+        return (180, 180, 80)
+    return (200, 200, 200)
+
+
+def _clip_xyxy(
+    x1: int, y1: int, x2: int, y2: int, w: int, h: int
+) -> tuple[int, int, int, int]:
+    x1 = max(0, min(w - 1, x1))
+    x2 = max(0, min(w - 1, x2))
+    y1 = max(0, min(h - 1, y1))
+    y2 = max(0, min(h - 1, y2))
+    if x2 < x1:
+        x1, x2 = x2, x1
+    if y2 < y1:
+        y1, y2 = y2, y1
+    return x1, y1, x2, y2
+
+
+def _put_dbg_line(
+    out: np.ndarray, text: str, xy: tuple[int, int], color: tuple[int, int, int], size: float = 0.45
+) -> None:
+    x, y = xy
+    cv2.putText(out, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, size, (0, 0, 0), 2, cv2.LINE_AA)
+    cv2.putText(out, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, size, color, 1, cv2.LINE_AA)
+
+
+def _draw_vision_debug_overlay(out: np.ndarray, snap: object) -> None:
     if not isinstance(snap, dict):
         return
     h, w = int(out.shape[0]), int(out.shape[1])
+    fr = int(snap.get("frame_idx") or 0)
+    det_loaded = bool(snap.get("detector_loaded"))
+    det_ran = bool(snap.get("detector_ran"))
+    n_raw = int(snap.get("n_raw_dets", snap.get("n_dets", 0)) or 0)
+    n_tr = int(snap.get("n_tracks") or 0)
+    every = int(snap.get("detect_every_n") or 1)
+    # 1) Raw **model** outputs (one box per NMS result): thin outline + class + conf
+    for b in snap.get("raw_detections") or []:
+        if not isinstance(b, dict):
+            continue
+        bbox = b.get("bbox")
+        if not bbox or len(bbox) < 4:
+            continue
+        x1, y1, x2, y2 = [int(round(float(v))) for v in bbox[:4]]
+        x1, y1, x2, y2 = _clip_xyxy(x1, y1, x2, y2, w, h)
+        lab = str(b.get("label") or "?")
+        conf = float(b.get("conf") or 0.0)
+        col = _raw_det_bgr_for_label(lab)
+        # dashed-ish: two parallel thin rects
+        cv2.rectangle(out, (x1, y1), (x2, y2), col, 1, cv2.LINE_AA)
+        tlab = f"{lab} {conf:.2f}"[:32]
+        tx, ty = x1, max(13, y1 - 2)
+        _put_dbg_line(out, tlab, (tx, ty), (220, 240, 255), 0.38)
+
+    # 2) **Tracks** (IDs): thicker, on top
     for b in snap.get("boxes") or []:
         if not isinstance(b, dict):
             continue
@@ -43,30 +105,31 @@ def _draw_track_debug_boxes(out: np.ndarray, snap: object) -> None:
         if not bbox or len(bbox) < 4:
             continue
         x1, y1, x2, y2 = [int(round(float(v))) for v in bbox[:4]]
-        x1 = max(0, min(w - 1, x1))
-        x2 = max(0, min(w - 1, x2))
-        y1 = max(0, min(h - 1, y1))
-        y2 = max(0, min(h - 1, y2))
-        if x2 < x1:
-            x1, x2 = x2, x1
-        if y2 < y1:
-            y1, y2 = y2, y1
-        col = _TRACK_DEBUG_COLORS.get(kind, (180, 180, 180))
+        x1, y1, x2, y2 = _clip_xyxy(x1, y1, x2, y2, w, h)
+        col = _TRACK_KIND_COLORS.get(kind, (180, 180, 180))
         cv2.rectangle(out, (x1, y1), (x2, y2), col, 2, cv2.LINE_AA)
         bid = b.get("id", "?")
         short_lab = str(b.get("label") or "")[:10]
-        lab = f"{kind[:1]}{bid} {short_lab}".strip()
-        tx, ty = x1, max(14, y1 - 4)
-        cv2.putText(out, lab, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 2, cv2.LINE_AA)
-        cv2.putText(out, lab, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.4, col, 1, cv2.LINE_AA)
-    fr = int(snap.get("frame_idx") or 0)
-    det_ran = bool(snap.get("detector_ran"))
-    n_d = int(snap.get("n_dets") or 0)
-    n_t = int(snap.get("n_tracks") or 0)
-    line = f"[track debug]  frame {fr}  det_run={int(det_ran)}  dets={n_d}  tracks={n_t}"
-    y0 = h - 10
-    cv2.putText(out, line, (8, y0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
-    cv2.putText(out, line, (8, y0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (100, 255, 200), 1, cv2.LINE_AA)
+        lab = f"trk {kind[0]}{bid} {short_lab}".strip()
+        tx, ty = x1, min(h - 4, y2 + 12)
+        _put_dbg_line(out, lab, (tx, ty), col, 0.4)
+
+    # 3) Summary (top-right): what the system saw this frame
+    tw = min(400, w - 16)
+    x0 = w - tw - 8
+    y0 = 8
+    panel_lines = [
+        "Vision debug",
+        f"ONNX: {'yes' if det_loaded else 'NO (pass --onnx-model)'}",
+        f"Frame {fr}  infer this frame: {'yes' if det_ran else f'no (every {every})'}",
+        f"Model outputs: {n_raw}" + ("" if det_ran else f"  (skipped)"),
+        f"Active tracks: {n_tr}   (D=model  trk=ID)",
+    ]
+    for i, ln in enumerate(panel_lines):
+        _put_dbg_line(out, ln, (x0, y0 + i * 16), (180, 255, 255), 0.42)
+    y_line = h - 10
+    sum_line = f"[vision debug]  frame {fr}  outputs={n_raw}  tracks={n_tr}"
+    _put_dbg_line(out, sum_line, (8, y_line), (100, 255, 200), 0.48)
 
 
 def _projector_pixel_span(calib: Calibration) -> Optional[Tuple[float, float, float, float]]:
@@ -325,6 +388,6 @@ def draw_overlay(
 
     dbg = getattr(state, "_track_debug_overlay", None)
     if dbg is not None:
-        _draw_track_debug_boxes(out, dbg)
+        _draw_vision_debug_overlay(out, dbg)
 
     return out

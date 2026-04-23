@@ -83,7 +83,13 @@ python3 -m edge.main \
   --mjpeg-port 8001
 ```
 
-Add **`--show-track-debug-overlay`** to draw **ball / player / stick / rack** track boxes and IDs on the MJPEG stream (detector frame count + raw detection count in the bottom line). **Off by default** so normal play is uncluttered; use only while debugging detection and ID stability.
+Add **`--show-track-debug-overlay`** so the stream shows what the model actually returned (not just internal game state):
+
+- **Top-right panel:** whether ONNX is loaded, frame index, whether **inference ran this frame** (skipped on non-inference frames when `--detect-every-n` is 2 or more), **Model outputs** count, and **Active tracks** count.
+- **Thin boxes + `class 0.85` text:** each raw **NMS output** from the detector (label and confidence from `class_map`). If this is always **0**, raise confidence in your runbook or check lighting / model / camera.
+- **Thicker boxes + `trk b12 …` text:** **multi-object tracks** (IDs) used by the pipeline.
+
+**Off by default** so a clean table view is normal; use this flag for bring-up and **Detection and tracking** in the setup guide. The same command block in the wizard includes the flag.
 
 **Then test (after models load; first response can take 30–90+ s):** in a browser, open `http://127.0.0.1:8001/mjpeg` and `http://127.0.0.1:8001/health` (or the port you passed to `--mjpeg-port`). The setup guide **Detection and tracking** step uses the same order: run this command, **then** use its overlay / health buttons (MJPEG field must match the port you chose).
 

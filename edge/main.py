@@ -147,7 +147,10 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument(
         "--show-track-debug-overlay",
         action="store_true",
-        help="Draw ball/player/stick/rack track boxes and IDs on the MJPEG stream (debug; off by default for normal use)",
+        help=(
+            "MJPEG vision debug: draw each ONNX detection (label+conf), track IDs, and a status panel; "
+            "off by default for normal play"
+        ),
     )
     ap.add_argument(
         "--enable-audio-micro-foul",

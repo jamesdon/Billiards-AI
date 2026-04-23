@@ -337,13 +337,14 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "phase3",
         "title": "Detection and tracking",
-        "summary": "Start edge.main, open the table MJPEG overlay, and check /health (TEST_PLAN §3). You need models/model.onnx, models/class_map.json, and the calibration.json from the previous step. You do not need another doc to begin: the checklist below is the only instruction. Output is over HTTP in the browser, not an OpenCV window.",
+        "summary": "Start edge.main with the **vision debug** flag, open the table MJPEG overlay, and check /health (TEST_PLAN §3). You need models/model.onnx, models/class_map.json, and the calibration.json from the previous step. You do not need another doc to begin: the checklist below is the only instruction. Output is over HTTP in the browser, not an OpenCV window.",
         "checklist": [
             {
-                "item": "edge.main is running, MJPEG/health look good, and track IDs stay stable when objects move",
+                "item": "edge.main is running, MJPEG/health look good, model outputs and track IDs are visible on the stream, and tracks stay stable when objects move",
                 "verify": (
                     "**1) Start** `edge.main` — In a new terminal, paste and run the block below once (sidebar shows your repo path; on Jetson use "
-                    "`--camera csi` and drop the `--usb-index` lines). Default: macOS + USB 0.\n\n"
+                    "`--camera csi` and drop the `--usb-index` lines). **The command includes `--show-track-debug-overlay`** so the MJPEG stream shows **each model output** (class + confidence) and **separate track boxes** with IDs. "
+                    "Omit that flag when you want a clean table view in real use.\n\n"
                     "```bash\n"
                     'cd "{project_root}"\n'
                     'source "{project_root}/.venv/bin/activate"\n'
@@ -353,10 +354,13 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     '  --onnx-model "{project_root}/models/model.onnx" \\\n'
                     '  --class-map "{project_root}/models/class_map.json" \\\n'
                     '  --calib "{project_root}/calibration.json" \\\n'
+                    "  --show-track-debug-overlay \\\n"
                     "  --mjpeg-port {mjpeg_port}\n"
                     "```\n\n"
-                    "**2) Check the live stream and tracking** — With that process still running, set the **MJPEG** field in the sidebar to the same "
-                    "`--mjpeg-port` (default 8001). Use the two buttons to open the **live overlay** and **/health**. On the table, move objects: **track IDs should not flicker at random**."
+                    "**2) Check the live stream** — With that process still running, set the **MJPEG** field in the sidebar to the same "
+                    "`--mjpeg-port` (default 8001). Use the two buttons to open the **live overlay** and **/health**. On the video you should see a **top-right panel** (ONNX loaded, frame count, inference on/off, counts) and **boxes**: "
+                    "thin labels like `ball 0.87` are **raw detector** results; thicker `trk …` labels are **tracks**. If you see **ONNX: NO**, you did not pass `--onnx-model` / the file is missing. "
+                    "If **Model outputs: 0** on an inference frame, the model found nothing above its threshold. Move the camera or objects. **Track IDs should not flicker at random** when motion is smooth."
                 ),
                 "verify_actions": [
                     {
@@ -375,6 +379,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "hints": [
             "The sidebar polls GET /health on the MJPEG port you set; it only shows whether edge is listening, not that tracking quality is good.",
             "CUDA provider warnings on Mac are normal; CoreML/CPU is used.",
+            "`--show-track-debug-overlay` is for bring-up only; drop it for normal play.",
         ],
         "doc_refs": [{"label": "3 — Detection and tracking", "path": "docs/3 Detection and tracking.md"}],
     },

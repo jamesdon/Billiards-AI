@@ -339,14 +339,29 @@ class EdgePipeline:
                     "bbox": (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])),
                 }
             )
-        det_ran = self.detector is not None and (self._frame_idx % max(1, self.cfg.detect_every_n) == 0)
+        n_skip = max(1, int(self.cfg.detect_every_n))
+        det_ran = self.detector is not None and (self._frame_idx % n_skip == 0)
+        raw: List[Dict[str, object]] = []
+        if det_ran and dets:
+            for d in dets:
+                bb = d.bbox_xyxy
+                raw.append(
+                    {
+                        "label": str(d.label),
+                        "conf": float(d.conf),
+                        "bbox": (float(bb[0]), float(bb[1]), float(bb[2]), float(bb[3])),
+                    }
+                )
         setattr(
             state,
             "_track_debug_overlay",
             {
                 "frame_idx": int(self._frame_idx),
+                "detector_loaded": self.detector is not None,
                 "detector_ran": bool(det_ran),
-                "n_dets": int(len(dets)) if det_ran else 0,
+                "detect_every_n": int(n_skip),
+                "n_raw_dets": int(len(dets)) if det_ran else 0,
+                "raw_detections": raw,
                 "n_tracks": int(len(boxes)),
                 "boxes": boxes,
             },
