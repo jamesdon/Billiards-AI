@@ -113,6 +113,12 @@ def test_setup_page_and_api():
     assert "textSize" in r2.text
     assert 'data-text-size="large"' in r2.text
     assert "28px" in r2.text
+    r_med = client.get("/api/setup/doc", params={"path": "README.md", "textSize": "medium"})
+    assert r_med.status_code == 200
+    assert "22.5px" in r_med.text
+    r_sm = client.get("/api/setup/doc", params={"path": "README.md", "textSize": "small"})
+    assert r_sm.status_code == 200
+    assert "17px" in r_sm.text
     # If a doc `href` includes `textSize=`, the `&` before it must be `&amp;` in HTML (Safari).
     if 'href="/api/setup/doc?' in r2.text and "textSize=" in r2.text:
         assert "&amp;textSize=" in r2.text

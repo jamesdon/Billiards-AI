@@ -63,11 +63,23 @@ def _api_port_from_request(request: Request) -> int:
         return DEFAULT_API_PORT
 
 # Must match `TEXT_ROOT_PX` in `static/setup/index.html` and `app.js` (html root / rem base).
+# small = former medium; medium = midpoint(small, large); large unchanged.
 _TEXT_SIZE_TO_PX: dict[str, str] = {
-    "small": "14px",
-    "medium": "17px",
+    "small": "17px",
+    "medium": "22.5px",
     "large": "28px",
 }
+
+
+def _text_size_doc_viewer_css() -> str:
+    """Sync /api/setup/doc <html> font rules with _TEXT_SIZE_TO_PX (avoid drift from /setup)."""
+    p = _TEXT_SIZE_TO_PX
+    return (
+        f'html[data-text-size="small"]{{font-size:{p["small"]} !important;}}\n'
+        f'html[data-text-size="medium"]{{font-size:{p["medium"]} !important;}}\n'
+        f'html[data-text-size="large"]{{font-size:{p["large"]} !important;}}\n'
+        f'html:not([data-text-size]){{font-size:{p["medium"]} !important;}}'
+    )
 
 
 def _resolve_text_size_param(text_size: str | None) -> tuple[str, str]:
@@ -859,10 +871,7 @@ def build_router() -> APIRouter:
 <style>
 html{{box-sizing:border-box;}}
 /* Root font size: must be !important + data-text-size (Safari/legacy ignore inline style + broken href query). */
-html[data-text-size="small"]{{font-size:14px !important;}}
-html[data-text-size="medium"]{{font-size:17px !important;}}
-html[data-text-size="large"]{{font-size:28px !important;}}
-html:not([data-text-size]){{font-size:17px !important;}}
+{_text_size_doc_viewer_css()}
 body{{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#e8eaed;line-height:1.55;max-width:52rem;margin:0 auto;padding:1rem 1.25rem 3rem;font-size:1em;}}
 a{{color:#4d9fff;}}
 a.md-doc-link code{{color:inherit;}}

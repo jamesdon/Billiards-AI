@@ -1,7 +1,7 @@
 (function () {
   /** Same keys and root px as setup `static/setup/index.html` + `app.js` (Text size). */
   const TEXT_SIZE_KEY = "billiards-setup-text-size";
-  const TEXT_ROOT_PX = { small: "14px", medium: "17px", large: "28px" };
+  const TEXT_ROOT_PX = { small: "17px", medium: "22.5px", large: "28px" };
 
   const connEl = document.getElementById("sk-conn");
   const elTeams = document.getElementById("sk-teams");
