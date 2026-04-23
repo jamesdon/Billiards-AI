@@ -14,6 +14,8 @@ import json
 import os
 import re
 import subprocess
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote, urlencode, urlparse
@@ -548,6 +550,43 @@ def build_router() -> APIRouter:
     @router.get("/api/setup/steps")
     def setup_steps() -> dict[str, Any]:
         return {"steps": normalized_steps()}
+
+    @router.get("/api/setup/edge-health")
+    def setup_edge_health(
+        port: int = Query(
+            ...,
+            ge=1,
+            le=65535,
+            description="TCP port where `edge.main` MjpegServer listens (e.g. --mjpeg-port)",
+        ),
+    ) -> dict[str, Any]:
+        """Server-side probe of http://127.0.0.1:{port}/health (browser cannot fetch this cross-origin)."""
+        url = f"http://127.0.0.1:{port}/health"
+        try:
+            with urllib.request.urlopen(url, timeout=2.0) as resp:
+                if resp.status != 200:
+                    return {"ok": False, "port": port, "detail": f"HTTP {resp.status}"}
+                raw = resp.read(64)
+        except urllib.error.HTTPError as e:
+            return {"ok": False, "port": port, "detail": f"HTTP {e.code}"}
+        except (urllib.error.URLError, OSError, TimeoutError) as e:
+            reason = getattr(e, "reason", None)
+            if reason is not None and str(reason):
+                d = str(reason)
+            else:
+                d = str(e) or "unreachable"
+            return {"ok": False, "port": port, "detail": d}
+        try:
+            body = raw.decode("utf-8", errors="replace").strip()
+        except Exception:
+            body = ""
+        if not body.startswith("ok"):
+            return {
+                "ok": False,
+                "port": port,
+                "detail": (body[:200] or "unexpected /health body"),
+            }
+        return {"ok": True, "port": port, "detail": None}
 
     @router.get("/api/setup/doc", response_class=HTMLResponse)
     def setup_doc(

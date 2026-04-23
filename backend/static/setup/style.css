@@ -108,6 +108,21 @@ a {
   font-size: 0.85rem;
 }
 
+.mjpeg-edge-status {
+  margin: 0.4rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.mjpeg-edge-status.mjpeg-ok {
+  color: #6ecf8f;
+}
+
+.mjpeg-edge-status.mjpeg-bad {
+  color: #e88a7a;
+}
+
 .nav-steps {
   list-style: none;
   margin: 0;

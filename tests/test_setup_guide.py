@@ -74,6 +74,13 @@ def test_setup_page_and_api():
     assert r.status_code == 200
     assert "completed" in r.json()
 
+    r = client.get("/api/setup/edge-health", params={"port": 59999})
+    assert r.status_code == 200
+    eh = r.json()
+    assert eh.get("port") == 59999
+    assert "ok" in eh
+    assert eh.get("ok") is False
+
     r = client.put(
         "/api/setup/progress",
         json={

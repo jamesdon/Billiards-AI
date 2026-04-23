@@ -19,6 +19,8 @@
   const toast = $("#status-toast");
   const prEl = $("#project-root");
   const mjpegInput = $("#mjpeg-port");
+  const mjpegStatusEl = $("#mjpeg-edge-status");
+  let edgeHealthTimer = null;
 
   const TEXT_SIZE_KEY = "billiards-setup-text-size";
   const PROGRESS_LSK = "billiards-setup-progress-v1";
@@ -177,6 +179,49 @@
     const v = parseInt(mjpegInput?.value, 10);
     if (!Number.isFinite(v) || v < 1) return state.progress.mjpeg_port || 8080;
     return v;
+  }
+
+  async function refreshMjpegEdgeHealth() {
+    if (!mjpegStatusEl) return;
+    const port = getMjpegPort();
+    mjpegStatusEl.classList.remove("mjpeg-ok", "mjpeg-bad");
+    mjpegStatusEl.textContent = "Checking 127.0.0.1:" + port + "…";
+    try {
+      const r = await fetch(
+        "/api/setup/edge-health?port=" + encodeURIComponent(String(port))
+      );
+      if (!r.ok) {
+        mjpegStatusEl.classList.add("mjpeg-bad");
+        mjpegStatusEl.textContent =
+          "Could not run health check (HTTP " + r.status + ").";
+        return;
+      }
+      const j = await r.json();
+      if (j.ok) {
+        mjpegStatusEl.classList.add("mjpeg-ok");
+        mjpegStatusEl.textContent =
+          "Edge MJPEG is reachable — open the step’s overlay link (or 127.0.0.1:" +
+          port +
+          "/mjpeg).";
+        return;
+      }
+      mjpegStatusEl.classList.add("mjpeg-bad");
+      const d = (j.detail && String(j.detail)) || "no response";
+      mjpegStatusEl.textContent =
+        "No edge MJPEG on 127.0.0.1:" +
+        port +
+        " — the API (this page) is not the video server. In another shell: " +
+        "cd " +
+        JSON.stringify((state.context && state.context.project_root) || ".") +
+        " && .venv/bin/python3 -m edge.main --camera usb --calib calibration.json --mjpeg-port " +
+        port +
+        " (or match your model/camera flags). " +
+        d;
+    } catch (_) {
+      mjpegStatusEl.classList.add("mjpeg-bad");
+      mjpegStatusEl.textContent =
+        "Health check failed (is this page served from the backend on :8000?).";
+    }
   }
 
   function putProgress() {
@@ -696,7 +741,17 @@
         state.progress.mjpeg_port = getMjpegPort();
         scheduleSave();
         renderContent();
+        void refreshMjpegEdgeHealth();
       });
+
+      if (edgeHealthTimer) {
+        clearInterval(edgeHealthTimer);
+        edgeHealthTimer = null;
+      }
+      void refreshMjpegEdgeHealth();
+      edgeHealthTimer = setInterval(() => {
+        void refreshMjpegEdgeHealth();
+      }, 10000);
 
       renderNav();
       renderContent();
