@@ -209,6 +209,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         ],
         "links": [],
         "hints": [
+            "Two processes: this backend (port 8000) only serves the setup pages and health checks. It does **not** start the camera pipeline. Live MJPEG and `GET /health` on 8001–8005 come from a **separate** terminal running `python3 -m edge.main` (see **Detection and tracking** after you have `models/model.onnx`, `models/class_map.json`, and `calibration.json`). Until then, the MJPEG line in the sidebar may show “no edge” or connection refused — that is expected, not a broken install.",
             "Naming: each step title is the same phrase as in docs/TEST_PLAN.md where that file has a matching numbered section (e.g. “Environment and startup” = §1). Steps without a section number in the plan — “Detector model (ONNX)” and “Dataset and training (optional)” — are the ONNX artifact and the optional train/refresh path. Order in the sidebar is bring-up order, not section number order.",
             "Progress is kept in the repo file data/setup_wizard_progress.json and a browser copy (localStorage); both update when you save, auto-save, or leave the page.",
             "Status lights: red = not started, yellow = in progress, green = complete.",
@@ -308,7 +309,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "label": "Preview live table overlay (MJPEG via edge)",
                 "href_template": "http://127.0.0.1:{mjpeg_port}/mjpeg",
-                "note": "Start edge.main with your calibration first; set MJPEG port below (default 8001, docs/PORTS.md).",
+                "note": "Needs `models/model.onnx` + `models/class_map.json` and a running edge (see **Detection and tracking** for the `edge.main` one-liner with `--onnx-model`, `--class-map`, `--calib`). Set MJPEG port below to match (default 8001, docs/PORTS.md).",
             },
         ],
         "hints": [

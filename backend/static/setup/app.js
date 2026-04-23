@@ -236,9 +236,11 @@
       const example =
         "cd " +
         root +
-        " && .venv/bin/python3 -m edge.main --camera usb --calib calibration.json --mjpeg-port " +
+        " && .venv/bin/python3 -m edge.main --camera usb --usb-index 0" +
+        " --onnx-model models/model.onnx --class-map models/class_map.json" +
+        " --calib calibration.json --mjpeg-port " +
         port +
-        " (or match your model/camera flags)";
+        " (Jetson: replace usb with --camera csi; override paths if files are not under models/ or the repo root)";
       if (
         rsn === "connection_refused" ||
         /Connection refused|Errno 61|Errno 111/i.test(d)
