@@ -108,6 +108,10 @@ a {
   flex-shrink: 0;
 }
 
+body[data-ui-mode="setup"] .sk-qr-block {
+  display: none !important;
+}
+
 .sk-qr-block[hidden] {
   display: none !important;
 }

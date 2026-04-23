@@ -228,11 +228,23 @@
     }
   }
 
+  function syncSkQrBlockVisibility() {
+    if (!skQrBlock) return;
+    const mode = document.body.getAttribute("data-ui-mode") || "setup";
+    const url = state.context && state.context.scorekeeper_url;
+    const hasUrl = typeof url === "string" && url.length > 0;
+    if (mode === "scorekeeper" && hasUrl) {
+      skQrBlock.removeAttribute("hidden");
+    } else {
+      skQrBlock.setAttribute("hidden", "");
+    }
+  }
+
   function updateScorekeeperFromContext() {
     const url = state.context && state.context.scorekeeper_url;
     if (typeof url !== "string" || !url) return;
     applySkQr(url);
-    if (skQrBlock) skQrBlock.removeAttribute("hidden");
+    syncSkQrBlockVisibility();
   }
 
   function applyUiMode(mode) {
@@ -259,6 +271,7 @@
       skIframe.src = scorekeeperFrameSrc();
       skIframeSrcSet = true;
     }
+    syncSkQrBlockVisibility();
   }
 
   function initUiMode() {
