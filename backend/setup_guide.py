@@ -358,7 +358,12 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
         ],
         "links": [],
-        "hints": ["CUDA provider warnings on Mac are normal; CoreML/CPU is used."],
+        "hints": [
+            "The sidebar line only polls GET /health on the MJPEG port you selected (via this backend). It tells you an edge process is listening; it does not run scripts/phase3.sh or know whether the last run passed.",
+            "Checklist line 1 is the Phase 3 smoke: run the phase3 script (full sweep) or at least start edge manually with your ONNX + calib. Checklist line 2 is the quality bar: stable track IDs while things move.",
+            "Re-running scripts/phase3.sh overwrites .phase3_n1.log, .phase3_n2.log, and .phase3_n3.log at the repo root each time.",
+            "CUDA provider warnings on Mac are normal; CoreML/CPU is used.",
+        ],
         "doc_refs": [{"label": "Phase 3", "path": "docs/Phase 3 Detection and tracking.md"}],
     },
     {

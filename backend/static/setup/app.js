@@ -218,9 +218,11 @@
       if (j.ok) {
         mjpegStatusEl.classList.add("mjpeg-ok");
         mjpegStatusEl.textContent =
-          "Edge MJPEG is reachable — open the step’s overlay link (or 127.0.0.1:" +
+          "edge /health OK on 127.0.0.1:" +
           port +
-          "/mjpeg).";
+          " (live check only, not a Phase 3 pass/fail). Overlay: http://127.0.0.1:" +
+          port +
+          "/mjpeg";
         return;
       }
       mjpegStatusEl.classList.add("mjpeg-bad");
