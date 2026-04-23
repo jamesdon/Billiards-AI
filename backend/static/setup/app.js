@@ -220,7 +220,7 @@
         mjpegStatusEl.textContent =
           "Port " +
           port +
-          ": edge is up. Stream: http://127.0.0.1:" +
+          ": edge is up.\nStream: http://127.0.0.1:" +
           port +
           "/mjpeg";
         return;
