@@ -101,7 +101,7 @@ Billiards-AI/
       micro_foul_audio.py           Micro-foul audio correlation stub (double-hit/push TBD; optional `SHOT_START` windowing)
     overlay/
       __init__.py
-      draw.py                       Render IDs, trails, scoreboard; camera projector-layer preview + optional top-right **projector inset** when `H_projector` is set (mirrors break box/string, hints, trajectory)
+      draw.py                       Render IDs, trails, scoreboard; optional `--show-track-debug-overlay`: raw ONNX boxes (label+conf) + track IDs; camera projector-layer preview + optional top-right **projector inset** when `H_projector` is set (mirrors break box/string, hints, trajectory)
       stream_mjpeg.py               MJPEG stream server (GET /health, /mjpeg; threaded server so /mjpeg cannot block /health; SO_REUSEADDR; friendly RuntimeError if port in use)
       stream_webrtc.py              WebRTC streamer (optional)
       stream_rtsp.py                RTSP publisher (optional)
