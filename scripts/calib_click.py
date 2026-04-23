@@ -1876,8 +1876,8 @@ def main() -> None:
         v_step = int(max(34, round(row_spacing * 1.05)))
         rot_btn_w = max(68, button_w + 30)
         rot90_w = max(58, int(round(62 * ui_scale)))
-        lab = int(14 * max(1.0, ui_scale))
-        blk = int(12 * max(1.0, ui_scale))
+        lab = int(15 * max(1.0, ui_scale))
+        blk = int(14 * max(1.0, ui_scale))
 
         y = int(view_top)
         orient_label_y = y + 2
@@ -1971,11 +1971,19 @@ def main() -> None:
     _air = int(28 * max(1.0, ui_scale))
     _head_sub = int(26 * max(1.0, ui_scale))
     _table_tail = int(22 * max(1.0, ui_scale))
-    _after_units_pad = int(10 * max(1.0, ui_scale))
-    _redetect_gap = int(14 * max(1.0, ui_scale))
+    _after_units_pad = int(12 * max(1.0, ui_scale))
+    _redetect_gap = int(16 * max(1.0, ui_scale))
     _redetect_btn_h = max(22, int(24 * max(1.0, ui_scale)))
-    _redetect_hint_lines_h = int(50 * max(1.0, ui_scale))
-    _redetect_block = _after_units_pad + _redetect_gap + _redetect_btn_h + _redetect_hint_lines_h + int(6 * max(1.0, ui_scale))
+    _redetect_btn_hint_gap = int(24 * max(1.0, ui_scale))
+    _redetect_hint_lines_h = int(68 * max(1.0, ui_scale))
+    _redetect_block = (
+        _after_units_pad
+        + _redetect_gap
+        + _redetect_btn_h
+        + _redetect_btn_hint_gap
+        + _redetect_hint_lines_h
+        + int(10 * max(1.0, ui_scale))
+    )
     _left_column_h = (
         14
         + _air
@@ -2250,9 +2258,9 @@ def main() -> None:
         col1_right = col2_left - 2
         divider_x = col1_left + col1_w + max(4, col_gap // 2)
 
-        air = int(28 * max(1.0, ui_scale))
-        head_sub = int(26 * max(1.0, ui_scale))
-        table_tail = int(22 * max(1.0, ui_scale))
+        air = int(32 * max(1.0, ui_scale))
+        head_sub = int(28 * max(1.0, ui_scale))
+        table_tail = int(24 * max(1.0, ui_scale))
         setup_heading_baseline = inner_top + 14
         table_heading_y = setup_heading_baseline + air
         table_left = col1_left + 10
@@ -2271,17 +2279,24 @@ def main() -> None:
             probe = _view_control_layout(0, 0)
             right_h = int(probe["reset_rect"][3]) + int(28 * max(1.0, ui_scale))
             rbtn = max(22, int(24 * max(1.0, ui_scale)))
-            after_u = int(10 * max(1.0, ui_scale))
-            gap_re = int(14 * max(1.0, ui_scale))
-            redetect_extra = after_u + gap_re + rbtn + int(6 * max(1.0, ui_scale)) + _redetect_hint_lines_h
+            after_u = int(12 * max(1.0, ui_scale))
+            gap_re = int(16 * max(1.0, ui_scale))
+            redetect_extra = (
+                after_u
+                + gap_re
+                + rbtn
+                + _redetect_btn_hint_gap
+                + _redetect_hint_lines_h
+                + int(10 * max(1.0, ui_scale))
+            )
             left_bottom = (
                 units_top
                 + (len(UNIT_MENU) - 1) * row_spacing
                 + redetect_extra
             )
             left_h = left_bottom - inner_top
-            twin_stack_h = max(left_h, right_h) + int(8 * max(1.0, ui_scale))
-            footer_block = int(52 * max(1.0, ui_scale))
+            twin_stack_h = max(left_h, right_h) + int(12 * max(1.0, ui_scale))
+            footer_block = int(76 * max(1.0, ui_scale))
             min_needed_h = panel_drag_handle_h + menu_padding + twin_stack_h + footer_block
             panel_h = int(min(safe_h, max(int(estimated_menu_h), min_needed_h)))
         top = int(np.clip(top, menu_margin, max(menu_margin, h_img - panel_h - menu_margin)))
@@ -2296,8 +2311,8 @@ def main() -> None:
         view_top = inner_top + 14 + air + head_sub
         drag_handle_rect = (left, top, left + panel_w, top + panel_drag_handle_h)
         rbtn2 = max(22, int(24 * max(1.0, ui_scale)))
-        after_u2 = int(10 * max(1.0, ui_scale))
-        gap_re2 = int(14 * max(1.0, ui_scale))
+        after_u2 = int(12 * max(1.0, ui_scale))
+        gap_re2 = int(16 * max(1.0, ui_scale))
         redetect_y1 = (
             float(units_top)
             + (len(UNIT_MENU) - 1) * float(row_spacing)
@@ -2703,9 +2718,10 @@ def main() -> None:
         accent = (102, 178, 255)
         accent_soft = (78, 130, 210)
         text_hi = (248, 250, 252)
-        text_mid = (200, 206, 216)
-        muted = (132, 140, 154)
-        line_soft = (64, 72, 88)
+        text_mid = (205, 210, 220)
+        muted = (145, 152, 168)
+        caption_muted = (172, 180, 196)
+        line_soft = (72, 80, 98)
 
         def _draw_label_edit_hint_bar() -> None:
             if len(corner_points) != 4 or not edit_overlay_mode:
@@ -2733,14 +2749,14 @@ def main() -> None:
                 cv2.LINE_AA,
             )
 
-        def _micro_label(img: np.ndarray, x: int, y: int, s: str) -> None:
+        def _micro_label(img: np.ndarray, x: int, y: int, s: str, scale: float = 0.37) -> None:
             cv2.putText(
                 img,
                 s,
                 (x, y),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.34,
-                muted,
+                scale,
+                caption_muted,
                 1,
                 cv2.LINE_AA,
             )
@@ -2785,10 +2801,10 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            "Drag header   r corners   Enter save   q Esc",
+            "Drag header to move · r corners · Enter save · q / Esc quit",
             (hx1 + 14, hy2 - 8),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.38,
+            0.36,
             muted,
             1,
             cv2.LINE_AA,
@@ -2839,8 +2855,8 @@ def main() -> None:
             "SETUP",
             (col1_left, setup_heading_baseline),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            text_mid,
+            0.56,
+            text_hi,
             1,
             cv2.LINE_AA,
         )
@@ -2849,8 +2865,8 @@ def main() -> None:
             "VIEW",
             (col2_left, setup_heading_baseline),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            text_mid,
+            0.56,
+            text_hi,
             1,
             cv2.LINE_AA,
         )
@@ -2899,13 +2915,13 @@ def main() -> None:
             return lines_out
 
         text_max = max(60, col1_right - table_left - 22)
-        _micro_label(view, table_left, table_heading_y - 2, "TABLE")
+        _micro_label(view, table_left, table_heading_y - 2, "TABLE", scale=0.36)
         cv2.putText(
             view,
             "Presets",
-            (table_left, table_heading_y + 10),
+            (table_left, table_heading_y + 11),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.42,
+            0.44,
             text_mid,
             1,
             cv2.LINE_AA,
@@ -2952,15 +2968,15 @@ def main() -> None:
             cv2.putText(
                 view,
                 line2,
-                (table_left + 18, row_y + 18),
+                (table_left + 18, row_y + 19),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.38,
+                0.39,
                 muted,
                 1,
                 cv2.LINE_AA,
             )
 
-        div_y = (table_block_bottom + units_heading_y) // 2
+        div_y = min(int(units_heading_y) - 4, int(table_block_bottom + int(10 * max(1.0, ui_scale))))
         cv2.line(
             view,
             (rx_strip1, div_y),
@@ -2970,13 +2986,13 @@ def main() -> None:
             lineType=cv2.LINE_AA,
         )
 
-        _micro_label(view, units_left, units_heading_y - 2, "OUTPUT")
+        _micro_label(view, units_left, units_heading_y - 2, "OUTPUT", scale=0.36)
         cv2.putText(
             view,
             "Units",
-            (units_left, units_heading_y + 10),
+            (units_left, units_heading_y + 11),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.42,
+            0.44,
             text_mid,
             1,
             cv2.LINE_AA,
@@ -2994,7 +3010,7 @@ def main() -> None:
 
         last_unit_row_y = int(units_top + (len(UNIT_MENU) - 1) * row_spacing)
         rr = layout.get("redetect_rect")
-        col1_hint_pad = 8
+        col1_hint_pad = 10
         hint_x0 = int(layout["col1_left"]) + col1_hint_pad
         hint_x1 = int(layout["col1_right"]) - col1_hint_pad
         hint_max_w = max(48, hint_x1 - hint_x0)
@@ -3010,20 +3026,22 @@ def main() -> None:
             )
             _draw_button_primary(view, rr, "Re-detect")
             hint_body = (
-                "Re-run corner detection: pocket ONNX hull if available, else frame CV, "
-                "else table-aspect placeholder. Key r."
+                "Re-run corner detection: pocket ONNX hull when available, otherwise frame CV, "
+                "otherwise a table-aspect placeholder. Keyboard: r."
             )
-            hs = 0.32 * min(1.0, ui_scale + 0.05)
-            line_skip = int(15 * max(1.0, ui_scale))
-            ly = int(rr[3]) + 8
+            hs = 0.35 * min(1.0, ui_scale + 0.06)
+            _tw, cap_h = cv2.getTextSize("Ay", cv2.FONT_HERSHEY_SIMPLEX, hs, 1)[0]
+            line_skip = max(19, int(float(cap_h) * 1.58))
+            ly = int(rr[3]) + _redetect_btn_hint_gap
+            hint_color = (198, 206, 218)
             for ln in _wrap_text_lines(hint_body, hs, hint_max_w):
-                cv2.putText(view, ln, (hint_x0, ly), cv2.FONT_HERSHEY_SIMPLEX, hs, muted, 1, cv2.LINE_AA)
+                cv2.putText(view, ln, (hint_x0, ly), cv2.FONT_HERSHEY_SIMPLEX, hs, hint_color, 1, cv2.LINE_AA)
                 ly += line_skip
 
         controls = _view_control_layout(int(view_left), int(view_top))
         flip_h_center = controls["flip_h_center"]
         flip_v_center = controls["flip_v_center"]
-        _micro_label(view, view_left, int(controls["orient_label_y"]), "ORIENTATION")
+        _micro_label(view, view_left, int(controls["orient_label_y"]), "ORIENTATION", scale=0.36)
         _draw_radio(
             view,
             int(flip_h_center[0]),
@@ -3043,7 +3061,7 @@ def main() -> None:
 
         _zm = controls["zoom_minus_rect"]
         _zp = controls["zoom_plus_rect"]
-        _micro_label(view, view_left, int(controls["scale_label_y"]), "SCALE")
+        _micro_label(view, view_left, int(controls["scale_label_y"]), "SCALE", scale=0.36)
         _draw_button(view, _zm, "-")
         _draw_button(view, _zp, "+")
         cv2.putText(
@@ -3057,7 +3075,7 @@ def main() -> None:
             cv2.LINE_AA,
         )
 
-        _micro_label(view, view_left, int(controls["pan_label_y"]), "PAN")
+        _micro_label(view, view_left, int(controls["pan_label_y"]), "PAN", scale=0.36)
 
         def _draw_pan_tile(canvas: np.ndarray, rect: Tuple[int, int, int, int], direction: str) -> None:
             x1, y1, x2, y2 = rect
@@ -3087,7 +3105,7 @@ def main() -> None:
         _draw_pan_tile(view, controls["pan_right_rect"], "r")
         _draw_pan_tile(view, controls["pan_down_rect"], "d")
 
-        _micro_label(view, view_left, int(controls["rotate_label_y"]), "ROTATE")
+        _micro_label(view, view_left, int(controls["rotate_label_y"]), "ROTATE", scale=0.36)
         _draw_button(view, controls["rot_minus_rect"], "-")
         _draw_button(view, controls["rot_plus_rect"], "+")
         _draw_button(view, controls["rotate_90_ccw_rect"], "-90")
@@ -3105,7 +3123,7 @@ def main() -> None:
         step = _current_view_step()
         step_fine_center = controls["step_fine_center"]
         step_coarse_center = controls["step_coarse_center"]
-        _micro_label(view, view_left, int(controls["nudge_label_y"]), "NUDGE")
+        _micro_label(view, view_left, int(controls["nudge_label_y"]), "NUDGE", scale=0.36)
         cv2.putText(
             view,
             "Fine / Coarse",
@@ -3144,11 +3162,28 @@ def main() -> None:
         )
         _draw_button_primary(view, controls["reset_rect"], "Reset view")
 
-        foot_y1 = panel_top + panel_h - 40
-        foot_y2 = panel_top + panel_h - 18
+        foot_pad_x = 14
+        foot_pad_top = 10
+        foot_x = panel_left + foot_pad_x
+        foot_max_w = max(160, panel_w - 2 * foot_pad_x)
+        foot_fs = 0.33 * min(1.0, ui_scale + 0.08)
+        (_fww, foot_cap_h), _fbl = cv2.getTextSize("Ay", cv2.FONT_HERSHEY_SIMPLEX, foot_fs, 1)
+        foot_lh = max(17, int(float(foot_cap_h) * 1.55))
+        foot_p1 = (
+            "Video legend: kitchen = head-rail side; tinted regions = kitchen and foot quarter; "
+            "cyan line = head string (L0.25 m default along head rail)."
+        )
+        foot_p2 = (
+            "Drag yellow handles to inner pocket throats. Keys 8 / 9 switch 8-ball vs 9-ball rack diagram."
+        )
+        foot_lines_a = _wrap_text_lines(foot_p1, foot_fs, foot_max_w)
+        foot_lines_b = _wrap_text_lines(foot_p2, foot_fs, foot_max_w)
+        foot_gap = int(10 * max(1.0, ui_scale))
+        foot_text_h = len(foot_lines_a) * foot_lh + foot_gap + len(foot_lines_b) * foot_lh
+        foot_band_top = panel_top + panel_h - menu_padding - foot_text_h - foot_pad_top
         cv2.rectangle(
             view,
-            (panel_left + 2, foot_y1 - 18),
+            (panel_left + 2, foot_band_top - 6),
             (panel_left + panel_w - 2, panel_top + panel_h - 2),
             header_rim,
             -1,
@@ -3156,32 +3191,20 @@ def main() -> None:
         )
         cv2.line(
             view,
-            (panel_left + 10, foot_y1 - 10),
-            (panel_left + panel_w - 10, foot_y1 - 10),
+            (panel_left + 10, foot_band_top - 4),
+            (panel_left + panel_w - 10, foot_band_top - 4),
             line_soft,
             1,
             lineType=cv2.LINE_AA,
         )
-        cv2.putText(
-            view,
-            "Video: Kitchen=head rail  head string; foot quarter; cyan=head string  (L0.25 default)",
-            (panel_left + 12, foot_y1),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.30,
-            accent,
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            view,
-            "Drag yellow handles to corner-pocket inner throats   Keys 8 / 9 = rack diagram style",
-            (panel_left + 12, foot_y2),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.34,
-            muted,
-            1,
-            cv2.LINE_AA,
-        )
+        fy = foot_band_top + foot_cap_h
+        for ln in foot_lines_a:
+            cv2.putText(view, ln, (foot_x, fy), cv2.FONT_HERSHEY_SIMPLEX, foot_fs, accent, 1, cv2.LINE_AA)
+            fy += foot_lh
+        fy += foot_gap
+        for ln in foot_lines_b:
+            cv2.putText(view, ln, (foot_x, fy), cv2.FONT_HERSHEY_SIMPLEX, foot_fs, muted, 1, cv2.LINE_AA)
+            fy += foot_lh
 
         _draw_label_edit_hint_bar()
 
