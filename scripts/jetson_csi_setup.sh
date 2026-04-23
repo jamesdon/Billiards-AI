@@ -35,7 +35,9 @@ sudo systemctl status nvargus-daemon --no-pager || true
 echo
 echo "[4/6] List camera/video devices"
 v4l2-ctl --list-devices || true
-ls -l /dev/video* || true
+ls -l /dev/video* 2>/dev/null || echo "(no /dev/video* nodes — normal for CSI-only; USB UVC cameras create /dev/video0, etc.)"
+echo
+echo "CSI uses Argus (nvarguscamerasrc), not /dev/video0. Seeing only /dev/media0 (tegra-camrtc) is expected on many Jetson images."
 
 echo
 echo "[5/6] Run CSI GStreamer smoke test (10 seconds)"
@@ -63,7 +65,8 @@ echo "csi-flip-method used: $CSI_FLIP_METHOD"
 echo
 echo "How to read results:"
 echo "  • dmesg: use 'sudo dmesg' if plain dmesg says Operation not permitted."
-echo "  • No /dev/video* and nvargus 'No cameras available': no sensor is exposed to Argus/V4L2."
+echo "  • nvargus 'No cameras available': Argus does not enumerate a CSI sensor (ribbon, port, module, or daemon)."
+echo "    Missing /dev/video0 alone is NOT proof the CSI stack is broken — try Argus anyway via step [5/6]."
 echo "    Re-seat the CSI ribbon (correct orientation), try the other CSI port (sensor-id=1),"
 echo "    confirm a supported camera module is installed, and check carrier docs / jetson-io."
 echo "  • No 'imx' (or similar) lines in sudo dmesg after boot: kernel likely never probed a camera."
