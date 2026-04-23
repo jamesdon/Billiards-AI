@@ -108,10 +108,12 @@ The **Setup guide** (when the backend is running: open **Detection and tracking*
 
 **Viewing video:** This step does **not** open a desktop window. `edge.main` serves an MJPEG stream over HTTP. When the script prints `Live MJPEG`, open the printed URL. The script uses fixed sweep ports **8001** (baseline, `detect_every_n=2`), **8004** (`detect_every_n=1`), and **8005** (`detect_every_n=3`). See **`docs/PORTS.md`**. Override with **`PHASE3_PORT_N2`**, **`PHASE3_PORT_N1`**, **`PHASE3_PORT_N3`** (each **8001–8005**; not **8000**, API). **`/health`** on each run’s port reports JSON status.
 
-**MJPEG port already in use** (`OSError: [Errno 48] Address already in use` or `MJPEG port 8001 is already in use` in `.phase3_n2.log`): another process is still bound to that port—commonly a **stale `python -m edge.main`**, a **browser tab** or **Setup guide** still loading `http://127.0.0.1:8001/mjpeg`, or a second `scripts/phase3.sh` run.
+**MJPEG port already in use** (`OSError: [Errno 48] Address already in use` or `MJPEG port 8001 is already in use` in `.phase3_n2.log`): another process is still bound to that port—commonly a **stale `python -m edge.main`**, a second `scripts/phase3.sh` run, or another script (`phase1.sh`, `phase2.sh`, `jetson_csi_setup.sh`, Docker edge, etc.) that started `edge.main` in the background.
 
-1. See what is listening: `lsof -nP -iTCP:8001 -sTCP:LISTEN` (macOS/Linux).
-2. Stop that process (e.g. `kill <pid>`) or close tabs/apps using the stream, then re-run the script.
+**“The overlay works but I didn’t start edge in *this* terminal.”** The setup guide and the browser **do not** launch `edge.main`; they only open URLs. Something else is still listening (often an **older** terminal session, a **minimized** window, a **Cursor** task, or a **phase** script you ran earlier). The browser does not *host* MJPEG—it only connects to whatever is already bound to the port.
+
+1. See what is listening: `lsof -nP -iTCP:8001 -sTCP:LISTEN` (macOS/Linux). Then inspect the command line: `ps -p <pid> -o args=` (replace `8001` if you use another `--mjpeg-port`).
+2. Stop that process (`kill <pid>`) or stop the Docker stack, then start fresh if you need a clean run. Closing browser tabs alone does not stop the server.
 3. Or point the **baseline** at another free port in **8001–8005**, e.g. `PHASE3_PORT_N2=8002` when invoking `scripts/phase3.sh`. If you use the Setup guide overlay buttons, set the **MJPEG** field in the sidebar to the same port as your edge run.
 
 ```bash
