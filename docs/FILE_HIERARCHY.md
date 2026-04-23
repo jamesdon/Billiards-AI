@@ -23,7 +23,7 @@ Billiards-AI/
     ORIN_NANO_TRAIN_AND_TEST.md     On-device YOLO train + env guardrails + pytest + `run_phase` / `phase*.sh` (`/home/$USER/Billiards-AI`); Jetson Orin Nano / JetPack 5.x
     JETSON_NANO_TRAIN_AND_TEST.md   Bookmark alias → see ORIN_NANO_TRAIN_AND_TEST.md
     DEPLOYMENT_JETSON.md            Orin Nano (JetPack 5.x) setup + systemd service + runbook
-    1 Environment and startup.md    §0 `uname` platform table + §1a Linux ARM64 (Jetson CSI / distro OpenCV) vs §1b x86_64 vs §1c macOS USB; integrity checks + edge smoke commands
+    1 Environment and startup.md    Jetson: `setup_jetson_edge_venv.sh`; Mac/x86; integrity checks; backend + edge smoke
     BACKEND.md                      Optional backend API + storage + websockets
     API.md                          Message schemas + endpoints
     TEST_PLAN.md                    §1–§9 delivery gates; **§3+§4** map to one **`/setup`** step (Detection, tracking, classification, and identity; optional `docs/3` / `docs/4` mirrors)
@@ -136,6 +136,8 @@ Billiards-AI/
 
   scripts/
     common.sh                       Shared env/bootstrap helpers (venv + PYTHONNOUSERSITE)
+    setup_jetson_edge_venv.sh       Jetson aarch64: apt OpenCV + `--system-site-packages` venv + requirements.txt (CSI / GStreamer)
+    ensure_models_model_onnx.sh     Normalize `models/model.onnx` (move root ONNX, copy latest export, else git pull hint)
     run_backend.sh                  FastAPI: `.venv/bin/python3 -m uvicorn backend.app:app` (avoids broken `uvicorn` shim if repo path changed after `venv` creation); pre-checks the listen port; exits with a short hint if the port is already in use (e.g. setup guide already up)
     run_phase.sh                    Entry point for phase scripts
     phase1.sh                       Environment + backend + CSI smoke checks

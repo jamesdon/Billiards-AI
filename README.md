@@ -2,7 +2,54 @@
 
 Real-time billiards perception + rules engine designed for **NVIDIA Jetson Orin Nano** edge hardware (JetPack 5.x) with optional backend offload.
 
-## Quickstart (dev)
+## Jetson edge device (Orin / Nano) — do this first
+
+Use **one** script. It installs distro OpenCV (GStreamer for CSI), recreates **`.venv`** with **`--system-site-packages`**, installs **`requirements.txt`**, removes pip OpenCV if present, pins NumPy, and verifies **`GStreamer: YES`**.
+
+```bash
+cd "/home/$USER/Billiards-AI"
+chmod +x scripts/setup_jetson_edge_venv.sh
+bash scripts/setup_jetson_edge_venv.sh
+.venv/bin/python3 -c "import onnxruntime,cv2; print('imports-ok')"
+```
+
+**Never** `pip install -r requirements-train.txt` in this Jetson **edge** venv. Training (Ultralytics) belongs on your **Mac** (or another machine) in a **separate** clone/venv; you bring weights back with **`git pull`** after **`publish_trained_model.sh`** on the trainer.
+
+**Detector file on the Jetson:** after `git pull`, if `models/model.onnx` is still missing, run:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+git pull origin main
+chmod +x scripts/ensure_models_model_onnx.sh
+bash scripts/ensure_models_model_onnx.sh
+ls -lh models/model.onnx
+```
+
+That script moves a stray `model.onnx` from the repo root into `models/`, or copies the newest `runs/detect/*/weights/best.onnx` if you exported locally. If it exits with an error, the model is only on **`main`** in git — fix the pull or train on the Mac and push.
+
+## Mac (training + USB dev)
+
+Use your Mac clone directory (same folder that contains `requirements.txt`).
+
+```bash
+cd "/Users/<you>/path/to/Billiards-AI"
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -U pip
+python3 -m pip install -r requirements.txt
+python3 -m pip install -r requirements-train.txt
+```
+
+Train and export on the Mac, then commit and push the ONNX (from that same directory):
+
+```bash
+bash scripts/jetson_yolo_export_latest.sh
+GIT_PUSH=1 bash scripts/publish_trained_model.sh
+```
+
+Edge smoke on Mac uses **`--camera usb`**, not CSI.
+
+## Linux x86_64 (generic dev)
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -10,51 +57,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -U pip
 python3 -m pip install -r requirements.txt
-python3 -m edge.main --help
 ```
 
-**Jetson / aarch64 (including Orin Nano):** `requirements.txt` intentionally **does not** install `opencv-python` from PyPI on `aarch64`/`arm64` (those wheels usually lack GStreamer, which CSI needs). Use **distro** OpenCV and a venv that can see it:
-
-```bash
-cd "/home/$USER/Billiards-AI"
-sudo /usr/bin/apt-get update
-sudo /usr/bin/apt-get install -y python3-venv python3-pip python3-opencv python3-gst-1.0 gstreamer1.0-tools
-/usr/bin/rm -rf "/home/$USER/Billiards-AI/.venv"
-/usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-export PYTHONNOUSERSITE=1
-python3 -m pip install -U pip
-python3 -m pip install -r requirements.txt
-python3 -c "import cv2; print(cv2.__file__); print('GStreamer:', 'YES' if 'GStreamer:                   YES' in cv2.getBuildInformation() else 'NO')"
-```
-
-If `import cv2` still fails, see **`docs/DEPLOYMENT_JETSON.md`** and **`docs/1 Environment and startup.md`** (NumPy `<2`, user-site shadows, and optional `--no-deps` installs).
-
-**Repair when checks show pip OpenCV (`…/.venv/…/cv2`) or `GStreamer: NO`:** you must stop using the PyPI `opencv-python` wheel in this venv (Ultralytics / `requirements-train.txt` installs it) and use distro OpenCV instead. Run **all** of:
-
-```bash
-cd "/home/$USER/Billiards-AI"
-# 1) Remove this venv (discards pip opencv-python and other venv-only packages).
-/usr/bin/rm -rf "/home/$USER/Billiards-AI/.venv"
-# 2) Stop user-site OpenCV from shadowing distro cv2 in any future venv.
-export PYTHONNOUSERSITE=1
-/usr/bin/python3 -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless 2>/dev/null || true
-for _cv in "/home/$USER"/.local/lib/python3.*/site-packages/cv2*; do [ -e "$_cv" ] && /usr/bin/rm -rf "$_cv"; done
-# 3) Distro OpenCV + GStreamer (versions match your Jetson image).
-sudo /usr/bin/apt-get update
-sudo /usr/bin/apt-get install -y python3-venv python3-pip python3-opencv python3-gst-1.0 gstreamer1.0-tools
-# 4) New venv that can import apt’s cv2.
-/usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-export PYTHONNOUSERSITE=1
-python3 -m pip install -U pip wheel
-python3 -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
-python3 -m pip install --upgrade "numpy<2"
-# 5) Verify: path must be under /usr/lib/.../dist-packages, GStreamer must be YES.
-python3 -c "import cv2; print(cv2.__file__); print('GStreamer:', 'YES' if 'GStreamer:                   YES' in cv2.getBuildInformation() else 'NO')"
-```
-
-Do **not** run `pip install -r requirements-train.txt` in this venv if you need CSI; it will pull `opencv-python` again. Use a **second** venv (or another machine) for Ultralytics training.
+Use **`--camera usb`** or a file path; there is no CSI stack.
 
 **Fixed local ports (defaults):** see **`docs/PORTS.md`** (API **8000**, MJPEG **8001**–**8005**).
 
@@ -111,7 +116,7 @@ Required runtime assets:
 - Detector bundle (single directory `models/`): `model.onnx` + `class_map.json` with matching class indices (`MODEL_PATH` / `CLASS_MAP_PATH` override defaults; Docker mounts `./models` → `/models`)
 - `/home/$USER/Billiards-AI/data/calibration.json` (per table / per camera install)
 
-The repo ships **`models/class_map.json`** as the canonical label map. **`models/model.onnx`** is the exported detector: **track it in git** after training (see `docs/MODEL_OPTIMIZATION.md`). Typical flow on a trainer: `bash scripts/jetson_yolo_train_export_publish.sh`, or export then `bash scripts/publish_trained_model.sh` (set **`GIT_PUSH=1`** to push). Other machines **`git pull`** and run—no manual `scp` of weights. If the ONNX exceeds GitHub’s size guidance (~50–100MB), use **Git LFS** for `models/model.onnx` (documented in `docs/MODEL_OPTIMIZATION.md`).
+The repo ships **`models/class_map.json`**. **`models/model.onnx`** is produced on the **trainer** (usually Mac), committed with **`scripts/publish_trained_model.sh`**, and arrives on the Jetson with **`git pull`**. See **`docs/MODEL_OPTIMIZATION.md`** for training detail.
 
 Stop:
 
@@ -132,4 +137,3 @@ scripts/docker_jetson_down.sh
 - `docs/EVENT_DETECTION.md`
 - `docs/RULES_ENGINE.md`
 - `docs/DEPLOYMENT_JETSON.md`
-

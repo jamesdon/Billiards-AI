@@ -4,132 +4,29 @@
 
 Bring up edge + backend reliably and verify core services.
 
-## 0) Detect your machine (run first)
+## 1) Jetson (Linux aarch64 / arm64) — single command
 
-Paste **one** of these; the output tells you which setup block to follow.
-
-```bash
-/usr/bin/uname -s
-/usr/bin/uname -m
-```
-
-| `uname -s` | `uname -m` | Follow |
-|------------|------------|--------|
-| `Linux` | `aarch64` or `arm64` | **§1a — Linux ARM64 (Jetson-family, CSI)** |
-| `Linux` | `x86_64` (or other) | **§1b — Linux x86_64 (dev workstation)** |
-| `Darwin` | `arm64` or `x86_64` | **§1c — macOS** |
-| anything else | — | **§1d — Other** |
-
-Optional one-liner label:
-
-```bash
-case "$(/usr/bin/uname -s)-$(/usr/bin/uname -m)" in
-  Linux-aarch64|Linux-arm64) echo "USE_SECTION_1a_JETSON_ARM64" ;;
-  Linux-x86_64) echo "USE_SECTION_1b_LINUX_X86_64" ;;
-  Darwin-arm64|Darwin-x86_64) echo "USE_SECTION_1c_MACOS" ;;
-  *) echo "USE_SECTION_1d_OTHER" ;;
-esac
-```
-
-## 1.1 Status notes (NVIDIA CSI on Jetson Orin Nano)
-
-- Backend and software integrity checks can pass independently of camera bring-up.
-- For this project, a **CSI camera is always intended** for edge runtime validation on the Orin Nano (JetPack 5.x). That path requires **Linux ARM64** and **OpenCV with GStreamer** (§1a).
-- If CSI camera open fails (`RuntimeError: Failed to open camera source='nvarguscamerasrc ...'`), treat this section as blocked on device camera stack readiness (see **CSI troubleshooting** at the end).
-
-## 1) Create and activate the environment
-
-Use **exactly one** subsection below for your platform from §0.
-
-### 1a) Linux ARM64 — Jetson-family (CSI, distro OpenCV)
-
-`requirements.txt` does **not** install `opencv-python` on `aarch64`/`arm64`. Use **apt** `python3-opencv` (GStreamer) and a venv with **`--system-site-packages`**. Do **not** install `requirements-train.txt` in this venv if you need CSI (Ultralytics pulls pip OpenCV and you often get **`GStreamer: NO`**).
+This project targets **Jetson** for CSI. Do **not** use a generic `python3 -m venv` + laptop instructions on the device. Run:
 
 ```bash
 cd "/home/$USER/Billiards-AI"
-sudo /usr/bin/apt-get update
-sudo /usr/bin/apt-get install -y python3-venv python3-pip python3-opencv python3-gst-1.0 gstreamer1.0-tools
-```
-
-If `python3 -m venv` reports `ensurepip is not available`:
-
-```bash
-/usr/bin/python3 --version
-sudo /usr/bin/apt-get install -y "python3.10-venv"
-```
-
-Create the venv, install Python deps, pin NumPy for distro OpenCV ABI:
-
-```bash
-cd "/home/$USER/Billiards-AI"
-/usr/bin/rm -rf "/home/$USER/Billiards-AI/.venv"
-/usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
+chmod +x scripts/setup_jetson_edge_venv.sh
+bash scripts/setup_jetson_edge_venv.sh
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-export PYTHONNOUSERSITE=1
-python -m pip install -U pip wheel
-python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
-python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless 2>/dev/null || true
-/usr/bin/python3 -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless 2>/dev/null || true
-for _cv in "/home/$USER"/.local/lib/python3.*/site-packages/cv2*; do [ -e "$_cv" ] && /usr/bin/rm -rf "$_cv"; done
-python -m pip install --upgrade "numpy<2"
-python - <<'PY'
-import cv2
-print("cv2_path:", cv2.__file__)
-print("GStreamer:", "YES" if "GStreamer:                   YES" in cv2.getBuildInformation() else "NO")
-PY
+.venv/bin/python3 -c "import onnxruntime,cv2; print('imports-ok')"
 ```
 
-Expect **`cv2_path`** under **`/usr/lib/python3/dist-packages/`** (or similar) and **`GStreamer: YES`**. If you see **`…/.venv/…/cv2`** or **`GStreamer: NO`**, run the **repair** block in **`README.md`** (“Repair when checks show pip OpenCV … or `GStreamer: NO`”) or **`docs/DEPLOYMENT_JETSON.md`**.
+That script installs **`python3-opencv`** from apt, recreates **`.venv`** with **`--system-site-packages`**, installs **`requirements.txt`**, strips pip OpenCV if present, pins **`numpy<2`**, and fails unless **GStreamer** is **YES**.
 
-### 1b) Linux x86_64 — developer workstation
+**Training (Ultralytics)** happens on your **Mac** in a **different** clone/venv with **`requirements-train.txt`**. The Jetson edge venv never installs **`requirements-train.txt`**.
 
-Plain venv is fine; `requirements.txt` installs **`opencv-python`** via pip.
+## 2) macOS or Linux x86_64
 
-```bash
-cd "/home/$USER/Billiards-AI"
-/usr/bin/python3 -m venv "/home/$USER/Billiards-AI/.venv"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-export PYTHONNOUSERSITE=1
-python -m pip install -U pip
-python -m pip install -r "/home/$USER/Billiards-AI/requirements.txt"
-python - <<'PY'
-import cv2
-print("cv2_path:", cv2.__file__)
-PY
-```
+**macOS:** plain venv, `requirements.txt`, then **`requirements-train.txt`** for YOLO. See **`README.md`** (Mac section). USB camera for edge: **`--camera usb`**.
 
-Edge default is **`--camera csi`** (Jetson). On x86 there is usually no CSI stack — use **`--camera usb`**, a numeric V4L2 index, or a **video file** path instead (see `python -m edge.main --help`).
+**Linux x86_64:** plain venv + **`requirements.txt`** only unless you train there. USB or file for camera.
 
-### 1c) macOS (Darwin)
-
-Plain venv; pip **`opencv-python`** from `requirements.txt`. GStreamer is **not** required for typical USB webcams.
-
-```bash
-cd "/home/$USER/Billiards-AI"
-python3 -m venv ".venv"
-source ".venv/bin/activate"
-export PYTHONNOUSERSITE=1
-python3 -m pip install -U pip
-python3 -m pip install -r "requirements.txt"
-python3 - <<'PY'
-import cv2
-print("cv2_path:", cv2.__file__)
-PY
-```
-
-Start edge with USB (not CSI), for example:
-
-```bash
-cd "/home/$USER/Billiards-AI"
-source ".venv/bin/activate"
-python3 -m edge.main --camera usb --usb-index 0 --mjpeg-port 8001
-```
-
-### 1d) Other platforms
-
-Use the closest match: **§1b** for generic Linux without Jetson CSI, **§1c** for macOS-like dev. For production Jetson CSI, use **§1a** on **Linux ARM64** only. See **`README.md`**, **`docs/DEPLOYMENT_JETSON.md`**, and **`docs/PORTS.md`**.
-
-## 2) Quick integrity checks
+## 3) Quick integrity checks
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -139,7 +36,7 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
 /usr/bin/timeout 300 pytest -q "/home/$USER/Billiards-AI/tests"
 ```
 
-## 3) Start backend
+## 4) Start backend
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -155,9 +52,9 @@ curl -s "http://127.0.0.1:8000/health"
 curl -s "http://127.0.0.1:8000/live/state"
 ```
 
-## 4) Start edge (no model smoke test)
+## 5) Start edge (no model smoke test)
 
-**Linux ARM64 (Jetson CSI)** — default camera is CSI:
+**Jetson CSI:**
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -165,15 +62,13 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
 /usr/bin/timeout 1200 python3 -m edge.main --camera csi --csi-sensor-id 0 --mjpeg-port 8001
 ```
 
-To vertically flip the CSI camera image, add `--csi-flip-method 6`:
+Vertical flip when the camera is upside down:
 
 ```bash
-cd "/home/$USER/Billiards-AI"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
 /usr/bin/timeout 1200 python3 -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --mjpeg-port 8001
 ```
 
-**macOS or Linux x86 without CSI** — use USB or a file, for example:
+**macOS or Linux x86 (USB):**
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -208,22 +103,8 @@ Additional checks:
 - verify camera ribbon orientation and secure connector lock
 - ensure no competing process holds the camera
 - restart Argus: `sudo /usr/bin/systemctl restart nvargus-daemon`
-- verify OpenCV has GStreamer enabled (Linux ARM64 / §1a):
-
-```bash
-python - <<'PY'
-import cv2
-import site
-print("OpenCV:", cv2.__version__)
-print("cv2_path:", cv2.__file__)
-print("user_site:", site.getusersitepackages())
-print("GStreamer:", "YES" if "GStreamer:                   YES" in cv2.getBuildInformation() else "NO")
-PY
-```
-
-- if `cv2_path` points under `/home/$USER/.local/...`, disable user-site packages: `export PYTHONNOUSERSITE=1` (already in §1a).
-- if **`GStreamer`** shows **`NO`** on Jetson, you are not on the §1a stack — use **`README.md`** repair block or **`docs/DEPLOYMENT_JETSON.md`** (remove pip OpenCV, distro `python3-opencv`, `--system-site-packages` venv, reinstall **`requirements.txt`** only for CSI).
-- if OpenCV import fails with `_ARRAY_API not found` or `numpy.core.multiarray failed to import`, force NumPy 1.x and retry:
+- if **`GStreamer`** is **NO** or **`import cv2`** loads pip OpenCV under **`.venv/site-packages`**, re-run **`bash scripts/setup_jetson_edge_venv.sh`** on the Jetson (see **`docs/DEPLOYMENT_JETSON.md`** for NumPy / user-site edge cases).
+- if OpenCV import fails with `_ARRAY_API not found` or `numpy.core.multiarray failed to import`:
 
 ```bash
 cd "/home/$USER/Billiards-AI"

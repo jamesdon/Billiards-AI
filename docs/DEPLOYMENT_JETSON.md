@@ -27,66 +27,17 @@ version-specific venv package that matches `/usr/bin/python3 --version`
 sudo /usr/bin/apt-get install -y python3.10-venv
 ```
 
-## Install
+## Install (edge venv)
 
-From repo root:
-
-```bash
-cd "/home/$USER/Billiards-AI"
-/usr/bin/rm -rf "/home/$USER/Billiards-AI/.venv"
-/usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-# Prevent Python from loading user-site packages like ~/.local/lib/pythonX.Y/site-packages
-# that can shadow distro OpenCV with a non-GStreamer pip build.
-export PYTHONNOUSERSITE=1
-/usr/bin/python3 -m pip install -U pip wheel
-# IMPORTANT: pin NumPy before other deps if your distro OpenCV was built against NumPy 1.x.
-python -m pip install "numpy<2"
-# IMPORTANT: prevent pip from pulling opencv-python wheel on the device.
-python -m pip install --no-cache-dir --upgrade --ignore-installed --no-deps -r "/home/$USER/Billiards-AI/requirements.txt"
-python -m pip install --no-cache-dir --upgrade --ignore-installed onnxruntime fastapi uvicorn pydantic orjson pytest pytest-timeout ruff boto3
-# Quick verification: "GStreamer: YES" is required for --camera csi
-python - <<'PY'
-import cv2
-print("cv2:", cv2.__file__)
-print("GStreamer:", "YES" if "GStreamer:                   YES" in cv2.getBuildInformation() else "NO")
-PY
-```
-
-If `cv2` path points to `/home/$USER/.local/...`, remove user-site OpenCV packages
-or run with `PYTHONNOUSERSITE=1`.
-
-Example cleanup for user-site shadow packages:
-
-```bash
-/usr/bin/python3 -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless
-/usr/bin/rm -rf "/home/$USER/.local/lib/python3.10/site-packages/cv2"*
-```
-
-If this reports `GStreamer: NO`, remove pip OpenCV and use distro OpenCV:
-
-```bash
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless
-sudo /usr/bin/apt-get install -y python3-opencv python3-gst-1.0 gstreamer1.0-tools
-# reinstall non-OpenCV Python deps only
-python -m pip install --no-cache-dir --upgrade --ignore-installed "numpy<2" onnxruntime fastapi uvicorn pydantic orjson pytest pytest-timeout ruff boto3
-```
-
-Expected check output after fix:
-
-- `cv2_path` should point to `/usr/lib/python3/dist-packages/...`
-- `GStreamer:                   YES`
-
-If `cv2` import fails with `_ARRAY_API not found` or `numpy.core.multiarray failed to import`,
-your environment has a NumPy ABI mismatch (NumPy 2.x with OpenCV built against NumPy 1.x).
-Fix by pinning NumPy below 2:
+From repo root, use the single installer (replaces manual copy-paste blocks):
 
 ```bash
 cd "/home/$USER/Billiards-AI"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m pip install --force-reinstall "numpy<2"
+chmod +x scripts/setup_jetson_edge_venv.sh
+bash scripts/setup_jetson_edge_venv.sh
 ```
+
+If OpenCV is wrong (**`GStreamer: NO`**, pip **`cv2`** under **`.venv/site-packages`**, or NumPy ABI errors), run **`bash scripts/setup_jetson_edge_venv.sh`** again from the repo root. More detail: **`docs/1 Environment and startup.md`**.
 
 ## Model optimization
 

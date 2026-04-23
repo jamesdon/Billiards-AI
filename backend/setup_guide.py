@@ -234,14 +234,14 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "hints": [
             "Progress is kept in the repo file data/setup_wizard_progress.json and a browser copy (localStorage); both update when you save, auto-save, or leave the page.",
             "Status lights: red = not started, yellow = in progress, green = complete.",
-            "Jetson / Linux **aarch64**: the next step (**Environment**) is **not** the same as a generic `python3 -m venv && pip install` laptop recipe—open **`docs/1 Environment and startup.md` §1a** for distro OpenCV + GStreamer (CSI).",
+            "Jetson: the Environment step runs **`scripts/setup_jetson_edge_venv.sh`** — not a generic laptop venv recipe.",
         ],
         "doc_refs": [{"label": "README", "path": "README.md"}, {"label": "Architecture", "path": "docs/ARCHITECTURE.md"}],
     },
     {
         "id": "environment",
         "title": "Environment and startup",
-        "summary": "Create the venv, install dependencies, and **start the API once** (`./scripts/run_backend.sh` or your process manager) so `/setup` and `/health` work. **Later steps assume the API is already up**—if the sidebar shows the API as healthy, do not start a second server on the same port. **Pick your platform first** (`uname -s` / `uname -m` → **`docs/1 Environment and startup.md` §0–§1c**): Linux ARM64 (Jetson CSI) differs from macOS / Linux x86.",
+        "summary": "**Jetson (aarch64):** run **`scripts/setup_jetson_edge_venv.sh`** once — that is the whole edge venv (CSI + GStreamer). **Mac / Linux x86:** plain venv + `requirements.txt` (+ `requirements-train.txt` on the Mac only). Then start the API once (`./scripts/run_backend.sh`) so `/setup` and `/health` work.",
         "checklist": [
             {
                 "item": "Virtual environment exists at .venv",
@@ -251,77 +251,50 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "item": "Core dependencies install without error",
                 "verify": (
-                    "1) **Detect the machine** (run at the repo root). Use the output to choose the matching section in "
-                    "**`docs/1 Environment and startup.md`** (§0 table → §1a / §1b / §1c).\n\n"
+                    "**Jetson — Linux aarch64 or arm64 only.** Run this single script (uses `sudo` for apt). "
+                    "Do **not** run `pip install -r requirements-train.txt` on the Jetson edge venv.\n\n"
                     "```bash\n"
-                    "/usr/bin/uname -s\n"
-                    "/usr/bin/uname -m\n"
+                    'cd "{project_root}" && chmod +x scripts/setup_jetson_edge_venv.sh && bash scripts/setup_jetson_edge_venv.sh\n'
                     "```\n\n"
-                    "- **Linux + aarch64 or arm64** (Jetson-family): follow **§1a** in that doc (apt `python3-opencv`, "
-                    "`python3 -m venv --system-site-packages`, then `pip install -r requirements.txt`). "
-                    "A plain `python3 -m venv .venv` **without** §1a is the usual reason `import cv2` fails or CSI sees "
-                    "`GStreamer: NO`. Do **not** install `requirements-train.txt` in the **same** venv if you need CSI "
-                    "(Ultralytics installs pip OpenCV).\n\n"
-                    "- **Linux + x86_64** or **Darwin** (macOS): you can use this one-liner, then the import check below.\n\n"
+                    "**Mac or Linux x86_64.** Use a normal venv and both requirement files only on the **Mac** "
+                    "(training). On x86 Linux, venv + `requirements.txt` only is enough for USB/file dev.\n\n"
                     "```bash\n"
                     'cd "{project_root}" && python3 -m venv .venv && .venv/bin/python3 -m pip install -U pip && '
                     ".venv/bin/python3 -m pip install -r requirements.txt\n"
                     "```\n\n"
-                    "2) Confirm **onnxruntime** and **cv2** import (on Jetson after §1a, `cv2` usually loads from "
-                    "`/usr/lib/.../dist-packages`; expect one line `imports-ok`, no traceback).\n\n"
+                    "On the **Mac** add training deps: `.venv/bin/python3 -m pip install -r requirements-train.txt`\n\n"
+                    "**Import check (every machine after venv):**\n\n"
                     "```bash\n"
-                    '.venv/bin/python3 -c "import onnxruntime,cv2; print(\'imports-ok\')"\n'
-                    "```\n\n"
-                    "3) **Optional — training only:** if you need Ultralytics on **this** machine **and** you are **not** "
-                    "using Jetson CSI in the same venv, install:\n\n"
-                    "```bash\n"
-                    'cd "{project_root}" && .venv/bin/python3 -m pip install -r requirements-train.txt\n'
-                    "```\n\n"
-                    "On **Linux ARM64 + CSI**, use a **separate** clone/venv for training, or expect to repair OpenCV per "
-                    "**`README.md`** (Jetson repair block) and **`docs/1`** §1a.\n\n"
-                    "**If you already installed `requirements-train.txt` on the Jetson CSI venv** and `import cv2` works but "
-                    "CSI fails, you likely have pip OpenCV (**`GStreamer: NO`**). Prefer the repair flow in **`README.md`** "
-                    "before checking off CSI-related later steps."
+                    'cd "{project_root}" && .venv/bin/python3 -c "import onnxruntime,cv2; print(\'imports-ok\')"\n'
+                    "```"
                 ),
                 "record": "If pip or the import check failed, paste the last error lines in Notes. If a package upgrade was unexpected, name it in Notes.",
             },
         ],
         "links": [],
         "hints": [
-            "Optional (Jetson with CSI only): with the venv active, from the repository root run `bash scripts/phase1.sh`. That script installs Python deps, checks that OpenCV was built with GStreamer (needed for CSI), runs compileall, ruff, pytest, then smoke-tests the backend and edge with `--camera csi`. It is not a generic desktop check—do not expect it to succeed on macOS or on a system without a CSI camera and a GStreamer-capable OpenCV; use the Environment checklist on those machines instead."
+            "Jetson CSI smoke (optional): `bash scripts/phase1.sh` from repo root with the Jetson venv active — only on hardware with CSI + the venv from `setup_jetson_edge_venv.sh`."
         ],
         "doc_refs": [{"label": "1 — Environment and startup", "path": "docs/1 Environment and startup.md"}],
     },
     {
         "id": "model",
         "title": "Detector model (ONNX)",
-        "summary": "Ensure `models/model.onnx` and `models/class_map.json` exist. **Most devices:** `git pull` after someone pushed the ONNX from a trainer machine—**no local Ultralytics runs required** on the Jetson. Training/export is optional; see “Dataset and training (optional)”.",
+        "summary": "Run **`scripts/ensure_models_model_onnx.sh`** then **`git pull`** if needed. The Jetson almost never trains; the Mac pushes `models/model.onnx`. See “Dataset and training (optional)” only if you author a new model.",
         "checklist": [
             {
                 "item": "models/model.onnx exists",
                 "verify": (
-                    "**Start here on a fresh clone (typical Jetson edge box):** the team checks **`models/model.onnx`** into "
-                    "**`main`**. Pull it—**do not** run `jetson_yolo_export_latest.sh` until `runs/detect/*/weights/best.pt` "
-                    "exists **on this machine**, or the script will correctly say “no runs”.\n\n"
+                    "Run these in order from the repository root.\n\n"
                     "```bash\n"
                     'cd "{project_root}" && git pull origin main\n'
+                    "chmod +x scripts/ensure_models_model_onnx.sh && bash scripts/ensure_models_model_onnx.sh\n"
                     "ls -lh models/model.onnx models/class_map.json\n"
                     "```\n\n"
-                    "**Path A — train/export on this clone** (`runs/detect/*/weights/best.pt` exists after training):\n\n"
-                    "```bash\n"
-                    'cd "{project_root}" && bash scripts/jetson_yolo_export_latest.sh\n'
-                    "bash scripts/publish_trained_model.sh\n"
-                    "# optional: GIT_PUSH=1 bash scripts/publish_trained_model.sh\n"
-                    "```\n\n"
-                    "**Path B — no runs and no ONNX after `git pull`:** train here (dataset under `data/datasets/.../images/train` "
-                    "and val) with **`bash scripts/jetson_yolo_train.sh`**, then Path A, or obtain `model.onnx` from a teammate "
-                    "and place it under **`models/`** (see **`docs/MODEL_OPTIMIZATION.md`**).\n\n"
-                    "**Path C — hand-copy once (offline):** copy the file to **`models/model.onnx`** (must match "
-                    "`models/class_map.json`).\n\n"
-                    "Confirm on disk (typical size a few to tens of MB):\n\n"
-                    "```bash\n"
-                    "ls -lh models/model.onnx\n"
-                    "```"
+                    "The **`ensure_`** script moves a stray repo-root **`model.onnx`** into **`models/`**, or copies the newest "
+                    "**`runs/detect/*/weights/best.onnx`** if you exported on this machine. If it still errors, the ONNX is "
+                    "not on **`main`** yet — finish train/export + **`publish_trained_model.sh`** on the Mac, push, then "
+                    "**`git pull`** here again (see **`README.md`** Mac section and **`docs/MODEL_OPTIMIZATION.md`**)."
                 ),
                 "record": "When you replace the model, put size or the `ls -lh` line and the date in Notes if useful.",
             },
@@ -334,7 +307,6 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "links": [],
         "hints": [
             "Default letterbox is 640×640; ONNX input shape must match (see detector code).",
-            "Edge device with no `runs/detect/.../best.pt`: **`git pull`** for `models/model.onnx` before trying export scripts.",
         ],
         "doc_refs": [{"label": "MODEL_OPTIMIZATION", "path": "docs/MODEL_OPTIMIZATION.md"}],
     },
