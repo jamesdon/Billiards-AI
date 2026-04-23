@@ -150,7 +150,7 @@ Billiards-AI/
     jetson_train_env.sh             Orin Nano: git pull + venv + requirements + requirements-train
     jetson_prepare_yolo_dataset.sh  Orin Nano: chmod + run bootstrap + grep path line
     jetson_yolo_train.sh            Ultralytics train (Apple Silicon: higher default epochs/batch/workers; Jetson/Linux: conservative; env overrides); exits early if `data/datasets/billiards/images/train` has no JPEG/PNG
-    jetson_yolo_export_latest.sh    Orin Nano: export newest best.pt to models/model.onnx
+    jetson_yolo_export_latest.sh    Orin Nano: export newest best.pt to models/model.onnx (if no runs, prints train / scp / copy hints)
     jetson_pytest.sh                Orin Nano: pytest tests/
     jetson_phases_1.sh              Orin Nano: `run_phase` 1 only; for TEST_PLAN §3 use `edge.main` per `docs/3` (replaces `jetson_phases_1_3.sh` + removed `phase3.sh`)
     jetson_edge_smoke_csi.sh        Orin Nano: edge.main CSI smoke (until Ctrl+C)

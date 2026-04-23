@@ -10,7 +10,16 @@ activate_venv
 
 LATEST_PT="$(ls -t "$PROJECT_ROOT/runs/detect/"*/weights/best.pt 2>/dev/null | head -1 || true)"
 if [[ -z "${LATEST_PT}" ]]; then
-  echo "No runs found under $PROJECT_ROOT/runs/detect/*/weights/best.pt — train first (jetson_yolo_train.sh)." >&2
+  echo "No runs found under $PROJECT_ROOT/runs/detect/*/weights/best.pt" >&2
+  echo "" >&2
+  echo "You need a trained checkpoint before this script can export to models/model.onnx. Pick one:" >&2
+  echo "  A) Train on this device (needs labeled images under data/datasets/billiards/images/train/):" >&2
+  echo "       bash \"$PROJECT_ROOT/scripts/jetson_yolo_train.sh\"" >&2
+  echo "     Then re-run: bash \"$PROJECT_ROOT/scripts/jetson_yolo_export_latest.sh\"" >&2
+  echo "  B) Copy a team-approved model.onnx from another machine (must match models/class_map.json):" >&2
+  echo "       scp user@host:/path/to/model.onnx \"$PROJECT_ROOT/models/model.onnx\"" >&2
+  echo "     See docs/MODEL_OPTIMIZATION.md (copy / scp) and docs/3 Detection and tracking.md." >&2
+  echo "  C) If you already have best.pt elsewhere, copy it under runs/detect/<name>/weights/best.pt then re-run this script." >&2
   exit 1
 fi
 echo "Using: $LATEST_PT"

@@ -296,14 +296,18 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "item": "models/model.onnx exists",
                 "verify": (
-                    "1) Export the newest trained weights from this same repository clone. The script "
-                    "jetson_yolo_export_latest.sh selects the latest runs/detect/.../weights/best.pt, "
-                    "runs the Ultralytics ONNX export, and copies the file to models/model.onnx. From the repository root run:\n\n"
+                    "**If `models/model.onnx` is missing**, you either **train + export** on this clone or **copy** an ONNX "
+                    "that matches **`models/class_map.json`** (normal deploy: copy team file; see **`docs/MODEL_OPTIMIZATION.md`**).\n\n"
+                    "**Path A — already trained here** (`runs/detect/*/weights/best.pt` exists): from the repository root run:\n\n"
                     "```bash\n"
                     'cd "{project_root}" && bash scripts/jetson_yolo_export_latest.sh\n'
                     "```\n\n"
-                    "If you must bring an ONNX from another machine, install it in this tree as models/model.onnx only when its class head still matches models/class_map.json and your YOLO data YAML; when in doubt, train or re-export in this clone so the run, class map, and YAML stay one consistent line.\n\n"
-                    "2) Confirm the file on disk (typical size is a few to tens of MB):\n\n"
+                    "**Path B — no training runs yet:** install dataset images under `data/datasets/billiards/images/train/` "
+                    "(and val), then `bash scripts/jetson_yolo_train.sh`, then run **`jetson_yolo_export_latest.sh`** again. "
+                    "Capture/label hints: **`docs/MODEL_OPTIMIZATION.md`**, **`scripts/jetson_capture_training_frames.sh`**.\n\n"
+                    "**Path C — ONNX from another machine:** `scp` (or copy) to **`models/model.onnx`**; class order must match "
+                    "`models/class_map.json`.\n\n"
+                    "Confirm on disk (typical size a few to tens of MB):\n\n"
                     "```bash\n"
                     "ls -lh models/model.onnx\n"
                     "```"
