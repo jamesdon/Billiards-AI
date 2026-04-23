@@ -354,9 +354,11 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     '  --onnx-model "{project_root}/models/model.onnx" \\\n'
                     '  --class-map "{project_root}/models/class_map.json" \\\n'
                     '  --calib "{project_root}/calibration.json" \\\n'
+                    '  --identities "{project_root}/identities.json" \\\n'
                     "  --show-track-debug-overlay \\\n"
                     "  --mjpeg-port {mjpeg_port}\n"
                     "```\n\n"
+                    "**`--identities`:** use the same file the backend will read (default `identities.json` in the repo, or set `BILLIARDS_IDENTITIES_PATH` when starting the API). This lets you **keep one `edge.main` process** through **Classification and identity** without restarting just to add profiles.\n\n"
                     "**2) Check the live stream** — With that process still running, set the **MJPEG** field in the sidebar to the same "
                     "`--mjpeg-port` (default 8001). Use the two buttons to open the **live overlay** and **/health**. On the video you should see a **top-right panel** (ONNX loaded, frame count, inference on/off, counts) and **boxes**: "
                     "thin labels like `ball 0.87` are **raw detector** results; thicker `trk …` labels are **tracks**. If you see **ONNX: NO**, you did not pass `--onnx-model` / the file is missing. "
@@ -380,40 +382,47 @@ SETUP_STEPS: list[dict[str, Any]] = [
             "The sidebar polls GET /health on the MJPEG port you set; it only shows whether edge is listening, not that tracking quality is good.",
             "CUDA provider warnings on Mac are normal; CoreML/CPU is used.",
             "`--show-track-debug-overlay` is for bring-up only; drop it for normal play.",
+            "The block includes `--identities` so the **same** `edge.main` can keep running for the next step (Classification and identity) without a restart to add that flag.",
         ],
         "doc_refs": [{"label": "3 — Detection and tracking", "path": "docs/3 Detection and tracking.md"}],
     },
     {
         "id": "phase4",
         "title": "Classification and identity",
-        "summary": "Ball **classes** (from `class_map` / ONNX) plus **file-backed** player/stick **profiles** in `identities.json` (TEST_PLAN §4). This is not face, login, or “who is in the room” user detection; see the checklist and docs/4.",
+        "summary": (
+            "**What this proves (TEST_PLAN §4):** (1) **Ball classes** from the detector/classifier behave as expected in play. (2) **Player and cue-stick “profiles”** are stable ids in `identities.json` with editable **display names** used on the scoreboard—"
+            "they are **not** app logins, face recognition, or “labeling end users” in a security sense; edge creates rows when it sees `person`/`player` and `cue_stick`/`stick` tracks, and you set nicknames. "
+            "Use **Score Keeper → Player & stick names** (same API as GET/PATCH /profiles) to rename any time, including at the start of a session."
+        ),
         "checklist": [
             {
-                "item": "PATCH nickname, restart edge, same id and name",
+                "item": "Display names for player/stick profiles persist; optional restart of edge to confirm load from disk",
                 "verify": (
-                    "Open **GET /profiles** (Quick link) and check JSON for **player** and **stick** entries: stable id strings, display_name, and other fields. "
-                    "That data is file-backed in `identities.json` (not face or “user recognition” in a vision sense). Note one player/… or stick/… id to rename; stick URLs follow docs/4 if needed.\n\n"
-                    "1) Start edge with a writable `identities.json` (example USB; match MJPEG to the sidebar):\n\n"
+                    "**Objective** — See JSON from **GET /profiles** (Quick link) with **player** and **stick** entries (ids + `display_name`). Confirm **renames** are saved to `identities.json` and still there after a restart. "
+                    "**Backend** must be running (`./scripts/run_backend.sh` or equivalent); edge must use the **same** identities file the API reads (default `./identities.json` or set `BILLIARDS_IDENTITIES_PATH` to match `--identities` on edge).\n\n"
+                    "**Keep one `edge.main`:** If you already started edge from **Detection and tracking** with `--identities \"{project_root}/identities.json\"`, you **do not** need a new edge process for this step -- "
+                    "let it run, have people/sticks in frame so profiles appear, then go to **Score Keeper** (link below) **or** GET /profiles to edit names. "
+                    "Only (re)start edge if you **omitted** `--identities` earlier or you want to **verify** cold start.\n\n"
+                    "**1) Edit names (recommended)** — Open **Score Keeper** while the API is on port **{api_port}**, scroll to **Player & stick names**, set a name, **Save**, then **Refresh** and confirm. "
+                    "If the list is empty, keep `edge.main` running with the camera on people/sticks so profiles are created, then refresh.\n\n"
+                    "**2) Optional: curl** — Same as the UI; replace `PLAYER_ID` with a real `id` from the JSON, not the placeholder string:\n\n"
                     "```bash\n"
-                    'cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --identities identities.json --calib calibration.json --mjpeg-port {mjpeg_port}\n'
+                    "curl -s -X PATCH \"http://127.0.0.1:{api_port}/profiles/player/PLAYER_ID\" -H \"Content-Type: application/json\" -d '{\"display_name\":\"TestName\"}'\n"
                     "```\n\n"
-                    "2) Set a test display name for your id, e.g. (copy a real `id` from **GET /profiles** — the string `PLAYER_PROFILE_ID` in the curl line is only a doc placeholder):\n\n"
-                    "```bash\n"
-                    "# List ids (or use the Quick link): curl -s \"http://127.0.0.1:{api_port}/profiles\"\n"
-                    'curl -s -X PATCH "http://127.0.0.1:{api_port}/profiles/player/REAL_PLAYER_ID_FROM_GET_PROFILES" -H "Content-Type: application/json" -d \'{"display_name":"TestName"}\'\n'
-                    "```\n\n"
-                    "3) Stop that edge, start the **same** command again, and open **GET /profiles** once more. The same profile should still list `display_name` as **TestName** (persistence in the file, not a re-detect on camera)."
+                    "**3) Persistence check** — Stop and start **edge** (same command as before, with `--identities` unchanged) **or** only restart the backend; open **GET /profiles** again. `display_name` should still be **TestName** (file on disk, not a one-session memory)."
                 ),
                 "record": "If the name did not round-trip, put the profile id and response snippet in Notes.",
             },
         ],
         "links": [
             {"label": "GET /profiles (JSON)", "href_template": "http://127.0.0.1:{api_port}/profiles"},
+            {"label": "Score Keeper (edit names)", "href_template": "http://127.0.0.1:{api_port}/scorekeeper"},
             {"label": "Backend /health (debug)", "href_template": "http://127.0.0.1:{api_port}/health"},
         ],
         "hints": [
             "Replace --camera usb with csi on Jetson.",
-            "“Profiles” are persisted table-entity labels (file-backed with edge); they are not face or person recognition.",
+            "“Profiles” are table-entity labels in `identities.json`; not face or person-in-the-room “user” detection.",
+            "For one identities file, point both edge `--identities` and `BILLIARDS_IDENTITIES_PATH` (if set) at the same path.",
         ],
         "doc_refs": [{"label": "4 — Classification and identity", "path": "docs/4 Classification and identity.md"}],
     },

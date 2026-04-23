@@ -9,6 +9,9 @@
   const elTurn = document.getElementById("sk-turn");
   const elClock = document.getElementById("sk-clock");
   const elRecent = document.getElementById("sk-recent");
+  const elProfStatus = document.getElementById("sk-profiles-status");
+  const elProfForm = document.getElementById("sk-profiles-form");
+  const elProfRefresh = document.getElementById("sk-profiles-refresh");
 
   function applyTextSize(size) {
     if (size !== "small" && size !== "medium" && size !== "large") size = "medium";
@@ -168,6 +171,132 @@
     d.textContent = s;
     return d.innerHTML;
   }
+
+  function setProfStatus(msg, kind) {
+    if (!elProfStatus) return;
+    elProfStatus.textContent = msg || "";
+    elProfStatus.className = "sk-profiles-status" + (kind ? " sk-profiles-status--" + kind : "");
+  }
+
+  function renderProfiles(data) {
+    if (!elProfForm) return;
+    const players = (data && data.players) || [];
+    const sticks = (data && data.sticks) || [];
+    if (!players.length && !sticks.length) {
+      elProfForm.innerHTML =
+        '<p class="sk-na">No profiles yet. Keep edge running with people or a cue in view, then use Refresh list.</p>';
+      return;
+    }
+    let html = "";
+    if (players.length) {
+      html += "<h3 class=\"sk-profiles-sub\">Players</h3>";
+      players.forEach((p) => {
+        const id = String((p && p.id) != null ? p.id : "");
+        const dn = String(
+          p && p.display_name != null && p.display_name !== undefined ? p.display_name : ""
+        );
+        html +=
+          "<div class=\"sk-profiles-row\" data-kind=\"player\">" +
+          "<span class=\"sk-profiles-id\"><code>" +
+          escapeHtml(id) +
+          "</code></span>" +
+          "<label class=\"sk-profiles-lab\">Display name<input type=\"text\" class=\"sk-profiles-input\" data-kind=\"player\" data-id=\"" +
+          escapeHtml(id) +
+          "\" value=\"" +
+          escapeHtml(dn) +
+          "\" autocomplete=\"off\" spellcheck=\"false\" /></label>" +
+          "<button type=\"button\" class=\"sk-btn sk-profiles-save\" data-kind=\"player\" data-id=\"" +
+          escapeHtml(id) +
+          "\">Save</button></div>";
+      });
+    }
+    if (sticks.length) {
+      html += "<h3 class=\"sk-profiles-sub\">Sticks</h3>";
+      sticks.forEach((p) => {
+        const id = String((p && p.id) != null ? p.id : "");
+        const dn = String(
+          p && p.display_name != null && p.display_name !== undefined ? p.display_name : ""
+        );
+        html +=
+          "<div class=\"sk-profiles-row\" data-kind=\"stick\">" +
+          "<span class=\"sk-profiles-id\"><code>" +
+          escapeHtml(id) +
+          "</code></span>" +
+          "<label class=\"sk-profiles-lab\">Display name<input type=\"text\" class=\"sk-profiles-input\" data-kind=\"stick\" data-id=\"" +
+          escapeHtml(id) +
+          "\" value=\"" +
+          escapeHtml(dn) +
+          "\" autocomplete=\"off\" spellcheck=\"false\" /></label>" +
+          "<button type=\"button\" class=\"sk-btn sk-profiles-save\" data-kind=\"stick\" data-id=\"" +
+          escapeHtml(id) +
+          "\">Save</button></div>";
+      });
+    }
+    elProfForm.innerHTML = html;
+  }
+
+  async function loadProfiles() {
+    if (!elProfForm) return;
+    setProfStatus("Loading profiles…", "");
+    try {
+      const r = await fetch("/profiles", { cache: "no-store" });
+      if (!r.ok) {
+        setProfStatus("GET /profiles failed: HTTP " + r.status, "bad");
+        elProfForm.innerHTML = "";
+        return;
+      }
+      const data = await r.json();
+      renderProfiles(data);
+      setProfStatus(
+        "Edit a display name and Save, or refresh after new people/sticks enter the frame.",
+        "ok"
+      );
+    } catch (_) {
+      setProfStatus("Could not reach /profiles. Is the backend running?", "bad");
+      elProfForm.innerHTML = "";
+    }
+  }
+
+  async function onProfileSaveClick(e) {
+    const t = e.target;
+    if (!t || !t.classList || !t.classList.contains("sk-profiles-save")) return;
+    const kind = t.getAttribute("data-kind");
+    const id = t.getAttribute("data-id");
+    const row = t.closest && t.closest(".sk-profiles-row");
+    const inp = row && row.querySelector(".sk-profiles-input");
+    if (!kind || id == null || !inp) return;
+    const name = String(inp.value || "").trim();
+    setProfStatus("Saving…", "");
+    try {
+      const path = kind === "stick" ? "/profiles/stick/" : "/profiles/player/";
+      const r = await fetch(path + encodeURIComponent(id), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: name }),
+      });
+      if (!r.ok) {
+        const err = await r.text();
+        setProfStatus("Save failed: HTTP " + r.status + " " + err.slice(0, 200), "bad");
+        return;
+      }
+      setProfStatus("Saved display name for " + id + ".", "ok");
+    } catch (_) {
+      setProfStatus("Save failed (network).", "bad");
+    }
+  }
+
+  if (elProfForm) {
+    elProfForm.addEventListener("click", onProfileSaveClick);
+  }
+  if (elProfRefresh) {
+    elProfRefresh.addEventListener("click", function () {
+      void loadProfiles();
+    });
+  }
+  void loadProfiles();
+  setInterval(function () {
+    void loadProfiles();
+  }, 25000);
 
   async function poll() {
     try {

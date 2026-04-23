@@ -36,6 +36,19 @@
         <p class="sk-sub">Live from <code>GET /live/state</code> · <span id="sk-conn" class="sk-conn">connecting…</span></p>
       </header>
 
+      <section class="sk-card sk-card--wide sk-card--profiles" aria-labelledby="sk-profiles-h2">
+        <h2 id="sk-profiles-h2">Player &amp; stick names</h2>
+        <p class="sk-profiles-hint">
+          Same data as <code>GET /profiles</code> / <code>PATCH /profiles/…</code>, stored in
+          <code>identities.json</code>. These are <strong>table-entity</strong> labels (track-backed ids and
+          nicknames), not app accounts or face recognition. Edge creates player/stick rows when it sees
+          people or cue sticks; edit names any time, including at the start of a session.
+        </p>
+        <p id="sk-profiles-status" class="sk-profiles-status" role="status" aria-live="polite"></p>
+        <div id="sk-profiles-form" class="sk-profiles-form"></div>
+        <button type="button" id="sk-profiles-refresh" class="sk-btn">Refresh list</button>
+      </section>
+
       <section class="sk-grid" aria-live="polite">
         <div class="sk-card sk-card--wide">
           <h2>Scoreboard</h2>

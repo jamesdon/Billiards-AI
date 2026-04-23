@@ -63,11 +63,17 @@ def test_setup_page_and_api():
     assert any(s["id"] == "phase3" for s in steps)
     p4 = next(s for s in steps if s["id"] == "phase4")
     assert len(p4["checklist"]) == 1
-    assert "PATCH" in (p4["checklist"][0].get("item") or "")
-    assert "GET /profiles" in (p4["checklist"][0].get("verify") or "")
+    assert "display" in (p4["checklist"][0].get("item") or "").lower()
+    p4v = p4["checklist"][0].get("verify") or ""
+    assert "GET /profiles" in p4v
+    assert "Score Keeper" in p4v
+    assert "curl" in p4v
     p4links = p4.get("links") or []
     assert any(
         (isinstance(x, dict) and x.get("label") == "GET /profiles (JSON)") for x in p4links
+    )
+    assert any(
+        (isinstance(x, dict) and "Score Keeper" in (x.get("label") or "")) for x in p4links
     )
     p3 = next(s for s in steps if s["id"] == "phase3")
     assert len(p3["checklist"]) == 1
