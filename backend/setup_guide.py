@@ -327,8 +327,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "verify": (
                     "1) Automated (macOS USB defaults; on Jetson set `PHASE3_USB_INDEX` if the script needs it). From the repo root:\n"
                     '`cd "{project_root}" && source .venv/bin/activate && bash scripts/phase3.sh`'
-                    "\nExpect a PASS line, or at least no Python traceback on the run you care about.\n\n"
-                    "2) Or run edge + MJPEG by hand (use `--camera csi` on Jetson instead of `usb` when appropriate; `--mjpeg-port` must match the sidebar and buttons on this page):\n"
+                    "\nExpect a PASS line, or at least no Python traceback on the run you care about. "
+                    "If startup looks hung after a Starting line, wait for ONNX and the camera, or in another terminal follow the n2 log. The `tail` line below includes a Copy button:\n"
+                    '`tail -f "{project_root}/.phase3_n2.log"`'
+                    "\n\n2) Or run edge + MJPEG by hand (use `--camera csi` on Jetson instead of `usb` when appropriate; `--mjpeg-port` must match the sidebar and buttons on this page):\n"
                     '`cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --calib calibration.json --mjpeg-port {mjpeg_port}`'
                 ),
                 "record": "If you had to set `PHASE3_USB_INDEX` or `detect_every_n`, note values in Notes.",
@@ -336,9 +338,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "item": "Overlay shows stable track IDs during motion",
                 "verify": (
-                    "Set the MJPEG port in the left sidebar to match your `edge.main` process (`--mjpeg-port`). "
-                    "Use the buttons in this same checklist item (no separate Quick links section for this) to open the live "
-                    "video and, if you want, the JSON /health check. With the camera on the table, move objects: track IDs "
+                    "Set the MJPEG port in the left sidebar to the same value your running edge process uses for its MJPEG port "
+                    "(the --mjpeg-port flag). "
+                    "Use the two buttons in this same checklist item (no separate Quick links section for this) to open the live "
+                    "video and the JSON /health check. With the camera on the table, move objects: track IDs "
                     "should not flicker at random."
                 ),
                 "verify_actions": [

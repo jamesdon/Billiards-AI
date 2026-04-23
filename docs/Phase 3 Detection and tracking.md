@@ -74,7 +74,13 @@ This script performs:
 - MJPEG readiness checks for each run
 - per-run logs under repo root: `.phase3_n1.log`, `.phase3_n2.log`, `.phase3_n3.log`
 
-**Startup can look “hung”:** After each `[Phase3] Starting …` line the script waits for the first good `/mjpeg` response with **no** OpenCV window. On a cold Mac that often takes **30–90+ seconds** (ONNX + camera). Use **`tail -f .phase3_n2.log`** in another terminal to see progress, or wait for **`[Phase3] Live MJPEG`**. The wait is capped by **`PHASE3_MJPEG_WAIT_SECONDS`** (default **90**).
+**Startup can look “hung”:** After each `[Phase3] Starting …` line the script waits for the first good `/mjpeg` response with **no** OpenCV window. On a cold Mac that often takes **30–90+ seconds** (ONNX + camera). In another terminal, tail the per-run log at the **repo root** (paths are on one line; adjust to your clone):
+
+```bash
+tail -f "/Users/jdonn/AppDev/Billiards-AI/.phase3_n2.log"
+```
+
+The **Setup guide** (when the backend is running: open **Phase 3** in the wizard) shows the same `tail` command with your real clone path and a one-click **Copy** next to it. You can also wait for **`[Phase3] Live MJPEG`**. The wait is capped by **`PHASE3_MJPEG_WAIT_SECONDS`** (default **90**).
 
 **Viewing video:** Phase 3 does **not** open a desktop window. `edge.main` serves an MJPEG stream over HTTP. When the script prints `Live MJPEG`, open the printed URL. The script uses fixed sweep ports **8001** (baseline, `detect_every_n=2`), **8004** (`detect_every_n=1`), and **8005** (`detect_every_n=3`). See **`docs/PORTS.md`**. Override with **`PHASE3_PORT_N2`**, **`PHASE3_PORT_N1`**, **`PHASE3_PORT_N3`** (each **8001–8005**; not **8000**, API). **`/health`** on each run’s port reports JSON status.
 

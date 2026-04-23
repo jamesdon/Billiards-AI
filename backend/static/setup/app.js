@@ -406,6 +406,8 @@
     /* File / label fragments, not shell (avoid Copy next to inline filenames) */
     "model.onnx",
     "start_calibration.sh",
+    /* Shorthand in prose, not a runnable one-liner */
+    "edge.main",
   ]);
 
   function shouldShowCopyForBacktick(s) {
@@ -571,9 +573,9 @@
                         .map((a) => {
                           if (!a || !a.href_template) return "";
                           const href = resolveLinkHref(a.href_template);
-                          return `<a class="btn btn-primary verify-action-btn" href="${escapeHtml(
+                          return `<button type="button" class="btn btn-primary verify-action-btn" data-open-href="${escapeHtml(
                             href
-                          )}" target="_blank" rel="noopener">${escapeHtml(a.label || "Open")}</a>`;
+                          )}">${escapeHtml(a.label || "Open")}</button>`;
                         })
                         .filter(Boolean)
                         .join("")}</div>`
@@ -746,6 +748,13 @@
         }
         if (text.length === 0) return;
         copyText(text);
+      });
+    });
+
+    content.querySelectorAll("button.verify-action-btn[data-open-href]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const u = btn.getAttribute("data-open-href");
+        if (u) window.open(u, "_blank", "noopener");
       });
     });
   }

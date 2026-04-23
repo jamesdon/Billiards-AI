@@ -36,7 +36,8 @@ def test_setup_page_and_api():
     assert len(steps) >= 3
     assert any(s["id"] == "phase3" for s in steps)
     p3 = next(s for s in steps if s["id"] == "phase3")
-    assert p3["checklist"][0].get("verify")
+    v0 = p3["checklist"][0].get("verify") or ""
+    assert "tail" in v0 and "phase3_n2" in v0
     assert p3["checklist"][1].get("verify_actions")
     assert p3["checklist"][1]["verify_actions"][0]["label"] == "Open MJPEG overlay"
     assert p3["checklist"][1]["verify_actions"][1]["label"] == "Open edge /health"

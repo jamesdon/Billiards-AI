@@ -143,6 +143,7 @@ a {
 .verify-action-btn {
   text-decoration: none;
   display: inline-block;
+  cursor: pointer;
 }
 
 .nav-steps {
