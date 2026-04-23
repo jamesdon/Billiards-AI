@@ -27,7 +27,7 @@ Use **`~/Billiards-AI`** (or `cd "$PROJECT_ROOT"`). Plain one-liners also live i
 | **Live app + MJPEG** | With calib + ONNX in place: `cd ~/Billiards-AI && bash scripts/jetson_edge_smoke_csi.sh` — open `http://<device-ip>:8001/mjpeg` until Ctrl+C |
 | **YOLO train → ONNX → smoke again** | After labeled images exist: `jetson_yolo_train.sh` → `jetson_yolo_export_latest.sh` → `edge.main` smoke per `docs/3`, or `jetson_edge_smoke_csi.sh` again |
 
-**Minimum “it works on the table” path:** `jetson_train_env.sh` → `start_calibration.sh` → place or export `models/model.onnx` → `jetson_edge_smoke_csi.sh` (confirm overlay/stream).
+**Minimum “it works on the table” path:** `jetson_train_env.sh` → `start_calibration.sh` → train/export `models/model.onnx` → **`publish_trained_model.sh`** (commit/push for the team) → `git pull` on other devices → `jetson_edge_smoke_csi.sh` (confirm overlay/stream).
 
 ---
 
@@ -98,17 +98,23 @@ Defaults write under `data/datasets/billiards/images/capture/`. After labeling, 
 
    `cd ~/Billiards-AI && bash scripts/jetson_yolo_export_latest.sh`
 
-5. **Pytest**
+5. **Commit the detector into git** (so teammates `git pull` the ONNX)
+
+   `cd ~/Billiards-AI && bash scripts/publish_trained_model.sh`
+
+   Optional push: `cd ~/Billiards-AI && GIT_PUSH=1 bash scripts/publish_trained_model.sh`
+
+6. **Pytest**
 
    `cd ~/Billiards-AI && bash scripts/jetson_pytest.sh`
 
-6. **TEST_PLAN §1** (`jetson_phases_1.sh`)
+7. **TEST_PLAN §1** (`jetson_phases_1.sh`)
 
    `cd ~/Billiards-AI && bash scripts/jetson_phases_1.sh`
 
    **§3 (detection/tracking):** run `edge.main` per `docs/3` (not a `run_phase` number).
 
-7. **Edge CSI smoke** (runs until Ctrl+C)
+8. **Edge CSI smoke** (runs until Ctrl+C)
 
    `cd ~/Billiards-AI && bash scripts/jetson_edge_smoke_csi.sh`
 
@@ -184,7 +190,15 @@ cp "${ONNX_OUT}" "/home/$USER/Billiards-AI/models/model.onnx"
 ls -lh "/home/$USER/Billiards-AI/models/model.onnx" "/home/$USER/Billiards-AI/models/class_map.json"
 ```
 
-### Block 5–7
+### Block 4b (same as `publish_trained_model.sh`)
+
+```bash
+cd "/home/$USER/Billiards-AI"
+bash "/home/$USER/Billiards-AI/scripts/publish_trained_model.sh"
+# optional: GIT_PUSH=1 bash "/home/$USER/Billiards-AI/scripts/publish_trained_model.sh"
+```
+
+### Block 5–8
 
 Use `jetson_pytest.sh`, `jetson_phases_1.sh`, and `jetson_edge_smoke_csi.sh` (Option A) instead of duplicating long blocks here.
 
