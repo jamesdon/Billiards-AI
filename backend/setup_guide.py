@@ -462,7 +462,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "phases_advanced",
-        "title": "Phases 5–9: events, rules, stats, backend, acceptance",
+        "title": "Events, rules, stats, backend, and acceptance",
         "summary": "Maps to TEST_PLAN Phases 5 through 9: event/foul detection, rules, stats, backend persistence, end-to-end acceptance. Read that file and linked phase docs for gates.",
         "checklist": [
             {

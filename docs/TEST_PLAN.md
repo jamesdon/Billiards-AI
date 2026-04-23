@@ -17,7 +17,7 @@ The guided UI at `http://127.0.0.1:8000/setup` lists steps **in bring-up order**
 | **Classification and identity** | **Phase 4** — `/profiles`, `identities.json` |
 | **Dataset and training (optional)** | Roboflow, train, export (when refreshing weights) |
 | **Jetson deployment** | On-device / Docker; `DEPLOYMENT_JETSON.md` |
-| **Phases 5–9: events, rules, stats, backend, acceptance** | **Phases 5–9** below (one step points at all) |
+| **Events, rules, stats, backend, and acceptance** | **Phases 5–9** in this file (one guide step; read the Phase 5–9 sections below) |
 
 This plan is organized by major delivery phases. Each phase has:
 

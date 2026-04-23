@@ -8,16 +8,17 @@ Run a full real-world match and validate output correctness.
 
 ```bash
 cd "/home/$USER/Billiards-AI"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8000
+./scripts/run_backend.sh
 ```
+
+Prefer **`scripts/run_backend.sh`** — see **`README.md`**. Equivalent: venv active, `python3 -m uvicorn backend.app:app --host 0.0.0.0 --port 8000`.
 
 ## 2) Start edge with full config
 
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main \
+python3 -m edge.main \
   --camera csi \
   --csi-sensor-id 0 \
   --csi-flip-method 6 \

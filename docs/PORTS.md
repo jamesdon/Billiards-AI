@@ -4,7 +4,7 @@ All **default** HTTP services in this repo use these six ports on `127.0.0.1` (*
 
 | Port | Role |
 |------|------|
-| **8000** | FastAPI / setup guide (`uvicorn`, `scripts/run_backend.sh`, `BACKEND_PORT`) |
+| **8000** | FastAPI + browser **setup guide** at **`/setup`** — start with **`scripts/run_backend.sh`** (uses `python3 -m uvicorn`; `BACKEND_PORT` / `BACKEND_HOST`). See **`README.md`**. |
 | **8001** | Default MJPEG for `edge.main` (live overlay, `scripts/phase3.sh` baseline segment, Docker edge) |
 | **8002** | `scripts/phase2.sh` — valid-calibration MJPEG smoke |
 | **8003** | `scripts/phase2.sh` — invalid-label MJPEG smoke |

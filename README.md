@@ -29,7 +29,7 @@ This runs **`.venv/bin/python3 -m uvicorn backend.app:app`** (avoids a broken **
 
 **2. Open the guide:** **[http://127.0.0.1:8000/setup](http://127.0.0.1:8000/setup)** (use your `BACKEND_PORT` if you changed it: `http://127.0.0.1:<port>/setup`).
 
-**3. How it lines up with the repo:** step titles in the sidebar match **`docs/TEST_PLAN.md`** section titles where a delivery Phase applies; see the table at the **top** of that file. The canonical phase list and gates stay in **`docs/TEST_PLAN.md`**.
+**3. How it lines up with the repo:** step titles in the sidebar match **`docs/TEST_PLAN.md`** section titles where a delivery Phase applies; see the table at the **top** of that file. The last advanced step is named **“Events, rules, stats, backend, and acceptance”** and covers **Phases 5–9** in that file. The canonical phase list and gates stay in **`docs/TEST_PLAN.md`**.
 
 **4. Where progress is stored:** `data/setup_wizard_progress.json` and browser **localStorage** (saved when you use **Save** or leave the page; same keys as step `id` in `backend/setup_guide.py`).
 

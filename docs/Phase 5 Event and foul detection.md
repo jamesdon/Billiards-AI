@@ -8,9 +8,10 @@ Validate event stream and foul logic (auto + manual injection).
 
 ```bash
 cd "/home/$USER/Billiards-AI"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8000
+./scripts/run_backend.sh
 ```
+
+Prefer **`scripts/run_backend.sh`** (runs `python3 -m uvicorn`, port-in-use hint, avoids a broken `.venv/bin/uvicorn` after a repo rename). See **`README.md`**. Equivalent: activate the venv and run `python3 -m uvicorn backend.app:app --host 0.0.0.0 --port 8000`.
 
 ## 2) Inject manual foul (pool)
 

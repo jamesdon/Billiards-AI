@@ -60,9 +60,10 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
 
 ```bash
 cd "/home/$USER/Billiards-AI"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8000
+./scripts/run_backend.sh
 ```
+
+For the **interactive setup guide**, use the same API and open **`http://127.0.0.1:8000/setup`** (see **`README.md`**). Prefer **`scripts/run_backend.sh`** over bare `uvicorn` (stale `.venv/bin/uvicorn` shebang after renames; port-in-use message). Equivalent: venv active, `python3 -m uvicorn backend.app:app --host 0.0.0.0 --port 8000`.
 
 In another terminal:
 
@@ -76,7 +77,7 @@ curl -s "http://127.0.0.1:8000/live/state"
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-/usr/bin/timeout 1200 python -m edge.main --camera csi --csi-sensor-id 0 --mjpeg-port 8001
+/usr/bin/timeout 1200 python3 -m edge.main --camera csi --csi-sensor-id 0 --mjpeg-port 8001
 ```
 
 To vertically flip the CSI camera image, add `--csi-flip-method 6`:
@@ -84,7 +85,7 @@ To vertically flip the CSI camera image, add `--csi-flip-method 6`:
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-/usr/bin/timeout 1200 python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --mjpeg-port 8001
+/usr/bin/timeout 1200 python3 -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --mjpeg-port 8001
 ```
 
 In another terminal:

@@ -22,9 +22,10 @@
 
 ```bash
 cd "/home/$USER/Billiards-AI"
-source .venv/bin/activate
-uvicorn backend.app:app --host 0.0.0.0 --port 8000
+./scripts/run_backend.sh
 ```
+
+The app is `backend.app:app` (FastAPI). **`scripts/run_backend.sh`** wraps **`.venv/bin/python3 -m uvicorn`** with defaults `BACKEND_HOST=127.0.0.1`, `BACKEND_PORT=8000`, a listen-port pre-check, and the same behavior described in **`README.md`**. Raw: `python3 -m uvicorn backend.app:app --host 0.0.0.0 --port 8000` with venv active.
 
 ## AWS stats store (optional)
 
