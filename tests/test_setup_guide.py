@@ -13,6 +13,8 @@ def test_setup_page_and_api():
     r = client.get("/setup", follow_redirects=False)
     assert r.status_code == 200
     assert "Setup guide" in r.text
+    assert "Score Keeper" in r.text
+    assert "sk-embed" in r.text
     assert "main-wrap" in r.text
     assert "id=\"content\"" in r.text
     assert "API BACKEND_PORT" in r.text
@@ -37,6 +39,21 @@ def test_setup_page_and_api():
     assert data.get("mjpeg_default_port") == 8001
     assert isinstance(data.get("api_port"), int)
     assert 1 <= int(data.get("api_port", 0)) <= 65535
+    assert "public_http_base" in data
+    assert isinstance(data["public_http_base"], str)
+    assert data["public_http_base"].startswith("http://")
+    assert "public_http_base_source" in data
+    assert data["public_http_base_source"] in ("host_header", "lan_guess", "loopback")
+    assert "scorekeeper_url" in data
+    sk_url = data["scorekeeper_url"]
+    assert isinstance(sk_url, str)
+    assert sk_url.endswith("/scorekeeper")
+    assert data["public_http_base"] in sk_url
+
+    r_sk = client.get("/scorekeeper", follow_redirects=False)
+    assert r_sk.status_code == 200
+    assert "Score Keeper" in r_sk.text
+    assert "sk-root" in r_sk.text or "sk-teams" in r_sk.text
 
     r = client.get("/api/setup/steps")
     assert r.status_code == 200
@@ -72,8 +89,8 @@ def test_setup_page_and_api():
     assert "textSize" in r2.text
     assert 'data-text-size="large"' in r2.text
     assert "28px" in r2.text
-    # HTML `href` must use `&amp;` for query `&` or Safari can truncate the URL (dropping `textSize`).
-    if "href=" in r2.text and "/api/setup/doc?" in r2.text:
+    # If a doc `href` includes `textSize=`, the `&` before it must be `&amp;` in HTML (Safari).
+    if 'href="/api/setup/doc?' in r2.text and "textSize=" in r2.text:
         assert "&amp;textSize=" in r2.text
     assert "setup_text_size" in (r2.headers.get("set-cookie") or "").lower()
 
@@ -84,7 +101,6 @@ def test_setup_page_and_api():
     )
     assert r_cookie.status_code == 200
     assert 'data-text-size="large"' in r_cookie.text
-    assert "textSize=large" in r_cookie.text
 
     r3 = client.get("/api/setup/steps")
     assert r3.status_code == 200

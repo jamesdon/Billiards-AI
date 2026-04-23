@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Billiards-AI — Setup guide</title>
+    <title>Billiards-AI</title>
     <link rel="stylesheet" href="/static/setup/style.css" />
     <script>
       (function () {
@@ -29,18 +29,35 @@
       })();
     </script>
   </head>
-  <body>
+  <body data-ui-mode="setup">
     <div class="layout">
       <aside class="sidebar">
-        <div
-          class="sidebar-app-head"
-          role="group"
-          aria-label="Setup guide and Score Keeper (planned)"
-        >
-          <h1 class="sidebar-title-main">Setup guide</h1>
-          <span class="sidebar-title-aux" title="Planned: scoreboard, shot clock, game stats; opens on the LAN, no table overlay"
-            >Score Keeper</span
+        <div class="sidebar-app-head" role="tablist" aria-label="View">
+          <button
+            type="button"
+            class="sidebar-tab sidebar-tab--active"
+            id="tab-setup"
+            data-ui-mode="setup"
+            role="tab"
+            aria-selected="true"
           >
+            Setup guide
+          </button>
+          <button
+            type="button"
+            class="sidebar-tab"
+            id="tab-sk"
+            data-ui-mode="scorekeeper"
+            role="tab"
+            aria-selected="false"
+          >
+            Score Keeper
+          </button>
+        </div>
+        <div id="sk-qr-block" class="sk-qr-block" hidden>
+          <p class="sk-qr-hint">Open Score Keeper on this network (scan on phone or tablet):</p>
+          <div id="sk-qr-canvas" class="sk-qr-canvas" aria-label="QR code to Score Keeper"></div>
+          <p class="sk-qr-url" id="sk-qr-url"></p>
         </div>
         <p class="api-backend-line" id="api-backend-line">
           <span
@@ -116,12 +133,25 @@
         tabindex="0"
       ></div>
       <div class="main-wrap">
-        <main id="content">
+        <main id="content" class="main-panel main-panel--setup">
           <p>Loading…</p>
         </main>
+        <div id="sk-embed" class="sk-embed">
+          <iframe
+            class="sk-iframe"
+            id="sk-iframe"
+            title="Score Keeper"
+            src="about:blank"
+          ></iframe>
+        </div>
       </div>
     </div>
     <div id="status-toast" role="status"></div>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
     <script src="/static/setup/app.js"></script>
   </body>
 </html>

@@ -29,6 +29,8 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from .lan_url import public_http_base_info
+
 # Repo root: backend/setup_guide.py -> parents[1]
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -605,15 +607,30 @@ def build_router() -> APIRouter:
             return HTMLResponse("<h1>Setup UI missing</h1><p>Rebuild repo; expected backend/static/setup/index.html</p>", status_code=500)
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
 
+    @router.get("/scorekeeper", response_class=HTMLResponse, include_in_schema=True)
+    def scorekeeper_page() -> HTMLResponse:
+        html_path = _STATIC / "scorekeeper" / "index.html"
+        if not html_path.is_file():
+            return HTMLResponse(
+                "<h1>Score Keeper UI missing</h1><p>Expected backend/static/scorekeeper/index.html</p>",
+                status_code=500,
+            )
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+
     @router.get("/api/setup/context")
     def setup_context(request: Request) -> dict[str, Any]:
+        port = _api_port_from_request(request)
+        http_info = public_http_base_info(request, port)
         return {
             "project_root": str(_PROJECT_ROOT),
             "launch_enabled": os.environ.get("SETUP_ALLOW_LAUNCH", "").strip() == "1",
             "markdown_installed": _HAS_MARKDOWN,
-            "api_port": _api_port_from_request(request),
+            "api_port": port,
             "api_default_port": DEFAULT_API_PORT,
             "mjpeg_default_port": DEFAULT_MJPEG_PORT,
+            "public_http_base": http_info["public_http_base"],
+            "public_http_base_source": http_info["public_http_base_source"],
+            "scorekeeper_url": http_info["scorekeeper_url"],
         }
 
     @router.get("/api/setup/steps")

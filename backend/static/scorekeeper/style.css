@@ -1,0 +1,159 @@
+:root {
+  --bg: #0f1115;
+  --panel: #1a1d24;
+  --border: #2a3040;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #4d9fff;
+  --ok: #34a853;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+  font-size: 16px;
+}
+
+.sk-root {
+  max-width: 55rem;
+  margin: 0 auto;
+  padding: 1.1rem 1.25rem 2rem;
+}
+
+.sk-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.2rem;
+}
+
+.sk-sub {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.sk-conn--ok {
+  color: #6ecf8f;
+}
+.sk-conn--bad {
+  color: #ea5f5f;
+}
+.sk-conn--dim {
+  color: var(--muted);
+}
+
+code {
+  background: #12151c;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1em 0.3em;
+  font-size: 0.9em;
+}
+
+.sk-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .sk-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .sk-card--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.sk-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+
+.sk-card h2 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.sk-teams:empty,
+.sk-players:empty,
+.sk-dl:empty,
+.sk-list:empty {
+  min-height: 0;
+}
+
+.sk-team,
+.sk-prow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+.sk-team:last-child,
+.sk-prow:last-child {
+  border-bottom: none;
+}
+
+.sk-dl {
+  margin: 0;
+}
+.sk-dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0;
+  font-size: 0.88rem;
+  border-bottom: 1px solid rgba(42, 48, 64, 0.6);
+}
+.sk-dl > div:last-child {
+  border-bottom: none;
+}
+.sk-dl dt {
+  color: var(--muted);
+  font-weight: 500;
+}
+.sk-dl dd {
+  margin: 0;
+  text-align: right;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.sk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  max-height: 12rem;
+  overflow: auto;
+}
+.sk-list li {
+  padding: 0.2rem 0;
+  border-bottom: 1px solid rgba(42, 48, 64, 0.5);
+}
+.sk-list li:last-child {
+  border-bottom: none;
+}
+
+.sk-na {
+  color: var(--muted);
+  font-size: 0.88rem;
+}

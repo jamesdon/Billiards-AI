@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Billiards-AI — Score Keeper</title>
+    <link rel="stylesheet" href="/static/scorekeeper/style.css" />
+  </head>
+  <body>
+    <div class="sk-root">
+      <header class="sk-header">
+        <h1>Score Keeper</h1>
+        <p class="sk-sub">Live from <code>GET /live/state</code> · <span id="sk-conn" class="sk-conn">connecting…</span></p>
+      </header>
+
+      <section class="sk-grid" aria-live="polite">
+        <div class="sk-card sk-card--wide">
+          <h2>Scoreboard</h2>
+          <div id="sk-teams" class="sk-teams"></div>
+          <div id="sk-players" class="sk-players"></div>
+        </div>
+        <div class="sk-card">
+          <h2>Turn &amp; shot</h2>
+          <dl class="sk-dl" id="sk-turn"></dl>
+        </div>
+        <div class="sk-card">
+          <h2>Clock / timing</h2>
+          <dl class="sk-dl" id="sk-clock"></dl>
+        </div>
+        <div class="sk-card sk-card--wide">
+          <h2>Recent</h2>
+          <ul class="sk-list" id="sk-recent"></ul>
+        </div>
+      </section>
+    </div>
+    <script src="/static/scorekeeper/app.js"></script>
+  </body>
+</html>

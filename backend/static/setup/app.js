@@ -26,9 +26,18 @@
   const edgePortLine = $("#edge-port-line");
   const mjpegHealthBlock = $("#mjpeg-health-block");
   const streamHrefEl = $("#stream-href");
+  const tabSetup = $("#tab-setup");
+  const tabSk = $("#tab-sk");
+  const skEmbed = $("#sk-embed");
+  const skIframe = $("#sk-iframe");
+  const skQrBlock = $("#sk-qr-block");
+  const skQrCanvas = $("#sk-qr-canvas");
+  const skQrUrl = $("#sk-qr-url");
   let healthPollTimer = null;
+  let skIframeSrcSet = false;
 
   const TEXT_SIZE_KEY = "billiards-setup-text-size";
+  const UI_MODE_KEY = "billiards-setup-ui-mode";
   const PROGRESS_LSK = "billiards-setup-progress-v1";
   const SIDEBAR_W_LSK = "billiards-setup-sidebar-width-px";
   const DEFAULT_SIDEBAR_PX = 300;
@@ -172,6 +181,90 @@
         }
       }, 100);
     });
+  }
+
+  function getInitialUiMode() {
+    try {
+      const v = localStorage.getItem(UI_MODE_KEY);
+      if (v === "setup" || v === "scorekeeper") return v;
+    } catch (_) {
+      /* ignore */
+    }
+    return "setup";
+  }
+
+  function scorekeeperFrameSrc() {
+    return new URL("/scorekeeper", window.location.origin).href;
+  }
+
+  function applySkQr(url) {
+    if (!skQrUrl || !skQrCanvas || !url) return;
+    skQrUrl.textContent = url;
+    if (typeof window.QRCode !== "function") return;
+    skQrCanvas.innerHTML = "";
+    const QC = window.QRCode;
+    const level = QC && QC.CorrectLevel ? QC.CorrectLevel.H : undefined;
+    try {
+      if (level !== undefined) {
+        new QC(skQrCanvas, {
+          text: url,
+          width: 160,
+          height: 160,
+          colorDark: "#1a1d24",
+          colorLight: "#e8eaed",
+          correctLevel: level,
+        });
+      } else {
+        new QC(skQrCanvas, {
+          text: url,
+          width: 160,
+          height: 160,
+          colorDark: "#1a1d24",
+          colorLight: "#e8eaed",
+        });
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function updateScorekeeperFromContext() {
+    const url = state.context && state.context.scorekeeper_url;
+    if (typeof url !== "string" || !url) return;
+    applySkQr(url);
+    if (skQrBlock) skQrBlock.removeAttribute("hidden");
+  }
+
+  function applyUiMode(mode) {
+    if (mode !== "setup" && mode !== "scorekeeper") mode = "setup";
+    document.body.setAttribute("data-ui-mode", mode);
+    try {
+      localStorage.setItem(UI_MODE_KEY, mode);
+    } catch (_) {
+      /* ignore */
+    }
+
+    if (tabSetup) {
+      tabSetup.setAttribute("aria-selected", mode === "setup" ? "true" : "false");
+      tabSetup.classList.toggle("sidebar-tab--active", mode === "setup");
+    }
+    if (tabSk) {
+      tabSk.setAttribute("aria-selected", mode === "scorekeeper" ? "true" : "false");
+      tabSk.classList.toggle("sidebar-tab--active", mode === "scorekeeper");
+    }
+
+    document.title = mode === "scorekeeper" ? "Billiards-AI — Score Keeper" : "Billiards-AI";
+
+    if (mode === "scorekeeper" && skIframe && !skIframeSrcSet) {
+      skIframe.src = scorekeeperFrameSrc();
+      skIframeSrcSet = true;
+    }
+  }
+
+  function initUiMode() {
+    applyUiMode(getInitialUiMode());
+    tabSetup?.addEventListener("click", () => applyUiMode("setup"));
+    tabSk?.addEventListener("click", () => applyUiMode("scorekeeper"));
   }
 
   function showToast(msg) {
@@ -864,6 +957,7 @@
         fetch("/api/setup/progress"),
       ]);
       state.context = await ctxRes.json();
+      updateScorekeeperFromContext();
       const stepsPayload = await stepsRes.json();
       state.steps = stepsPayload.steps || [];
       const serverProgress = await progRes.json();
@@ -934,6 +1028,7 @@
 
   initTextSizeControls();
   initSidebarResize();
+  initUiMode();
   init();
   window.addEventListener("pagehide", flushProgressKeepalive);
   window.addEventListener("beforeunload", flushProgressKeepalive);
