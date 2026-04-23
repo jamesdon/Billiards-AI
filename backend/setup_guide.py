@@ -9,6 +9,7 @@ Optional local script launch: POST /api/setup/launch (requires SETUP_ALLOW_LAUNC
 """
 from __future__ import annotations
 
+import errno
 import html
 import json
 import os
@@ -570,6 +571,15 @@ def _client_localhost(request: Request) -> bool:
     return host in ("127.0.0.1", "::1", "localhost")
 
 
+def _is_econnrefused(exc: BaseException) -> bool:
+    if isinstance(exc, OSError) and exc.errno == errno.ECONNREFUSED:
+        return True
+    inner = getattr(exc, "reason", None)
+    if isinstance(inner, OSError) and inner.errno == errno.ECONNREFUSED:
+        return True
+    return False
+
+
 def build_router() -> APIRouter:
     router = APIRouter(tags=["setup"])
 
@@ -601,7 +611,7 @@ def build_router() -> APIRouter:
             ...,
             ge=1,
             le=65535,
-            description="TCP port where `edge.main` MjpegServer listens (e.g. --mjpeg-port)",
+            description="TCP port where `edge.main` MjpegServer listens (e.g. `--mjpeg-port`)",
         ),
     ) -> dict[str, Any]:
         """Server-side probe of http://127.0.0.1:{port}/health (browser cannot fetch this cross-origin)."""
@@ -619,7 +629,12 @@ def build_router() -> APIRouter:
                 d = str(reason)
             else:
                 d = str(e) or "unreachable"
-            return {"ok": False, "port": port, "detail": d}
+            rsn = (
+                "connection_refused"
+                if _is_econnrefused(e) or "Connection refused" in d
+                else "unreachable"
+            )
+            return {"ok": False, "port": port, "detail": d, "reason": rsn}
         try:
             body = raw.decode("utf-8", errors="replace").strip()
         except Exception:

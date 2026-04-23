@@ -231,15 +231,38 @@
       }
       mjpegStatusEl.classList.add("mjpeg-bad");
       const d = (j.detail && String(j.detail)) || "no response";
-      mjpegStatusEl.textContent =
-        "No edge MJPEG on 127.0.0.1:" +
-        port +
-        " — the API (this page) is not the video server. In another shell: " +
+      const rsn = j.reason || "";
+      const root = JSON.stringify((state.context && state.context.project_root) || ".");
+      const example =
         "cd " +
-        JSON.stringify((state.context && state.context.project_root) || ".") +
+        root +
         " && .venv/bin/python3 -m edge.main --camera usb --calib calibration.json --mjpeg-port " +
         port +
-        " (or match your model/camera flags). " +
+        " (or match your model/camera flags)";
+      if (
+        rsn === "connection_refused" ||
+        /Connection refused|Errno 61|Errno 111/i.test(d)
+      ) {
+        mjpegStatusEl.textContent = "";
+        mjpegStatusEl.appendChild(
+          document.createTextNode(
+            "Nothing is listening on port " +
+              port +
+              " right now (this page and scripts/run_backend only start the API on port " +
+              getApiPort() +
+              ", not edge). Start edge in a separate shell, or change the sidebar MJPEG port to match a running edge."
+          )
+        );
+        mjpegStatusEl.appendChild(document.createElement("br"));
+        mjpegStatusEl.appendChild(document.createTextNode("Example: " + example + "."));
+        return;
+      }
+      mjpegStatusEl.textContent =
+        "No response from edge on 127.0.0.1:" +
+        port +
+        ". " +
+        example +
+        ". " +
         d;
     } catch (_) {
       mjpegStatusEl.classList.add("mjpeg-bad");

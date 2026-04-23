@@ -89,6 +89,7 @@ def test_setup_page_and_api():
     assert eh.get("port") == 59999
     assert "ok" in eh
     assert eh.get("ok") is False
+    assert eh.get("reason") == "connection_refused"
 
     r = client.put(
         "/api/setup/progress",
