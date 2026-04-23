@@ -385,6 +385,10 @@
       .catch(() => showToast("Save failed — is the backend running?"));
   }
 
+  function scrollSetupContentToTop() {
+    if (content) content.scrollTo(0, 0);
+  }
+
   function saveAndGoToNextStep() {
     const idx = state.steps.findIndex((s) => s.id === state.activeId);
     const next = idx >= 0 && idx < state.steps.length - 1 ? state.steps[idx + 1] : null;
@@ -398,8 +402,7 @@
         showToast("Progress saved");
         renderNav();
         renderContent();
-        const mainEl = $("#content");
-        if (mainEl) mainEl.scrollTo(0, 0);
+        scrollSetupContentToTop();
       })
       .catch(() => showToast("Save failed — is the backend running?"));
   }
@@ -625,6 +628,7 @@
         scheduleSave();
         renderNav();
         renderContent();
+        scrollSetupContentToTop();
       });
       li.appendChild(btn);
       nav.appendChild(li);
