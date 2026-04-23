@@ -30,7 +30,7 @@ Billiards-AI/
     model.onnx                      Exported detector weights (not in git; copy or export here)
 
   config/
-    calib_overlay.json              Shipped default label `x_L`,`y_W` (and `break_box`) for all users; `start_calibration.sh` passes `--overlay-json` when this path exists. `calib_click` also reads it for built-in label defaults when merging. `labels` in a custom `CALIB_OVERLAY_JSON` override; diagram geometry fills only missing ids. Legacy `captions` still loads. GUI **e** = label edit (**s** save)
+    calib_overlay.json              Schematic label anchors (`x_L`,`y_W` per `id`) + `break_box` styles; the **only** committed overlay file for the calibration UI. `start_calibration.sh` passes `--overlay-json` here by default (override env `CALIB_OVERLAY_JSON`). `labels` in that file win over table-diagram geometry for those ids; geometry fills only missing ids. Press **e** in GUI to edit, **s** to save to this file path (or the path you passed with `--overlay-json`). Legacy `captions` key still supported
 
   core/                             Shared logic (no OpenCV/YOLO dependency)
     overlay_state.py              Projector layer toggles + highlight labels (voice-driven)
