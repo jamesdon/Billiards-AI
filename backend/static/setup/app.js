@@ -499,7 +499,8 @@
           allowCommandCopy &&
           shouldShowCopyForBacktick(seg)
         ) {
-          out += ` <button type="button" class="btn btn-primary copy-inline-cmd" data-copy="${encodeURIComponent(
+          const multiline = /\r|\n/.test(seg);
+          out += `${multiline ? "<br />" : " "}<button type="button" class="btn btn-primary copy-inline-cmd" data-copy="${encodeURIComponent(
             seg
           )}" title="Copy command to paste in Terminal">Copy</button><br />`;
         } else {

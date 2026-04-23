@@ -491,6 +491,22 @@ button.btn-primary {
   font-size: 0.95em;
 }
 
+/* One backtick “segment” can be a multiline shell block; <code> is inline by default and collapses newlines. */
+.checklist-block .verify .verify-inline-code {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0.4rem 0 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  background: #12151c;
+  border: 1px solid var(--border);
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .repo-path-inline {
   display: inline;
   word-break: break-all;

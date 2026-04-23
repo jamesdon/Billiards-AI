@@ -325,8 +325,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "item": "You start edge.main with the ONNX, class map, and calibration the repo expects (then optional phase3.sh)",
                 "verify": (
-                    "**1) In a new terminal, run the edge process** (paths below use your project root; change if your clone is elsewhere). "
-                    "Default: macOS + USB 0. **Jetson:** use --camera csi, omit --usb-index.\n"
+                    "**1) In a new terminal,** paste and run the block below once (sidebar shows your repo path; on Jetson use --camera csi and drop the --usb-index lines). Default for this block: macOS + USB 0.\n"
                     '`cd "{project_root}"\n'
                     'source "{project_root}/.venv/bin/activate"\n'
                     "python3 -m edge.main \\\n"
@@ -336,17 +335,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     '  --class-map "{project_root}/models/class_map.json" \\\n'
                     '  --calib "{project_root}/calibration.json" \\\n'
                     "  --mjpeg-port {mjpeg_port}`\n"
-                    "**Exact (Mac) — copy as-is if your clone is at the same path** (from docs/3):\n"
-                    '`cd "/Users/jdonn/AppDev/Billiards-AI"\n'
-                    'source "/Users/jdonn/AppDev/Billiards-AI/.venv/bin/activate"\n'
-                    "python3 -m edge.main \\\n"
-                    "  --camera usb \\\n"
-                    "  --usb-index 0 \\\n"
-                    '  --onnx-model "/Users/jdonn/AppDev/Billiards-AI/models/model.onnx" \\\n'
-                    '  --class-map "/Users/jdonn/AppDev/Billiards-AI/models/class_map.json" \\\n'
-                    '  --calib "/Users/jdonn/AppDev/Billiards-AI/calibration.json" \\\n'
-                    "  --mjpeg-port 8001`\n"
-                    "**2) Optional** — full detector sweep, then if hung, tail the n2 log:\n"
+                    "**2) Optional** — full detector sweep; if a run looks hung, tail the n2 log:\n"
                     '`cd "{project_root}" && source .venv/bin/activate && bash scripts/phase3.sh`'
                     "\n`tail -f \"{project_root}/.phase3_n2.log\"`"
                 ),
