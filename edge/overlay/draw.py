@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -24,6 +24,29 @@ _TRACK_KIND_COLORS: dict = {
     "stick": (255, 0, 255),
     "rack": (0, 128, 255),
 }
+
+# Order for vision-debug **track** stats (matches pipeline IoU trackers)
+_TRACK_KIND_ORDER: Tuple[str, ...] = ("ball", "player", "stick", "rack")
+_TRACK_KIND_ABBR: Dict[str, str] = {"ball": "b", "player": "p", "stick": "s", "rack": "r"}
+
+
+def _format_raw_label_counts(m: object) -> str:
+    """Format ONNX NMS outputs: one count per class string (class_map label)."""
+    if not isinstance(m, dict) or not m:
+        return "—"
+    items = sorted(((str(k), int(v)) for k, v in m.items()), key=lambda kv: (-kv[1], kv[0]))
+    return "  ".join(f"{k}×{v}" for k, v in items)
+
+
+def _format_track_kind_counts(m: object) -> str:
+    """Always show all four pipeline track types: ball, player, stick, rack."""
+    if not isinstance(m, dict):
+        return "—"
+    parts: List[str] = []
+    for k in _TRACK_KIND_ORDER:
+        ab = _TRACK_KIND_ABBR.get(k, k[0])
+        parts.append(f"{ab}×{int(m.get(k, 0) or 0)}")
+    return "  ".join(parts)
 
 
 def _put_text(img: np.ndarray, text: str, xy: Tuple[int, int], color: Tuple[int, int, int]) -> None:
@@ -114,22 +137,28 @@ def _draw_vision_debug_overlay(out: np.ndarray, snap: object) -> None:
         tx, ty = x1, min(h - 4, y2 + 12)
         _put_dbg_line(out, lab, (tx, ty), col, 0.4)
 
-    # 3) Summary (top-right): what the system saw this frame
-    tw = min(400, w - 16)
+    # 3) Summary (top-right): totals + **per-class** raw outputs + **per-kind** tracks
+    raw_lbl = _format_raw_label_counts(snap.get("raw_count_by_label"))
+    trk_kinds = _format_track_kind_counts(snap.get("track_count_by_kind"))
+    tw = min(540, w - 16)
     x0 = w - tw - 8
     y0 = 8
+    line_h = 15
     panel_lines = [
         "Vision debug",
         f"ONNX: {'yes' if det_loaded else 'NO (pass --onnx-model)'}",
         f"Frame {fr}  infer this frame: {'yes' if det_ran else f'no (every {every})'}",
-        f"Model outputs: {n_raw}" + ("" if det_ran else f"  (skipped)"),
-        f"Active tracks: {n_tr}   (D=model  trk=ID)",
+        f"Model outputs (total): {n_raw}" + ("" if det_ran else "  (skipped)"),
+        "  by label: " + (raw_lbl if det_ran else "—  (skipped)"),
+        f"Tracks (total): {n_tr}",
+        "  by kind: " + trk_kinds + "  (b ball  p player  s stick  r rack)",
+        "D = raw detector   trk = track ID",
     ]
     for i, ln in enumerate(panel_lines):
-        _put_dbg_line(out, ln, (x0, y0 + i * 16), (180, 255, 255), 0.42)
+        _put_dbg_line(out, ln, (x0, y0 + i * line_h), (180, 255, 255), 0.4)
     y_line = h - 10
-    sum_line = f"[vision debug]  frame {fr}  outputs={n_raw}  tracks={n_tr}"
-    _put_dbg_line(out, sum_line, (8, y_line), (100, 255, 200), 0.48)
+    sum_line = f"[vision debug]  frame {fr}  raw: {n_raw}  |  {trk_kinds}"
+    _put_dbg_line(out, sum_line, (8, y_line), (100, 255, 200), 0.45)
 
 
 def _projector_pixel_span(calib: Calibration) -> Optional[Tuple[float, float, float, float]]:

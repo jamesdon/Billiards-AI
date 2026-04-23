@@ -45,10 +45,12 @@ def test_draw_overlay_track_debug_snapshot_smoke():
             "detector_ran": True,
             "detect_every_n": 2,
             "n_raw_dets": 1,
+            "raw_count_by_label": {"ball": 1},
             "raw_detections": [
                 {"label": "ball", "conf": 0.91, "bbox": (12.0, 22.0, 48.0, 58.0)},
             ],
             "n_tracks": 1,
+            "track_count_by_kind": {"ball": 1, "player": 0, "stick": 0, "rack": 0},
             "boxes": [
                 {"kind": "ball", "id": 1, "label": "ball", "bbox": (10.0, 20.0, 50.0, 60.0)},
             ],

@@ -342,16 +342,25 @@ class EdgePipeline:
         n_skip = max(1, int(self.cfg.detect_every_n))
         det_ran = self.detector is not None and (self._frame_idx % n_skip == 0)
         raw: List[Dict[str, object]] = []
+        raw_count_by_label: Dict[str, int] = {}
         if det_ran and dets:
             for d in dets:
+                lab = str(d.label)
+                raw_count_by_label[lab] = raw_count_by_label.get(lab, 0) + 1
                 bb = d.bbox_xyxy
                 raw.append(
                     {
-                        "label": str(d.label),
+                        "label": lab,
                         "conf": float(d.conf),
                         "bbox": (float(bb[0]), float(bb[1]), float(bb[2]), float(bb[3])),
                     }
                 )
+        track_count_by_kind = {
+            "ball": len(tracks_px),
+            "player": len(player_tracks),
+            "stick": len(stick_tracks),
+            "rack": len(rack_tracks),
+        }
         setattr(
             state,
             "_track_debug_overlay",
@@ -361,8 +370,10 @@ class EdgePipeline:
                 "detector_ran": bool(det_ran),
                 "detect_every_n": int(n_skip),
                 "n_raw_dets": int(len(dets)) if det_ran else 0,
+                "raw_count_by_label": raw_count_by_label,
                 "raw_detections": raw,
                 "n_tracks": int(len(boxes)),
+                "track_count_by_kind": track_count_by_kind,
                 "boxes": boxes,
             },
         )
