@@ -120,7 +120,7 @@ PY
 }
 
 _venv_cv_numpy_check_csi() {
-  # Jetson CSI / Phase 2: venv must see GStreamer: YES in OpenCV build.
+  # Jetson CSI / calibration: venv must see GStreamer: YES in OpenCV build.
   local py
   py="$1"
   if "$py" - <<'PY'

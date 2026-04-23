@@ -1,4 +1,4 @@
-# Phase 2: Calibration and coordinate mapping
+# 2. Calibration and coordinate mapping
 
 ## Goal
 
@@ -249,7 +249,7 @@ print("GStreamer:", "YES" if "GStreamer:                   YES" in cv2.getBuildI
 PY
 ```
 
-If Phase 2 fails at edge startup with:
+If calibration (this section) fails at edge startup with:
 
 `RuntimeError: Failed to open camera source='nvarguscamerasrc ...'`
 
@@ -271,7 +271,7 @@ PY
 ```
 
 If this shows `GStreamer: NO`, uninstall pip OpenCV wheels and rely on distro
-`python3-opencv` in a `--system-site-packages` venv before retrying Phase 2.
+`python3-opencv` in a `--system-site-packages` venv before retrying this calibration step.
 
 If OpenCV import fails with NumPy ABI errors like:
 
@@ -279,9 +279,9 @@ If OpenCV import fails with NumPy ABI errors like:
 - `ImportError: numpy.core.multiarray failed to import`
 
 then pip likely installed NumPy 2.x while distro OpenCV was built against
-NumPy 1.x. Pin NumPy `<2` in the venv and rerun Phase 2.
+NumPy 1.x. Pin NumPy `<2` in the venv and rerun this step.
 
-If Phase 2 fails with `OSError: [Errno 98] Address already in use` when binding the
+If calibration fails with `OSError: [Errno 98] Address already in use` when binding the
 MJPEG HTTP server, another process (often a previous `edge.main`) is already using
 that port. `scripts/phase2.sh` uses fixed ports **8002** (valid calibration) and **8003**
 (invalid label). See **`docs/PORTS.md`**. Free those ports or set **`PHASE2_PORT_VALID`**
@@ -292,7 +292,7 @@ kernel/Argus stack does not see any CSI sensor. That is not an OpenCV bug: check
 the ribbon orientation and latch, try the other CSI connector with
 `CSI_SENSOR_ID=1`, run `bash scripts/jetson_csi_setup.sh`, and
 `sudo dmesg | grep -iE 'imx|tegracam|nv_camera'` after a cold boot. Some desks use
-only a USB camera; you can still smoke-test Phase 2 MJPEG with a UVC device:
+only a USB camera; you can still smoke-test calibration MJPEG with a UVC device:
 
 ```bash
 PHASE2_CAMERA=usb PHASE2_USB_INDEX=0 bash "/home/$USER/Billiards-AI/scripts/phase2.sh"

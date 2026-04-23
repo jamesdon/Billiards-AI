@@ -133,11 +133,11 @@ phase2_hint_valid_log() {
   if grep -qE "No cameras available" "$log" 2>/dev/null; then
     echo "[Phase2] Hint: Argus reports no CSI sensors (ribbon, wrong CSI port, or unsupported module)." >&2
     echo "[Phase2]       Run: bash \"$PROJECT_ROOT/scripts/jetson_csi_setup.sh\"  try CSI_SENSOR_ID=1  cold boot." >&2
-    echo "[Phase2]       Partial Phase 2 without CSI: PHASE2_CAMERA=usb bash \"$PROJECT_ROOT/scripts/phase2.sh\" (or PHASE2_CAMERA=0)." >&2
+    echo "[Phase2]       Partial calibration (phase2) without CSI: PHASE2_CAMERA=usb bash \"$PROJECT_ROOT/scripts/phase2.sh\" (or PHASE2_CAMERA=0)." >&2
   fi
   if grep -qE "CaptureSession|nvarguscamerasrc|Failed to open camera|no frames" "$log" 2>/dev/null; then
     echo "[Phase2] Hint: CSI/Argus camera did not produce frames. Stop other camera apps, try --csi-flip-method 0 or 6," >&2
-    echo "[Phase2]       confirm sensor-id, and see docs/Phase 2 Calibration and coordinate mapping.md (Troubleshooting)." >&2
+    echo "[Phase2]       confirm sensor-id, and see docs/2 Calibration and coordinate mapping.md (Troubleshooting)." >&2
   fi
   if grep -qE "GStreamer=NO|without GStreamer|CSI camera mode requires OpenCV with GStreamer" "$log" 2>/dev/null; then
     echo "[Phase2] Hint: --camera csi needs OpenCV with GStreamer (Jetson: distro python3-opencv + venv --system-site-packages). On macOS use USB (default when PHASE2_CAMERA is unset) or PHASE2_CAMERA=0." >&2

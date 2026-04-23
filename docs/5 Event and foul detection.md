@@ -1,4 +1,4 @@
-# Phase 5: Event and foul detection
+# 5. Event and foul detection
 
 ## Goal
 

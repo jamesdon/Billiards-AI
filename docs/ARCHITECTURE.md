@@ -121,5 +121,5 @@ Key knobs for Orin Nano (same ideas apply to other Jetson-family boards; Orin ha
 
 ## Guided setup (browser)
 
-First-time bring-up uses the FastAPI-mounted **setup guide** at **`GET /setup`** (default **`http://127.0.0.1:8000/setup`**). Start the API with **`scripts/run_backend.sh`**, then follow checklists and doc links in the UI. Step names align with **`docs/TEST_PLAN.md`** (see the table at the top of that file); the last nav step is **“Events, rules, stats, backend, and acceptance”** (TEST_PLAN Phases 5–9). Details: **`README.md`**, **`docs/PORTS.md`**, **`backend/setup_guide.py`**, **`backend/static/setup/`**.
+First-time bring-up uses the FastAPI-mounted **setup guide** at **`GET /setup`** (default **`http://127.0.0.1:8000/setup`**). Start the API with **`scripts/run_backend.sh`**, then follow checklists and doc links in the UI. Step names align with **`docs/TEST_PLAN.md`** (see the table at the top of that file); the last nav step is **“Events, rules, stats, backend, and acceptance”** (TEST_PLAN **§5–§9**). Details: **`README.md`**, **`docs/PORTS.md`**, **`backend/setup_guide.py`**, **`backend/static/setup/`**.
 

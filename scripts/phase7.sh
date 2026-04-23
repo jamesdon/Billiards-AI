@@ -17,5 +17,5 @@ con=sqlite3.connect(db)
 print(con.execute("select count(*) from events").fetchone()[0])
 PY
 
-echo "Phase 7 complete."
+echo "Step 7 checks complete."
 

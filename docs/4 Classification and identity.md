@@ -1,4 +1,4 @@
-# Phase 4: Classification and identity
+# 4. Classification and identity
 
 ## Goal
 

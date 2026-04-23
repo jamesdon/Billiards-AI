@@ -69,7 +69,7 @@ if [[ ! -f "$MODEL_PATH" ]]; then
   cat >&2 <<EOF
 Missing required file: $MODEL_PATH
 
-Phase 3 requires a detector ONNX model. This repo does not ship model weights.
+Detection and tracking (see docs/3 …) requires a detector ONNX model. This repo does not ship model weights.
 
 Typical new device: copy your shared team model (no training on device):
   cp "/path/to/released/model.onnx" "$PROJECT_ROOT/models/model.onnx"

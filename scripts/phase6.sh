@@ -6,5 +6,5 @@ cd_root
 activate_venv
 
 pytest -q "$PROJECT_ROOT/tests/test_rules_8ball.py" "$PROJECT_ROOT/tests/test_rules_9ball.py" "$PROJECT_ROOT/tests/test_end_of_game_straight_pool.py"
-echo "Phase 6 complete."
+echo "Step 6 checks complete."
 

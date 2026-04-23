@@ -2,7 +2,7 @@
 
 ## Training vs deploying a new device
 
-**Training and billiards-specific tuning are optional and usually done once** (or occasionally when you want a better shared detector). You build a labeled dataset, train a YOLO-family model, export ONNX, and iterate on hard examples until metrics and Phase 3 runs look good.
+**Training and billiards-specific tuning are optional and usually done once** (or occasionally when you want a better shared detector). You build a labeled dataset, train a YOLO-family model, export ONNX, and iterate on hard examples until metrics and `scripts/phase3.sh` runs look good.
 
 **Normal setup of additional tables or edge devices does not repeat training.** You reuse the same artifacts under a **single directory**:
 
@@ -13,13 +13,13 @@
 
 Per-device variation is handled by **calibration** (homography, pocket geometry), not by retraining the detector, unless the camera or scene is radically different from what the model saw.
 
-The sections below describe dataset → train → export → optional TensorRT. Treat that whole path as **model authoring**; treat copying ONNX into `models/` plus running Phase 3 smoke as **device bring-up**.
+The sections below describe dataset → train → export → optional TensorRT. Treat that whole path as **model authoring**; treat copying ONNX into `models/` plus running the detection/tracking smoke (`docs/3 Detection and tracking.md`, `scripts/phase3.sh`) as **device bring-up**.
 
-## Why one `ball` class in the detector (Phase 3) vs type in Phase 4
+## Why one `ball` class in the detector (§3) vs type in §4
 
 This is a **project default**, not a hard limit of YOLO.
 
-**What the codebase does today:** the detector finds **generic ball boxes** at full-table resolution; `edge/pipeline.py` then tracks them and `edge/classify/ball_classifier.py` infers **type** (cue vs solids vs stripes, game-dependent) from **cropped ROIs** with cheap HSV-style features and temporal smoothing. That is the Phase 4 layer in `docs/Phase 4 Classification and identity.md`.
+**What the codebase does today:** the detector finds **generic ball boxes** at full-table resolution; `edge/pipeline.py` then tracks them and `edge/classify/ball_classifier.py` infers **type** (cue vs solids vs stripes, game-dependent) from **cropped ROIs** with cheap HSV-style features and temporal smoothing. That is the **classification / identity** layer in `docs/4 Classification and identity.md` (TEST_PLAN **§4**).
 
 **Why split “where” from “what”:**
 
@@ -40,10 +40,10 @@ Steps:
 
 1. Label in YOLO with **contiguous** class indices; keep `models/class_map.json` as the **authoritative** `index → label string` map (same strings the ONNX postprocess emits).
 2. Expand `ball_dets` filtering in `edge/pipeline.py` so every label that should participate in **ball tracking** is included (today it whitelists generic names).
-3. Decide whether **Phase 4** `BallClassifier` runs only when `detector_hint` is missing, or is skipped entirely when the detector already emits ball type.
+3. Decide whether **§4** `BallClassifier` runs only when `detector_hint` is missing, or is skipped entirely when the detector already emits ball type.
 4. Expect **more labeling work** and stricter train/val splits by session; gains are fewer ROI mistakes and cleaner **voice “highlight the 8 ball”** hooks tied to detections.
 
-**Merging Phase 3 and Phase 4:** the **phase documents** are delivery checkpoints (detection vs identity), not two incompatible algorithms. You might *personally* combine work into one training push (richer detector + less ROI classifier), but the repo keeps them separate so you can ship **tracking without** perfect type classification, and upgrade types later without retraining the whole detector if you choose the two-stage design.
+**Merging detector training and identity (§3 vs §4):** the **two numbered docs** are delivery checkpoints (detection vs identity), not two incompatible algorithms. You might *personally* combine work into one training push (richer detector + less ROI classifier), but the repo keeps them separate so you can ship **tracking without** perfect type classification, and upgrade types later without retraining the whole detector if you choose the two-stage design.
 
 ## Billiards detector: training walkthrough
 
@@ -71,7 +71,7 @@ Follow this once (or when refreshing the shared model). All paths use `"/home/$U
 
 8. **Verify** — Run `scripts/phase3.sh` with defaults, or a short smoke:  
    `python -m edge.main --camera csi --onnx-model models/model.onnx --class-map models/class_map.json --detect-every-n 2 --mjpeg-port 8001`  
-   Tune `conf_thres` / training data if boxes are noisy; see **Runtime knobs** and Phase 3 docs.
+   Tune `conf_thres` / training data if boxes are noisy; see **Runtime knobs** and `docs/3 Detection and tracking.md`.
 
 ## Do I have to train on another machine?
 
@@ -124,7 +124,7 @@ names:
 EOF
 ```
 
-On-device checklist: `docs/ORIN_NANO_TRAIN_AND_TEST.md` (paths like `/home/$USER/Billiards-AI`, NumPy/OpenCV guardrails, `yolo` + pytest + phases).
+On-device checklist: `docs/ORIN_NANO_TRAIN_AND_TEST.md` (paths like `/home/$USER/Billiards-AI`, NumPy/OpenCV guardrails, `yolo` + pytest + `run_phase.sh` steps).
 
 ## Minimal dataset bootstrap checklist (zero to first model)
 
@@ -136,7 +136,7 @@ Use this to get a first usable detector quickly.
 4. Split train/val by session (not random frame-level only) to avoid leakage.
 5. Train YOLO baseline.
 6. Export ONNX.
-7. Run Phase 3 and collect failures.
+7. Run `scripts/phase3.sh` and collect failures.
 8. Add hard examples, retrain, repeat.
 
 Recommended starter volume:
@@ -232,7 +232,7 @@ Best practice:
 1. Normalize classes to your schema (`ball/person/cue_stick`).
 2. Merge with your own table/camera data.
 3. Prioritize your in-domain data in later fine-tuning rounds.
-4. Validate on your own held-out sessions before Phase 3 sign-off.
+4. Validate on your own held-out sessions before you sign off on detection (TEST_PLAN **§3**).
 
 ## Live CSI capture (same camera as production)
 
@@ -322,10 +322,10 @@ Verify on Orin Nano:
 ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
 ```
 
-## From-scratch baseline model procedure (required before Phase 3+)
+## From-scratch baseline model procedure (required before sections 3+)
 
 If you are starting from scratch, there is no detector artifact in this repo.
-You must create/export `model.onnx` before Phase 3, 4, or 9.
+You must create/export `model.onnx` before **§3**, **§4**, or **§9** in the test plan.
 
 ### 1) Train a lightweight detector
 
@@ -355,7 +355,7 @@ cp "/absolute/path/to/your/exported/model.onnx" "/home/$USER/Billiards-AI/models
 ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
 ```
 
-### 4) Sanity run before full phase
+### 4) Sanity run before full table bring-up
 
 ```bash
 cd "/home/$USER/Billiards-AI"

@@ -1,4 +1,4 @@
-# Phase 8: Backend and persistence
+# 8. Backend and persistence
 
 ## Goal
 

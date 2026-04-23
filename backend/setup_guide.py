@@ -209,7 +209,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         ],
         "links": [],
         "hints": [
-            "Naming: each step title is the same phrase as in docs/TEST_PLAN.md where that file has a matching Phase section (e.g. “Environment and startup” = Phase 1). Steps without a Phase line in the plan — “Detector model (ONNX)” and “Dataset and training (optional)” — are the ONNX artifact and the optional train/refresh path. Order in the sidebar is bring-up order, not Phase number order.",
+            "Naming: each step title is the same phrase as in docs/TEST_PLAN.md where that file has a matching numbered section (e.g. “Environment and startup” = §1). Steps without a section number in the plan — “Detector model (ONNX)” and “Dataset and training (optional)” — are the ONNX artifact and the optional train/refresh path. Order in the sidebar is bring-up order, not section number order.",
             "Progress is kept in the repo file data/setup_wizard_progress.json and a browser copy (localStorage); both update when you save, auto-save, or leave the page.",
             "Status lights: red = not started, yellow = in progress, green = complete.",
         ],
@@ -218,7 +218,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "environment",
         "title": "Environment and startup",
-        "summary": "Create the venv and install Python dependencies (TEST_PLAN Phase 1). On Jetson, follow docs/Phase 1 Environment and startup.md for distro OpenCV + GStreamer.",
+        "summary": "Create the venv and install Python dependencies (TEST_PLAN §1). On Jetson, follow docs/1 Environment and startup.md for distro OpenCV + GStreamer.",
         "checklist": [
             {
                 "item": "Virtual environment exists at .venv",
@@ -244,12 +244,12 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "hints": [
             "Optional (Jetson with CSI only): with the venv active, from the repository root run `bash scripts/phase1.sh`. That script installs Python deps, checks that OpenCV was built with GStreamer (needed for CSI), runs compileall, ruff, pytest, then smoke-tests the backend and edge with `--camera csi`. It is not a generic desktop check—do not expect it to succeed on macOS or on a system without a CSI camera and a GStreamer-capable OpenCV; use the Environment checklist on those machines instead."
         ],
-        "doc_refs": [{"label": "Phase 1 — Environment", "path": "docs/Phase 1 Environment and startup.md"}],
+        "doc_refs": [{"label": "1 — Environment and startup", "path": "docs/1 Environment and startup.md"}],
     },
     {
         "id": "model",
         "title": "Detector model (ONNX)",
-        "summary": "Place `models/model.onnx` and `models/class_map.json` in the tree. No separate Phase in TEST_PLAN — this is the artifact required before “Detection and tracking”. For training or export, see “Dataset and training (optional)”.",
+        "summary": "Place `models/model.onnx` and `models/class_map.json` in the tree. No separate numbered section in TEST_PLAN — this is the artifact required before “Detection and tracking”. For training or export, see “Dataset and training (optional)”.",
         "checklist": [
             {
                 "item": "models/model.onnx exists",
@@ -278,20 +278,20 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "calibration",
         "title": "Calibration and coordinate mapping",
-        "summary": "Homography + pocket labels (TEST_PLAN Phase 2). On macOS, `start_calibration.sh` defaults to USB; Jetson uses CSI. Use the GUI on a desktop session (or X11-forwarded Jetson).",
+        "summary": "Homography + pocket labels (TEST_PLAN §2). On macOS, `start_calibration.sh` defaults to USB; Jetson uses CSI. Use the GUI on a desktop session (or X11-forwarded Jetson).",
         "checklist": [
             {
                 "item": "calibration.json produced for this camera + table",
                 "verify": (
                     "1) From the repository root, start the interactive calibration flow (GUI; needs a desktop or forwarded display on Jetson):\n"
                     '`cd "{project_root}" && bash scripts/start_calibration.sh`'
-                    "\n\n2) Confirm your output file and inspect JSON for a 3×3 homography and six pockets (see CALIBRATION / Phase 2 docs for structure). Example for the default file name:\n"
+                    "\n\n2) Confirm your output file and inspect JSON for a 3×3 homography and six pockets (see CALIBRATION and §2 docs for structure). Example for the default file name:\n"
                     "`ls -l calibration.json`"
                 ),
                 "record": "If the path is not the default, or you used a table preset, put that in Notes.",
             },
             {
-                "item": "Pocket labels match the schema (Phase 2 style)",
+                "item": "Pocket labels match the schema (see calibration doc)",
                 "verify": (
                     "On Jetson or Linux, optional automated checks (invalid labels should show in logs):\n"
                     '`cd "{project_root}" && bash scripts/phase2.sh`'
@@ -316,16 +316,16 @@ SETUP_STEPS: list[dict[str, Any]] = [
         ],
         "doc_refs": [
             {"label": "CALIBRATION", "path": "docs/CALIBRATION.md"},
-            {"label": "Phase 2", "path": "docs/Phase 2 Calibration and coordinate mapping.md"},
+            {"label": "2 — Calibration and coordinate mapping", "path": "docs/2 Calibration and coordinate mapping.md"},
         ],
     },
     {
         "id": "phase3",
         "title": "Detection and tracking",
-        "summary": "Smoke-test detector + tracker (TEST_PLAN Phase 3). Headless: view output in a browser via MJPEG (not an OpenCV window).",
+        "summary": "Smoke-test detector + tracker (TEST_PLAN §3). Headless: view output in a browser via MJPEG (not an OpenCV window).",
         "checklist": [
             {
-                "item": "Automated Phase 3 script completes or manual edge run works",
+                "item": "Automated `scripts/phase3.sh` run completes or manual edge run works",
                 "verify": (
                     "1) Automated (macOS USB defaults; on Jetson set `PHASE3_USB_INDEX` if the script needs it). From the repo root:\n"
                     '`cd "{project_root}" && source .venv/bin/activate && bash scripts/phase3.sh`'
@@ -366,12 +366,12 @@ SETUP_STEPS: list[dict[str, Any]] = [
             "Re-running scripts/phase3.sh overwrites .phase3_n1.log, .phase3_n2.log, and .phase3_n3.log at the repo root each time.",
             "CUDA provider warnings on Mac are normal; CoreML/CPU is used.",
         ],
-        "doc_refs": [{"label": "Phase 3", "path": "docs/Phase 3 Detection and tracking.md"}],
+        "doc_refs": [{"label": "3 — Detection and tracking", "path": "docs/3 Detection and tracking.md"}],
     },
     {
         "id": "phase4",
         "title": "Classification and identity",
-        "summary": "Backend + edge with `identities.json` (TEST_PLAN Phase 4). Persistent player/stick profiles and class-aware behavior as in docs/Phase 4 Classification and identity.md.",
+        "summary": "Backend + edge with `identities.json` (TEST_PLAN §4). Persistent player/stick profiles and class-aware behavior as in docs/4 Classification and identity.md.",
         "checklist": [
             {
                 "item": "Backend responds on /health",
@@ -383,7 +383,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     "\n\nThat script runs python3 -m uvicorn via the venv (not the broken .venv/bin/uvicorn shim after a folder rename). "
                     "\n\n2) When it is up (or you already have this page open):\n"
                     "`curl -s http://127.0.0.1:{api_port}/health`"
-                    "\nExpect JSON with an ok field (see Phase 4 doc for the exact response)."
+                    "\nExpect JSON with an ok field (see §4 doc for the exact response)."
                 ),
                 "record": "If `/health` is not what you expect, paste the `curl` body in Notes.",
             },
@@ -392,7 +392,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "verify": (
                     "1) With edge in the loop, use a USB or CSI run as you prefer (example USB):\n"
                     '`cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --identities identities.json --calib calibration.json --mjpeg-port {mjpeg_port}`'
-                    "\n\n2) `PATCH` a nickname through `/profiles` (see Phase 4 doc), restart edge, and confirm the name returns after restart."
+                    "\n\n2) `PATCH` a nickname through `/profiles` (see §4 doc), restart edge, and confirm the name returns after restart."
                 ),
                 "record": "Note a profile id you used for this test, if you want a paper trail.",
             },
@@ -402,7 +402,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {"label": "Backend health", "href_template": "http://127.0.0.1:{api_port}/health"},
         ],
         "hints": ["Replace --camera usb with csi on Jetson."],
-        "doc_refs": [{"label": "Phase 4", "path": "docs/Phase 4 Classification and identity.md"}],
+        "doc_refs": [{"label": "4 — Classification and identity", "path": "docs/4 Classification and identity.md"}],
     },
     {
         "id": "dataset_training",
@@ -463,25 +463,25 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "phases_advanced",
         "title": "Events, rules, stats, backend, and acceptance",
-        "summary": "Maps to TEST_PLAN Phases 5 through 9: event/foul detection, rules, stats, backend persistence, end-to-end acceptance. Read that file and linked phase docs for gates.",
+        "summary": "Maps to TEST_PLAN §5 through §9: event/foul detection, rules, stats, backend persistence, end-to-end acceptance. Read that file and the linked runbooks for gates.",
         "checklist": [
             {
-                "item": "Read TEST_PLAN gates for phases you need",
-                "verify": "In the Documentation section on this page, open the TEST_PLAN item (docs/TEST_PLAN.md) and skim the parts for phases 5–9 you plan to use. Use the other doc links on the same page for detail.",
-                "record": "Optionally, note in Notes which phase block you will qualify first.",
+                "item": "Read TEST_PLAN gates for the sections you need",
+                "verify": "In the Documentation section on this page, open the TEST_PLAN item (docs/TEST_PLAN.md) and skim the parts for sections 5–9 you plan to use. Use the other doc links on the same page for detail.",
+                "record": "Optionally, note in Notes which section you will qualify first.",
             },
         ],
         "links": [],
         "hints": [
-            "Phase 5: shot/collision/pocket/foul detectors",
-            "Phase 6: end-of-game rules",
-            "Phases 7–8: stats + backend",
-            "Phase 9: acceptance",
+            "5 — Event and foul detection: shot/collision/pocket/foul detectors",
+            "6 — Rules and end-of-game",
+            "7–8 — Stats and analytics; backend and persistence",
+            "9 — End-to-end acceptance",
         ],
         "doc_refs": [
             {"label": "TEST_PLAN", "path": "docs/TEST_PLAN.md"},
             {"label": "EVENT_DETECTION", "path": "docs/EVENT_DETECTION.md"},
-            {"label": "Phase 9", "path": "docs/Phase 9 End-to-end acceptance.md"},
+            {"label": "9 — End-to-end acceptance", "path": "docs/9 End-to-end acceptance.md"},
         ],
     },
 ]

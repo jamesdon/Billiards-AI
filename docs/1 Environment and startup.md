@@ -1,14 +1,14 @@
-# Phase 1: Environment and startup
+# 1. Environment and startup
 
 ## Goal
 
 Bring up edge + backend reliably and verify core services.
 
-## Phase 1 status notes (NVIDIA CSI on Jetson Orin Nano)
+## 1.1 Status notes (NVIDIA CSI on Jetson Orin Nano)
 
 - Backend and software integrity checks can pass independently of camera bring-up.
 - For this project, a **CSI camera is always intended** for edge runtime validation on the Orin Nano (JetPack 5.x).
-- If CSI camera open fails (`RuntimeError: Failed to open camera source='nvarguscamerasrc ...'`), treat Phase 1 as blocked on device camera stack readiness.
+- If CSI camera open fails (`RuntimeError: Failed to open camera source='nvarguscamerasrc ...'`), treat this section as blocked on device camera stack readiness.
 
 ## 1) Create and activate environment
 

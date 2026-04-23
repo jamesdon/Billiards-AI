@@ -14,7 +14,7 @@ Examples:
   scripts/run_phase.sh all
 
 Notes:
-  - Phase scripts 2/3/4/9 may require runtime inputs (camera/model/class-map).
+  - `phase2.sh` / `phase3.sh` / `phase4.sh` / `phase9.sh` may require runtime inputs (camera/model/class-map).
   - Override paths/settings with env vars (PROJECT_ROOT, MODEL_PATH, etc.).
 EOF
 }
@@ -23,10 +23,10 @@ run_phase() {
   local n="$1"
   local f="$SCRIPT_DIR/phase${n}.sh"
   if [[ ! -x "$f" ]]; then
-    echo "Phase script not found or not executable: $f" >&2
+    echo "Script not found or not executable: $f" >&2
     exit 1
   fi
-  echo "== Running phase ${n} =="
+  echo "== Running step ${n} (phase${n}.sh) =="
   "$f"
 }
 
@@ -42,19 +42,19 @@ main() {
       run_phase "$arg"
       ;;
     all)
-      # Run non-interactive phases by default; skip camera/model-dependent phases.
+      # Run non-interactive steps by default; skip camera/model-dependent steps.
       for n in 1 5 6 7 8; do
         run_phase "$n"
       done
       echo "Completed default all set (1,5,6,7,8)."
-      echo "Run phases 2,3,4,9 manually when camera/model are available."
-      echo "Phase 3 now supports automated sweep via MODEL_PATH + CLASS_MAP_PATH env vars."
+      echo "Run steps 2,3,4,9 (phase2.sh …) manually when camera/model are available."
+      echo "Step 3 (detection) now supports automated sweep via MODEL_PATH + CLASS_MAP_PATH env vars."
       ;;
     -h|--help|help)
       usage
       ;;
     *)
-      echo "Invalid phase: $arg" >&2
+      echo "Invalid step number: $arg" >&2
       usage
       exit 1
       ;;

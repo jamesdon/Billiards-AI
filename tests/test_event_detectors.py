@@ -1,4 +1,4 @@
-"""Synthetic tests for Phase 3-style event logic (no camera / ONNX)."""
+"""Synthetic tests for edge event-detector logic (no camera / ONNX)."""
 
 from __future__ import annotations
 

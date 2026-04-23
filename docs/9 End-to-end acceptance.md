@@ -1,4 +1,4 @@
-# Phase 9: End-to-end acceptance
+# 9. End-to-end acceptance
 
 ## Goal
 

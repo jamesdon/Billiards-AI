@@ -1,4 +1,4 @@
-# Phase 6: Rules and end-of-game
+# 6. Rules and end-of-game
 
 ## Goal
 

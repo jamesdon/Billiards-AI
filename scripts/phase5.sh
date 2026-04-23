@@ -11,5 +11,5 @@ curl -s -X POST "http://127.0.0.1:${BACKEND_PORT}/fouls/manual" \
 
 curl -s "http://127.0.0.1:${BACKEND_PORT}/live/state"
 echo
-echo "Phase 5 complete."
+echo "Step 5 checks complete."
 

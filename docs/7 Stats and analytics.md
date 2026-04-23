@@ -1,4 +1,4 @@
-# Phase 7: Stats and analytics
+# 7. Stats and analytics
 
 ## Goal
 

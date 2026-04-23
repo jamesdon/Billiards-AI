@@ -2,31 +2,30 @@
 
 ## Setup wizard (`/setup`) and this document
 
-The guided UI at `http://127.0.0.1:8000/setup` lists steps **in bring-up order**. **Step titles** are aligned with this file on purpose:
+The guided UI at `http://127.0.0.1:8000/setup` lists steps **in bring-up order**. **Step titles** match the **numbered sections** below where a section exists (same words as the title, e.g. **Environment and startup** = **§1** here).
 
-- Where this document has a **Phase N: …** heading, the matching guide step uses the **same title after the colon** (e.g. **Environment and startup** = Phase 1).
-- **Detector model (ONNX)** and **Dataset and training (optional)** are not Phases in this file; they name the model artifact and the optional train/refresh path (`MODEL_OPTIMIZATION.md`).
+- **Detector model (ONNX)** and **Dataset and training (optional)** are extra guide steps; they are not separate numbered sections in this file (model artifact and optional train path — see `MODEL_OPTIMIZATION.md`).
 
 | Guide step (exact title) | Role |
 | --- | --- |
 | Overview | How to use the guide |
-| **Environment and startup** | **Phase 1** — venv, `requirements.txt` |
-| **Detector model (ONNX)** | Prerequisite to Phase 3 smoke; `models/`, `class_map.json` |
-| **Calibration and coordinate mapping** | **Phase 2** — homography, pockets |
-| **Detection and tracking** | **Phase 3** — `phase3.sh`, edge, MJPEG |
-| **Classification and identity** | **Phase 4** — `/profiles`, `identities.json` |
+| **Environment and startup** | **§1** — venv, `requirements.txt` |
+| **Detector model (ONNX)** | Prerequisite to **§3 · Detection and tracking** smoke; `models/`, `class_map.json` |
+| **Calibration and coordinate mapping** | **§2** — homography, pockets |
+| **Detection and tracking** | **§3** — `phase3.sh`, edge, MJPEG |
+| **Classification and identity** | **§4** — `/profiles`, `identities.json` |
 | **Dataset and training (optional)** | Roboflow, train, export (when refreshing weights) |
 | **Jetson deployment** | On-device / Docker; `DEPLOYMENT_JETSON.md` |
-| **Events, rules, stats, backend, and acceptance** | **Phases 5–9** in this file (one guide step; read the Phase 5–9 sections below) |
+| **Events, rules, stats, backend, and acceptance** | **§5–§9** in this file (one guide step; read sections 5–9 below) |
 
-This plan is organized by major delivery phases. Each phase has:
+This plan is organized by **numbered delivery sections (1–9)**. Each section has:
 
 - objective
 - entry criteria
 - test cases
 - pass/fail gate
 
-## Phase 1: Environment and startup
+## 1. Environment and startup
 
 ### Objective
 
@@ -50,7 +49,7 @@ Verify the system boots reliably on dev hardware and Jetson Orin–class targets
 - no crashes for 15 minutes
 - stable stream output
 
-## Phase 2: Calibration and coordinate mapping
+## 2. Calibration and coordinate mapping
 
 ### Objective
 
@@ -70,7 +69,7 @@ Validate homography correctness and pocket zone alignment.
 
 ## Dataset: live CSI captures for YOLO training (before first `jetson_yolo_train.sh`)
 
-This is **not** a numbered phase in the original sequence, but it is part of the **on-device training plan**: you need labeled table imagery before Phase 3 training runs.
+This is **not** a numbered section in the original sequence, but it is part of the **on-device training plan**: you need labeled table imagery before **§3** / detection training runs.
 
 ### Objective
 
@@ -78,7 +77,7 @@ Record still frames from the **same CSI camera and framing** you use in producti
 
 ### Entry criteria
 
-- Phase 1 camera smoke passes (CSI opens reliably).
+- **§1** (environment) camera smoke passes (CSI opens reliably).
 - `jetson_train_env.sh` has been run so the venv can run the capture script.
 
 ### Test cases
@@ -92,7 +91,7 @@ Record still frames from the **same CSI camera and framing** you use in producti
 - JPEGs open in an image viewer, full table visible, timestamps/prefixes distinguish sessions.
 - After labeling, a subset of images + matching YOLO `.txt` files are copied into `images/train`, `labels/train`, `images/val`, and `labels/val` (see `docs/ORIN_NANO_TRAIN_AND_TEST.md` and `docs/MODEL_OPTIMIZATION.md`).
 
-## Phase 3: Detection and tracking
+## 3. Detection and tracking
 
 ### Objective
 
@@ -109,7 +108,7 @@ Ensure robust ball/player/stick detection and ID continuity.
 
 - track continuity and runtime target met
 
-## Phase 4: Classification and identity
+## 4. Classification and identity
 
 ### Objective
 
@@ -126,7 +125,7 @@ Validate ball class inference and persistent player/stick identity.
 
 - acceptable confusion matrix + stable profile IDs
 
-## Phase 5: Event and foul detection
+## 5. Event and foul detection
 
 ### Objective
 
@@ -146,7 +145,7 @@ Validate shot, collision, rail-hit, pocket, and foul outputs.
 
 - event timing/order consistency and foul correctness
 
-## Phase 6: Rules and end-of-game
+## 6. Rules and end-of-game
 
 ### Objective
 
@@ -164,7 +163,7 @@ Verify ruleset-specific progression and winner selection.
 
 - winner/team/result reason matches expected outcomes
 
-## Phase 7: Stats and analytics
+## 7. Stats and analytics
 
 ### Objective
 
@@ -181,7 +180,7 @@ Validate shot taxonomy and numeric metrics.
 
 - metric ranges plausible and tag logic consistent
 
-## Phase 8: Backend and persistence
+## 8. Backend and persistence
 
 ### Objective
 
@@ -199,7 +198,7 @@ Verify event/state ingestion and DynamoDB persistence.
 
 - no data loss in nominal path, graceful degradation on AWS errors
 
-## Phase 9: End-to-end acceptance
+## 9. End-to-end acceptance
 
 ### Objective
 
@@ -217,21 +216,21 @@ Run complete games and validate full stack behavior.
 
 ## Execution order
 
-1. Phase 1-2
-2. Phase 3-5
-3. Phase 6-7
-4. Phase 8
-5. Phase 9
+1. Sections **1–2**
+2. Sections **3–5**
+3. Sections **6–7**
+4. Section **8**
+5. Section **9**
 
 ## Detailed runbooks
 
-- `docs/Phase 1 Environment and startup.md`
-- `docs/Phase 2 Calibration and coordinate mapping.md`
-- `docs/Phase 3 Detection and tracking.md`
-- `docs/Phase 4 Classification and identity.md`
-- `docs/Phase 5 Event and foul detection.md`
-- `docs/Phase 6 Rules and end-of-game.md`
-- `docs/Phase 7 Stats and analytics.md`
-- `docs/Phase 8 Backend and persistence.md`
-- `docs/Phase 9 End-to-end acceptance.md`
+- `docs/1 Environment and startup.md`
+- `docs/2 Calibration and coordinate mapping.md`
+- `docs/3 Detection and tracking.md`
+- `docs/4 Classification and identity.md`
+- `docs/5 Event and foul detection.md`
+- `docs/6 Rules and end-of-game.md`
+- `docs/7 Stats and analytics.md`
+- `docs/8 Backend and persistence.md`
+- `docs/9 End-to-end acceptance.md`
 

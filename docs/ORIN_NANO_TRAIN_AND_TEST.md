@@ -12,7 +12,7 @@ This repo targets **NVIDIA Jetson Orin Nano** on **JetPack 5.x** (Ubuntu 20.04 /
 
 ## How to test (what to run, in order)
 
-Use **`~/Billiards-AI`** (or `cd "$PROJECT_ROOT"`). Plain one-liners also live in `scripts/JETSON_ONE_LINERS.txt`. Full phase objectives: `docs/TEST_PLAN.md` (dataset capture is spelled out under **“Dataset: live CSI captures for YOLO training”**).
+Use **`~/Billiards-AI`** (or `cd "$PROJECT_ROOT"`). Plain one-liners also live in `scripts/JETSON_ONE_LINERS.txt`. Full objectives by numbered section: `docs/TEST_PLAN.md` (dataset capture is spelled out under **“Dataset: live CSI captures for YOLO training”**).
 
 | What you want to verify | Command / action |
 |-------------------------|-------------------|
@@ -22,10 +22,10 @@ Use **`~/Billiards-AI`** (or `cd "$PROJECT_ROOT"`). Plain one-liners also live i
 | **Save photos from CSI for training** | `cd ~/Billiards-AI && bash scripts/jetson_capture_training_frames.sh --count 300 --stride 20 --prefix session1` — JPEGs in `data/datasets/billiards/images/capture/` (see `scripts/capture_csi_training_frames.py --help` for `--out-dir`, `--csi-flip-method`, etc.) |
 | **Calibration (interactive)** | `cd ~/Billiards-AI && bash scripts/start_calibration.sh` — writes `calibration.json` (or set `CALIB_OUT`). If `gst-launch-1.0 nvarguscamerasrc ...` reports **No cameras available**, Argus does not see a CSI module (cable/port/driver); use USB: `bash scripts/start_calibration.sh --camera usb`, or fix CSI then retry. |
 | **Calibration (headless check)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 2` |
-| **Backend + CSI smoke (Phase 1)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 1` |
-| **Detector + tracking (Phase 3)** | Requires `models/model.onnx`. Then: `cd ~/Billiards-AI && bash scripts/run_phase.sh 3` — or `bash scripts/jetson_phases_1_3.sh` (runs 1 then 3) |
+| **Backend + CSI smoke (TEST_PLAN §1)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 1` |
+| **Detector + tracking (TEST_PLAN §3)** | Requires `models/model.onnx`. Then: `cd ~/Billiards-AI && bash scripts/run_phase.sh 3` — or `bash scripts/jetson_phases_1_3.sh` (runs 1 then 3) |
 | **Live app + MJPEG** | With calib + ONNX in place: `cd ~/Billiards-AI && bash scripts/jetson_edge_smoke_csi.sh` — open `http://<device-ip>:8001/mjpeg` until Ctrl+C |
-| **YOLO train → ONNX → smoke again** | After labeled images exist: `jetson_yolo_train.sh` → `jetson_yolo_export_latest.sh` → Phase 3 or `jetson_edge_smoke_csi.sh` again |
+| **YOLO train → ONNX → smoke again** | After labeled images exist: `jetson_yolo_train.sh` → `jetson_yolo_export_latest.sh` → `run_phase.sh 3` / `scripts/phase3.sh` or `jetson_edge_smoke_csi.sh` again |
 
 **Minimum “it works on the table” path:** `jetson_train_env.sh` → `start_calibration.sh` → place or export `models/model.onnx` → `jetson_edge_smoke_csi.sh` (confirm overlay/stream).
 
@@ -53,7 +53,7 @@ If your repo lives somewhere else, set `PROJECT_ROOT` first, e.g. `export PROJEC
 
 **This project does not ship a photo dataset.** You train on **your own** pictures of **your** table from **your** production camera angle (or the same crop you will use live). Typical sources:
 
-1. **Record or grab frames from the CSI camera** on the Orin Nano (same rig as Phase 3/4): save stills or short videos to disk, then copy JPEG/PNG frames into `data/datasets/billiards/images/train` and `.../images/val`. Use different nights/sessions for val when you can.
+1. **Record or grab frames from the CSI camera** on the Orin Nano (same rig as **§3** / **§4** bring-up): save stills or short videos to disk, then copy JPEG/PNG frames into `data/datasets/billiards/images/train` and `.../images/val`. Use different nights/sessions for val when you can.
 2. **Extract frames from a video** you shot over the table (see `docs/MODEL_OPTIMIZATION.md` → “Helpful frame extraction tip” for an `ffmpeg` example writing into `data/datasets/billiards/images/...`).
 3. **Import** a YOLO-format dataset (e.g. export from Roboflow, or another billiards project) and merge images + labels into those same `images/` and `labels/` folders—**renumber classes** so they match `models/class_map.json` (`0` ball … `4` pockets).
 
@@ -68,7 +68,7 @@ For every `something.jpg` (or `.png`), YOLO expects a matching `something.txt` i
 
 Ultralytics **does not** continuously learn from the camera during `yolo train`; it still needs **saved** images plus labels. What you *can* do is **point the live CSI feed at the table**, save frames to disk, then label those frames—same camera and lighting as production.
 
-**Several ball sets:** run a **separate capture** per set (or use a different `--prefix` / `--out-dir` per session), then mix those JPEGs into `images/train` and `images/val` when you split. Variety across sets improves the detector; ball **identity** (solid/stripe/…) is still Phase 4, not the detector class `ball`.
+**Several ball sets:** run a **separate capture** per set (or use a different `--prefix` / `--out-dir` per session), then mix those JPEGs into `images/train` and `images/val` when you split. Variety across sets improves the detector; ball **identity** (solid/stripe/…) is still **§4 (classification)**, not the detector class `ball`.
 
 **Capture command** (from repo root, venv active—`jetson_capture_training_frames.sh` does both):
 
@@ -102,7 +102,7 @@ Defaults write under `data/datasets/billiards/images/capture/`. After labeling, 
 
    `cd ~/Billiards-AI && bash scripts/jetson_pytest.sh`
 
-6. **Phases 1 and 3**
+6. **TEST_PLAN §1 and §3** (`jetson_phases_1_3.sh`)
 
    `cd ~/Billiards-AI && bash scripts/jetson_phases_1_3.sh`
 

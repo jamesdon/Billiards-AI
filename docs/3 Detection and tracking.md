@@ -1,10 +1,10 @@
-# Phase 3: Detection and tracking
+# 3. Detection and tracking
 
 ## Goal
 
 Verify ONNX detection and multi-track stability.
 
-**Prerequisite note:** Phase 3 assumes `models/model.onnx` and `models/class_map.json` are already on the device. **Training that model is a separate, optional step** (see `docs/MODEL_OPTIMIZATION.md`); day-to-day new installs typically **reuse the same exported model** and only run calibration plus this phase as smoke.
+**Prerequisite note:** This section assumes `models/model.onnx` and `models/class_map.json` are already on the device. **Training that model is a separate, optional step** (see `docs/MODEL_OPTIMIZATION.md`); day-to-day new installs typically **reuse the same exported model** and only run calibration plus this detection/tracking smoke.
 
 ## 1) Prepare class map (canonical path)
 
@@ -27,7 +27,7 @@ EOF
 ## 2) Bootstrap a starter ONNX model (from scratch)
 
 If you are starting from scratch and do not yet have a trained billiards model,
-you must create one before running Phase 3. This is a bootstrap path to get a
+you must create one before running this step (`scripts/phase3.sh` or `edge.main`). This is a bootstrap path to get a
 valid detector artifact quickly (accuracy will depend on your dataset quality).
 
 ### 2a) Train a small YOLO model (example with Ultralytics)
@@ -65,7 +65,7 @@ cp "/ABSOLUTE/PATH/TO/best.onnx" "/home/$USER/Billiards-AI/models/model.onnx"
 /usr/bin/ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
 ```
 
-## 3) Run Phase 3 verification script (recommended)
+## 3) Run the verification script (`scripts/phase3.sh`) (recommended)
 
 This script performs:
 
@@ -80,11 +80,11 @@ This script performs:
 tail -f "/Users/jdonn/AppDev/Billiards-AI/.phase3_n2.log"
 ```
 
-The **Setup guide** (when the backend is running: open **Phase 3** in the wizard) shows the same `tail` command with your real clone path and a one-click **Copy** next to it. You can also wait for **`[Phase3] Live MJPEG`**. The wait is capped by **`PHASE3_MJPEG_WAIT_SECONDS`** (default **90**).
+The **Setup guide** (when the backend is running: open **Detection and tracking** in the wizard) shows the same `tail` command with your real clone path and a one-click **Copy** next to it. You can also wait for **`[Phase3] Live MJPEG`**. The wait is capped by **`PHASE3_MJPEG_WAIT_SECONDS`** (default **90**).
 
-**Viewing video:** Phase 3 does **not** open a desktop window. `edge.main` serves an MJPEG stream over HTTP. When the script prints `Live MJPEG`, open the printed URL. The script uses fixed sweep ports **8001** (baseline, `detect_every_n=2`), **8004** (`detect_every_n=1`), and **8005** (`detect_every_n=3`). See **`docs/PORTS.md`**. Override with **`PHASE3_PORT_N2`**, **`PHASE3_PORT_N1`**, **`PHASE3_PORT_N3`** (each **8001–8005**; not **8000**, API). **`/health`** on each run’s port reports JSON status.
+**Viewing video:** This step does **not** open a desktop window. `edge.main` serves an MJPEG stream over HTTP. When the script prints `Live MJPEG`, open the printed URL. The script uses fixed sweep ports **8001** (baseline, `detect_every_n=2`), **8004** (`detect_every_n=1`), and **8005** (`detect_every_n=3`). See **`docs/PORTS.md`**. Override with **`PHASE3_PORT_N2`**, **`PHASE3_PORT_N1`**, **`PHASE3_PORT_N3`** (each **8001–8005**; not **8000**, API). **`/health`** on each run’s port reports JSON status.
 
-**MJPEG port already in use** (`OSError: [Errno 48] Address already in use` or `MJPEG port 8001 is already in use` in `.phase3_n2.log`): another process is still bound to that port—commonly a **stale `python -m edge.main`**, a **browser tab** or **Setup guide** still loading `http://127.0.0.1:8001/mjpeg`, or a second Phase 3 run.
+**MJPEG port already in use** (`OSError: [Errno 48] Address already in use` or `MJPEG port 8001 is already in use` in `.phase3_n2.log`): another process is still bound to that port—commonly a **stale `python -m edge.main`**, a **browser tab** or **Setup guide** still loading `http://127.0.0.1:8001/mjpeg`, or a second `scripts/phase3.sh` run.
 
 1. See what is listening: `lsof -nP -iTCP:8001 -sTCP:LISTEN` (macOS/Linux).
 2. Stop that process (e.g. `kill <pid>`) or close tabs/apps using the stream, then re-run the script.
