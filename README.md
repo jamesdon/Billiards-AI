@@ -29,7 +29,7 @@ This runs **`.venv/bin/python3 -m uvicorn backend.app:app`** (avoids a broken **
 
 **2. Open the guide:** **[http://127.0.0.1:8000/setup](http://127.0.0.1:8000/setup)** (use your `BACKEND_PORT` if you changed it: `http://127.0.0.1:<port>/setup`).
 
-**3. How it lines up with the repo:** step titles in the sidebar match **`docs/TEST_PLAN.md`** numbered section titles (1–9) where a section applies; see the table at the **top** of that file. The last advanced step is named **“Events, rules, stats, backend, and acceptance”** and covers **§5–§9** in that file. The canonical ordered list and gates stay in **`docs/TEST_PLAN.md`**.
+**3. How it lines up with the repo:** sidebar step names match the table at the top of **`docs/TEST_PLAN.md`** (and the numbered runbooks **`docs/1` … `docs/9`** where those apply). Gates and execution order are in that file.
 
 **4. Where progress is stored:** `data/setup_wizard_progress.json` and browser **localStorage** (saved when you use **Save** or leave the page; same keys as step `id` in `backend/setup_guide.py`).
 
@@ -79,7 +79,7 @@ scripts/docker_jetson_down.sh
 
 ## Docs
 
-- **`docs/TEST_PLAN.md`** — numbered delivery sections (1–9), pass/fail gates, and the **table linking the browser setup guide** at `/setup` to those sections; read this to see how guide step names map to the plan
+- **`docs/TEST_PLAN.md`** — §1–§9 delivery sections, pass/fail gates, and a **table** of setup guide step titles vs this file and `docs/1`–`docs/9`
 - `docs/PORTS.md` — default **8000** (API / setup) vs **8001–8005** (MJPEG / edge)
 - `docs/FILE_HIERARCHY.md` — tree of components (includes `backend/setup_guide.py` and `static/setup/`)
 - `docs/ARCHITECTURE.md`

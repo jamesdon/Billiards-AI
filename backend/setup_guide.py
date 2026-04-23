@@ -209,8 +209,6 @@ SETUP_STEPS: list[dict[str, Any]] = [
         ],
         "links": [],
         "hints": [
-            "Two processes: this backend (port 8000) only serves the setup pages. It does **not** start the camera pipeline. Live MJPEG and `GET /health` on 8001–8005 come from a **separate** terminal running `python3 -m edge.main` (see **Detection and tracking**). The small edge status under **MJPEG port** in the sidebar is shown only from **Detection and tracking** onward, after model + calibration are expected to be in place.",
-            "Naming: each step title is the same phrase as in docs/TEST_PLAN.md where that file has a matching numbered section (e.g. “Environment and startup” = §1). Steps without a section number in the plan — “Detector model (ONNX)” and “Dataset and training (optional)” — are the ONNX artifact and the optional train/refresh path. Order in the sidebar is bring-up order, not section number order.",
             "Progress is kept in the repo file data/setup_wizard_progress.json and a browser copy (localStorage); both update when you save, auto-save, or leave the page.",
             "Status lights: red = not started, yellow = in progress, green = complete.",
         ],

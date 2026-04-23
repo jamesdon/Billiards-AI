@@ -2,21 +2,19 @@
 
 ## Setup wizard (`/setup`) and this document
 
-The guided UI at `http://127.0.0.1:8000/setup` lists steps **in bring-up order**. **Step titles** match the **numbered sections** below where a section exists (same words as the title, e.g. **Environment and startup** = **§1** here).
+The browser setup guide uses the same **step titles** as the `## N. …` headings in this file for **§1–§4** and **`docs/1` … `docs/4`**. The guide also lists **Overview**, **Detector model (ONNX)**, **Dataset and training (optional)**, and **Jetson deployment**; the last item **Events, rules, stats, backend, and acceptance** matches **§5–§9** combined (see runbooks **`docs/5` … `docs/9`**).
 
-- **Detector model (ONNX)** and **Dataset and training (optional)** are extra guide steps; they are not separate numbered sections in this file (model artifact and optional train path — see `MODEL_OPTIMIZATION.md`).
-
-| Guide step (exact title) | Role |
+| Step (sidebar title) | This file / doc |
 | --- | --- |
-| Overview | How to use the guide |
-| **Environment and startup** | **§1** — venv, `requirements.txt` |
-| **Detector model (ONNX)** | Prerequisite to **§3 · Detection and tracking** smoke; `models/`, `class_map.json` |
-| **Calibration and coordinate mapping** | **§2** — homography, pockets |
-| **Detection and tracking** | **§3** — `phase3.sh`, edge, MJPEG |
-| **Classification and identity** | **§4** — `/profiles`, `identities.json` |
-| **Dataset and training (optional)** | Roboflow, train, export (when refreshing weights) |
-| **Jetson deployment** | On-device / Docker; `DEPLOYMENT_JETSON.md` |
-| **Events, rules, stats, backend, and acceptance** | **§5–§9** in this file (one guide step; read sections 5–9 below) |
+| Overview | — |
+| **Environment and startup** | **§1** · `docs/1 …` |
+| **Detector model (ONNX)** | Prerequisite to §3; `models/`, `class_map.json` |
+| **Calibration and coordinate mapping** | **§2** · `docs/2 …` |
+| **Detection and tracking** | **§3** · `docs/3 …` |
+| **Classification and identity** | **§4** · `docs/4 …` |
+| **Dataset and training (optional)** | `MODEL_OPTIMIZATION.md`, training scripts |
+| **Jetson deployment** | `docs/DEPLOYMENT_JETSON.md` |
+| **Events, rules, stats, backend, and acceptance** | **§5–§9** · `docs/5` … `docs/9` |
 
 This plan is organized by **numbered delivery sections (1–9)**. Each section has:
 

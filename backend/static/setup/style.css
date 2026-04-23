@@ -78,7 +78,7 @@ a {
 }
 
 .mjpeg-ports-allowed {
-  margin: 0 0 0.35rem;
+  margin: 0.35rem 0 0;
   font-size: 0.68rem;
   line-height: 1.35;
   color: var(--muted);
