@@ -653,10 +653,10 @@
                 <div class="item-text">${formatChecklistField(item.item || "")}</div>
                 ${
                   rawV
-                    ? `<p class="verify"><strong>How to verify:</strong> ${formatChecklistWithBackticks(
+                    ? `<div class="verify"><strong>How to verify:</strong> ${formatChecklistWithBackticks(
                         rawV,
                         true
-                      )}</p>`
+                      )}</div>`
                     : ""
                 }
                 ${
@@ -675,10 +675,10 @@
                 }
                 ${
                   item.record
-                    ? `<p class="record"><strong>What to record:</strong> ${formatChecklistWithBackticks(
+                    ? `<div class="record"><strong>What to record:</strong> ${formatChecklistWithBackticks(
                         item.record,
                         false
-                      )}</p>`
+                      )}</div>`
                     : ""
                 }
               </div>
@@ -748,7 +748,7 @@
     });
     content.innerHTML = `
       <h2>${signalHtml(sig)} ${escapeHtml(step.title)}</h2>
-      <p class="summary">${summaryHtml}</p>
+      <div class="summary">${summaryHtml}</div>
       ${renderChecklist(step)}
       ${renderLinks(step)}
       ${renderDocs(step)}
