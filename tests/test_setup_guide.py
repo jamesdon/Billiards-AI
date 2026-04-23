@@ -68,7 +68,8 @@ def test_setup_page_and_api():
     assert "GET /profiles" in p4v
     assert "Score Keeper" in p4v
     assert "curl" in p4v
-    assert "Phase A" in p4v and "Phase C" in p4v and "Phase D" in p4v
+    assert "Phase 1" in p4v and "Phase 3" in p4v and "Phase 4" in p4v
+    assert "do not start a second" in p4v.lower() or "port 8000 already in use" in p4v.lower()
     assert (p4.get("doc_refs") or []) == []
     va4 = p4["checklist"][0].get("verify_actions") or []
     assert len(va4) == 4

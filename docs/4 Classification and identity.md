@@ -1,6 +1,6 @@
 # 4. Classification and identity
 
-**Canonical first-time runbook:** the setup wizard at **`GET /setup`** → step **Classification and identity** (see `backend/setup_guide.py` `phase4`). It includes full phases A–F, a live panel fed by `/api/setup/profiles-status`, and optional **Bootstrap minimal profile** for empty files. You can delete or ignore this file if the wizard is enough.
+**Canonical first-time runbook:** the setup wizard at **`GET /setup`** → step **Classification and identity** (`setup_guide.py` `phase4`). It uses **phases 1–5** (no separate “start backend” step while you are already in the wizard), a live panel from `/api/setup/profiles-status`, and optional **Bootstrap minimal profile**. You can ignore this file if the wizard is enough.
 
 ## Goal
 
@@ -14,14 +14,15 @@ Follow these **phases in order**. Each **gate** tells you when you may continue.
 
 | Phase | What you do | Gate (do not continue until) |
 | --- | --- | --- |
-| **A. Preconditions** | Model + `class_map.json` available; you know one **absolute** path for `identities.json` that both edge and the API will use. | Path chosen; backend can be started from the repo (or `BILLIARDS_IDENTITIES_PATH` set to that file). |
-| **B. Processes** | Start **backend**, then **edge.main** with `--identities ABS_PATH` (same path as **A**). If you already run edge from **§3** with that flag, keep the same process. | `GET http://127.0.0.1:PORT/health` returns OK; edge is running. |
-| **C. Non-empty profiles** | Call **`GET /profiles`** (browser or curl). If `players` and `sticks` are both empty: keep edge running, put **people** and/or a **cue stick** in frame until the pipeline creates rows *or* install the **minimal JSON** (optional, no camera). | At least **one** object in `players` or `sticks` in `GET /profiles`. |
-| **D. Set a name** | **Score Keeper** (`/scorekeeper`) → **Player & stick names** → edit → **Save**, **Refresh** *or* `PATCH` with a **real** `id` from **C** (never the literal word `PLAYER_ID`). | `GET /profiles` shows your new `display_name`. |
-| **E. Persistence (recommended)** | Restart **only the backend** or **only edge** (same `--identities` as **B**). | `GET /profiles` still shows the same `display_name`. |
-| **F. Done** | Check the **sign-off** list below. | All boxes checked. |
+| **1. One identities path** | Same file for API (`BILLIARDS_IDENTITIES_PATH` or default) and `edge.main` `--identities`. | You can name that path (absolute if unsure). |
+| **2. Edge running** | Start `edge.main` with that flag **only if** it is not already up (e.g. **§3**). Check MJPEG **edge /health** in the sidebar. | Edge answers; stream can run. |
+| **3. Non-empty profiles** | `GET /profiles`, live panel, camera in view, or **Bootstrap** / minimal JSON. | At least one `players` or `sticks` row. |
+| **4. Set a name** | Score Keeper or `PATCH` with a **real** id. | New `display_name` in `GET /profiles`. |
+| **5. Persistence (recommended)** | Restart API or edge once; same identities file. | Name still on disk. |
 
-### A. Preconditions
+**If you are reading `/setup` in a browser, the API is already running—do not start a second `run_backend.sh` on the same port.** Only use **Environment and startup** / `run_backend.sh` when nothing is listening or the sidebar API lamp is red. “Port already in use” from the script means a server is already there.
+
+### 1. Preconditions
 
 1. You have completed or can run **§3**-class bring-up: `models/model.onnx`, `models/class_map.json`, and a working camera path for `edge.main`.
 2. Pick **one** identities file path and use it everywhere:
@@ -29,33 +30,11 @@ Follow these **phases in order**. Each **gate** tells you when you may continue.
    - The **backend** reads `BILLIARDS_IDENTITIES_PATH` if set; otherwise **`./identities.json` relative to the directory where you start uvicorn**. If that disagrees with edge’s `--identities`, you will see **empty** profiles or **split** files.
 3. **Gate:** you can state the single path aloud: “edge writes here, API reads here.”
 
-### B. Start backend and edge
+### 2. Edge (not the API in the common case)
 
-1. **Terminal 1 — backend** (from repo root so default `identities.json` matches, or export `BILLIARDS_IDENTITIES_PATH`):
+If **Detection and tracking** already left `edge.main` running with `--identities`, keep it. Otherwise start `edge.main` with the same `--identities` path as phase 1 (see **§3** command block in the setup wizard). **Do not** re-run `run_backend.sh` just to read the wizard.
 
-   ```bash
-   cd "/path/to/Billiards-AI"
-   ./scripts/run_backend.sh
-   ```
-
-   Override port if needed: `BACKEND_PORT=8000 ./scripts/run_backend.sh`.
-
-2. **Terminal 2 — edge** (use your **§3** command, but **must** include `--identities` pointing to the **same** file as **A**). Example:
-
-   ```bash
-   cd "/path/to/Billiards-AI"
-   source ".venv/bin/activate"
-   python3 -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 \
-     --onnx-model "/path/to/Billiards-AI/models/model.onnx" \
-     --class-map "/path/to/Billiards-AI/models/class_map.json" \
-     --identities "/path/to/Billiards-AI/identities.json"
-   ```
-
-   On macOS dev you may use `--camera usb` and `--usb-index 0` instead of CSI.
-
-3. **Gate:** `curl -s http://127.0.0.1:8000/health` (adjust port) succeeds; edge is running without immediate crash.
-
-### C. Until `GET /profiles` is non-empty
+### 3. Until `GET /profiles` is non-empty
 
 1. Run:
 
@@ -72,7 +51,7 @@ Follow these **phases in order**. Each **gate** tells you when you may continue.
 
 3. **Gate:** JSON contains at least one `"id"` under `players` or `sticks`.
 
-### D. Set a display name
+### 4. Set a display name
 
 **Preferred (UI):** open `http://127.0.0.1:8000/scorekeeper` → **Player & stick names** → type name → **Save** → **Refresh list** → confirm.
 
@@ -86,13 +65,13 @@ curl -s -X PATCH "http://127.0.0.1:8000/profiles/player/REAL_ID_FROM_GET" \
 
 **Gate:** `GET /profiles` shows `display_name: "TestName"` (or your string) for that `id`.
 
-### E. Persistence check (recommended)
+### 5. Persistence check (recommended)
 
 1. Stop **only** the backend **or** **only** `edge.main`. Start it again with the **same** `--identities` / `BILLIARDS_IDENTITIES_PATH` as before.
 2. `GET /profiles` again.
 3. **Gate:** the `display_name` you set in **D** is still present.
 
-### F. Sign-off (this step is success)
+### Sign-off (this step is success)
 
 - [ ] `GET /profiles` lists at least one profile (`players` or `sticks`).
 - [ ] A `display_name` was set (Score Keeper or `PATCH`) and **GET** reflects it.

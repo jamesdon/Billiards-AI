@@ -227,7 +227,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "environment",
         "title": "Environment and startup",
-        "summary": "Create the venv and install Python dependencies (TEST_PLAN §1). On Jetson, follow docs/1 Environment and startup.md for distro OpenCV + GStreamer.",
+        "summary": "Create the venv, install dependencies, and **start the API once** (`./scripts/run_backend.sh` or your process manager) so `/setup` and `/health` work. **Later steps assume the API is already up**—if the sidebar shows the API as healthy, do not start a second server on the same port. On Jetson, see docs/1 for OpenCV + GStreamer.",
         "checklist": [
             {
                 "item": "Virtual environment exists at .venv",
@@ -341,11 +341,12 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "phase3",
         "title": "Detection and tracking",
-        "summary": "Start edge.main with the **vision debug** flag, open the table MJPEG overlay, and check /health (TEST_PLAN §3). You need models/model.onnx, models/class_map.json, and the calibration.json from the previous step. You do not need another doc to begin: the checklist below is the only instruction. Output is over HTTP in the browser, not an OpenCV window.",
+        "summary": "Start **edge.main** (MJPEG), not the FastAPI process: if you opened this wizard at `/setup`, the **API is already running**. This step is the live **camera + detector + tracks** smoke (TEST_PLAN §3). You need models/model.onnx, models/class_map.json, and calibration.json. The checklist below is the instruction; stream is in the browser.",
         "checklist": [
             {
                 "item": "edge.main is running, MJPEG/health look good, model outputs and track IDs are visible on the stream, and tracks stay stable when objects move",
                 "verify": (
+                    "**API:** Do not run `run_backend.sh` again just to read this page—only if nothing is listening on your API port (sidebar red). **This step starts `edge.main` (MJPEG).**\n\n"
                     "**1) Start** `edge.main` — In a new terminal, paste and run the block below once (sidebar shows your repo path; on Jetson use "
                     "`--camera csi` and drop the `--usb-index` lines). **The command includes `--show-track-debug-overlay`** so the MJPEG stream shows **each model output** (class + confidence) and **separate track boxes** with IDs. "
                     "Omit that flag when you want a clean table view in real use.\n\n"
@@ -396,26 +397,22 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "summary": (
             "**Objective:** (1) **Ball classes** behave as expected in play. (2) **Player / cue-stick profiles** are rows in `identities.json` (stable `id` + `display_name` for the scoreboard). "
             "These are **not** app logins or face recognition—edge creates rows when it sees people or cue sticks in frame. "
-            "**Everything you need is in the checklist below** (phases **A–F**). The **Live status** panel above the checklist polls the same file as `GET /profiles`."
+            "**If you are reading this page, the API is already running** (otherwise `/setup` would not load). Do **not** start a second `run_backend.sh` on the same port—use the **sidebar traffic lights** and the note below. "
+            "Follow **phases 1–5** in the checklist. The **Live status** panel polls the same file as `GET /profiles`."
         ),
         "checklist": [
             {
-                "item": "Phases A–F below are complete: profiles non-empty, display name set, optional restart check done",
+                "item": "Phases 1–5 below: identities path, edge up, at least one profile, display name set, (recommended) persistence check",
                 "verify": (
-                    "**Phase A — Preconditions (gate: one identities path for both API and edge).** "
-                    "Decide the file both processes will use. Default: `identities.json` in the repo root when you start the API from that directory. "
-                    "If you set `BILLIARDS_IDENTITIES_PATH`, set it to the **same** path you pass as `--identities` on `edge.main`. "
-                    "Use an **absolute** path in commands if you are unsure about the working directory.\n\n"
-                    "**Phase B — Start backend, then edge (gate: `/health` OK, edge running).**\n\n"
-                    "Terminal 1 — backend (from repo root so the default identities file matches `{project_root}/identities.json` unless you override `BILLIARDS_IDENTITIES_PATH`):\n\n"
-                    "```bash\n"
-                    'cd "{project_root}"\n'
-                    "./scripts/run_backend.sh\n"
-                    "```\n\n"
-                    "Check API health: **Quick link** *Backend /health* or `curl -s http://127.0.0.1:{api_port}/health`.\n\n"
-                    "Terminal 2 — `edge.main` with **`--identities` pointing to that same file**. "
-                    "If you **already** completed **Detection and tracking** with the block below, **do not** restart edge only for this step—use the same process. "
-                    "On Jetson use `--camera csi` and remove USB lines. On this Mac, USB is fine:\n\n"
+                    "**When this is actionable (API already up):** you only **start** things if something is **missing** or **red** in the sidebar. "
+                    "If the **API** traffic light is **green** and you opened this wizard, skip any instruction that says “start the backend.” "
+                    "If you see *port 8000 already in use* from `run_backend.sh`, that is **normal**—it means a server is already bound; do not start another copy.\n\n"
+                    "**Phase 1 — One `identities` file (gate: you can name the path the API and edge will share).** "
+                    "Default: `identities.json` under the repo when the API was started from that root. If you set `BILLIARDS_IDENTITIES_PATH`, use the **same** path for `--identities` on `edge.main`. "
+                    "Prefer an **absolute** path in commands if the API’s working directory is unclear.\n\n"
+                    "**Phase 2 — `edge.main` running with that file (gate: sidebar **MJPEG** / edge lamp green, or `Open edge /health` returns ok).** "
+                    "You need edge for live camera–created profiles. **If you already finished Detection and tracking** with `--identities \"{project_root}/identities.json\"` and the stream still runs, **do not restart** edge only for this step. "
+                    "**If edge is not running** (MJPEG red / connection refused), start it once. Same flags as the previous step; on Jetson use `--camera csi` and drop USB lines:\n\n"
                     "```bash\n"
                     'cd "{project_root}"\n'
                     'source "{project_root}/.venv/bin/activate"\n'
@@ -429,12 +426,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     "  --show-track-debug-overlay \\\n"
                     "  --mjpeg-port {mjpeg_port}\n"
                     "```\n\n"
-                    "**Phase C — At least one profile row (gate: Live status is green OR `GET /profiles` non-empty).** "
-                    "Watch the **Live status** panel (updates every few seconds) or use **Open GET /profiles**. "
-                    "If counts stay zero: (1) keep edge running; (2) show **people** and/or a **cue stick** in frame (balls alone are not enough for a *player* row). "
-                    "Re-check until you have at least one `players` or `sticks` entry.\n\n"
-                    "**Automated (only when the file is still empty):** use **Bootstrap minimal profile** — the API writes a single test player id `setup-smoke-1` so you can finish phase C without a camera. If it says the file is not empty, use camera/edge or edit the file manually (next fence).\n\n"
-                    "Manual (optional): if you prefer to create the file by hand, save exactly this as the identities path the API uses, then re-check `GET /profiles`:\n\n"
+                    "Set the **MJPEG port** in the sidebar to match `--mjpeg-port` (default 8001).\n\n"
+                    "**Phase 3 — At least one profile row (gate: Live status green, or `GET /profiles` non-empty).** "
+                    "Use the panel or **Open GET /profiles**. If counts stay zero: keep people and/or a **cue stick** in view (not balls only). "
+                    "**If the file is still empty and you have no camera:** use **Bootstrap minimal profile** (one test row) or paste the JSON block below, then re-check.\n\n"
                     "```json\n"
                     "{\n"
                     '  "players": [\n'
@@ -443,17 +438,17 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     '  "sticks": []\n'
                     "}\n"
                     "```\n\n"
-                    "**Phase D — Set a display name (gate: you see the new name in `GET /profiles`).** "
-                    "Use **Open Score Keeper** → **Player & stick names** → type a name → **Save** → **Refresh list**.\n\n"
-                    "**Curl (optional):** copy a real `id` from the JSON. The string `PLAYER_ID` in old examples is **not** a real id—your PATCH URL must look like `.../profiles/player/p-abc123...`, not `.../player/PLAYER_ID`.\n\n"
+                    "**Phase 4 — Set a display name (gate: new name in `GET /profiles`).** "
+                    "**Open Score Keeper** → **Player & stick names** → **Save** → **Refresh**. "
+                    "Optional curl: copy a real `id` from the JSON; never use the placeholder word `PLAYER_ID` in the path.\n\n"
                     "```bash\n"
                     "curl -s http://127.0.0.1:{api_port}/profiles\n"
                     "curl -s -X PATCH \"http://127.0.0.1:{api_port}/profiles/player/REAL_ID_FROM_JSON\" -H \"Content-Type: application/json\" -d '{\"display_name\":\"TestName\"}'\n"
                     "curl -s http://127.0.0.1:{api_port}/profiles\n"
                     "```\n\n"
-                    "**Phase E — Persistence (recommended gate: name survives one restart).** "
-                    "Stop and restart **only the backend** or **only** `edge.main` (same `--identities` as before). `GET /profiles` must still show **TestName** (or the name you set).\n\n"
-                    "**Phase F — Sign-off:** you have a non-empty profile list, a saved `display_name`, and (recommended) you confirmed it survives a restart."
+                    "**Phase 5 — Persistence and done (recommended).** "
+                    "Restart **only** the backend or **only** `edge.main` once (same `--identities`). Confirm `GET /profiles` still shows the name. "
+                    "**Only if the wizard or `/health` fails** should you go back to **Environment and startup** / `run_backend.sh`—and then only a **single** API instance on the port you use (see `lsof` if you get “port in use”)."
                 ),
                 "verify_actions": [
                     {
@@ -465,8 +460,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
                         "href_template": "http://127.0.0.1:{api_port}/scorekeeper",
                     },
                     {
-                        "label": "Open backend /health",
-                        "href_template": "http://127.0.0.1:{api_port}/health",
+                        "label": "Open edge /health (MJPEG port)",
+                        "href_template": "http://127.0.0.1:{mjpeg_port}/health",
                     },
                     {
                         "label": "Bootstrap minimal profile (if empty)",
@@ -479,12 +474,13 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "links": [
             {"label": "GET /profiles (JSON)", "href_template": "http://127.0.0.1:{api_port}/profiles"},
             {"label": "Score Keeper (edit names)", "href_template": "http://127.0.0.1:{api_port}/scorekeeper"},
-            {"label": "Backend /health", "href_template": "http://127.0.0.1:{api_port}/health"},
+            {"label": "Edge /health (MJPEG port in sidebar)", "href_template": "http://127.0.0.1:{mjpeg_port}/health"},
         ],
         "hints": [
+            "This page is served by the API; do not start a second backend on 8000 if the sidebar already shows the API as up (see Phase 1–2).",
             "Replace --camera usb with csi on Jetson.",
             "“Profiles” are table-entity labels in `identities.json`; not face or person-in-the-room “user” detection.",
-            "404 on PATCH with `PLAYER_ID` means you used the **example word** in the path—use a real `id` from `GET /profiles`.",
+            "404 on PATCH with `PLAYER_ID` means you used a **placeholder** in the path—use a real `id` from `GET /profiles`.",
         ],
         "doc_refs": [],
     },
@@ -553,23 +549,30 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "phases_advanced",
         "title": "Events, rules, stats, backend, and acceptance",
-        "summary": "Maps to TEST_PLAN §5 through §9: event/foul detection, rules, stats, backend persistence, end-to-end acceptance. Read that file and the linked runbooks for gates.",
+        "summary": "After the camera path works (steps above), these areas close the loop: edge emits **events** → **rules** update game state → **stats** and dashboards read persisted data → an **end-to-end** run proves it on your table. The checklist is the map; use Documentation links only when you need more depth.",
         "checklist": [
             {
-                "item": "Read TEST_PLAN gates for the sections you need",
-                "verify": "In the Documentation section on this page, open the TEST_PLAN item (docs/TEST_PLAN.md) and skim the parts for sections 5–9 you plan to use. Use the other doc links on the same page for detail.",
-                "record": "Optionally, note in Notes which section you will qualify first.",
+                "item": "You know which downstream areas you are qualifying next (at least one of the five below)",
+                "verify": (
+                    "**5 — Events / fouls:** Edge (or a bridge) should send `shot_start`, `shot_end`, `ball_pocketed`, `ball_collision`, `rail_hit`, and foul-type events; you verify timing and that the backend or logs show them. "
+                    "If nothing arrives, check that something is `POST`ing to this API and that the table/camera run matches your wiring.\n\n"
+                    "**6 — Rules / end of game:** Pick a game mode in your config and run until win/loss or rack reset; scores and innings should follow the mode’s rules, not just raw detections.\n\n"
+                    "**7 — Stats / analytics:** After several shots, your chosen stats (per player, per shot) should update in whatever surface you use (DB, API, or export) without contradictions to the event stream.\n\n"
+                    "**8 — Backend persistence:** Confirm events or snapshots you care about are stored (SQLite or configured store) and survive an API restart on the same data directory.\n\n"
+                    "**9 — Acceptance / demo:** A full short session (rack → shots → at least one pocketed event → visible scoreboard) with no unexplained gaps; that is the practical gate for “ship it” on this rig.\n\n"
+                    "There are no extra quick links in this step—use **Open API /health** below and your usual edge URLs from earlier steps. Optional deep dives: Documentation items (TEST_PLAN gate table, event docs, acceptance runbook)."
+                ),
+                "record": "Note which number (5–9) you validated first, and one concrete symptom if something failed (e.g. no SHOT_END).",
             },
         ],
-        "links": [],
+        "links": [
+            {"label": "API /health (this server)", "href_template": "http://127.0.0.1:{api_port}/health"},
+        ],
         "hints": [
-            "5 — Event and foul detection: shot/collision/pocket/foul detectors",
-            "6 — Rules and end-of-game",
-            "7–8 — Stats and analytics; backend and persistence",
-            "9 — End-to-end acceptance",
+            "You will not get useful §5+ behavior until §3/§4 and your rules wiring match your deployment (same repo paths, same API URL).",
         ],
         "doc_refs": [
-            {"label": "TEST_PLAN", "path": "docs/TEST_PLAN.md"},
+            {"label": "TEST_PLAN (gate table)", "path": "docs/TEST_PLAN.md"},
             {"label": "EVENT_DETECTION", "path": "docs/EVENT_DETECTION.md"},
             {"label": "9 — End-to-end acceptance", "path": "docs/9 End-to-end acceptance.md"},
         ],

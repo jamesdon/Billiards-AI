@@ -114,7 +114,7 @@ Validate ball class inference and persistent player/stick identity.
 
 ### How to run this section (required workflow)
 
-**Primary:** the setup wizard at **`/setup`**, step **Classification and identity** — full phases **A–F**, live **profiles status** (`/api/setup/profiles-status`), quick links, and optional **bootstrap** when the identities file is empty (`POST /api/setup/bootstrap-minimal-profiles`). **Optional:** the same flow is summarized in `docs/4 Classification and identity.md` if you want a printable reference. Do not skip **phase C** (non-empty profiles before renaming) or you will only see empty arrays or 404s on `PATCH` with placeholder ids.
+**Primary:** the setup wizard at **`/setup`**, step **Classification and identity** — phases **1–5** (identities path → **edge** if needed → non-empty profiles → rename → persistence), live **profiles status**, and optional **bootstrap** when the identities file is empty (`POST /api/setup/bootstrap-minimal-profiles`). **Optional:** `docs/4 Classification and identity.md` mirrors the same numbering. Do not skip **phase 3** (non-empty profiles before renaming) or you will only see empty arrays or 404s on `PATCH` with placeholder ids.
 
 ### Test cases
 

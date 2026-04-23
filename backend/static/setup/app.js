@@ -772,7 +772,7 @@
     return `<section class="setup-live-profiles" aria-live="polite" aria-atomic="true">
       <h3>Live profile status (same file as GET /profiles)</h3>
       <p class="setup-live-profiles-line" id="phase4-profiles-status">Loading…</p>
-      <p class="terminal-hint">Polls the API every 4s. Resolves <code>BILLIARDS_IDENTITIES_PATH</code> or <code>./identities.json</code> (relative to the server process). Turn <strong>green</strong> when at least one player or stick exists (phase C gate).</p>
+      <p class="terminal-hint">Polls the API every 4s. Resolves <code>BILLIARDS_IDENTITIES_PATH</code> or <code>./identities.json</code> (relative to the server process). Turn <strong>green</strong> when at least one player or stick exists (phase 3 gate).</p>
     </section>`;
   }
 
@@ -795,8 +795,8 @@
         const ok = p + s > 0;
         el.className = "setup-live-profiles-line" + (ok ? " setup-live-ok" : " setup-live-warn");
         el.textContent = res + " — " + p + " player(s), " + s + " stick(s). " + (ok
-          ? "Phase C gate: OK (non-empty)."
-          : "Phase C: still empty — keep people/cue in frame, or use Bootstrap (below) if the server may write an empty file.");
+          ? "Phase 3 gate: OK (non-empty)."
+          : "Phase 3: still empty — keep people/cue in frame, or use Bootstrap (below) if the server may write an empty file.");
       })
       .catch(() => {
         el.className = "setup-live-profiles-line setup-live-err";
