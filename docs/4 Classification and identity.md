@@ -57,7 +57,15 @@ That is **normal** until at least one **player** or **stick** profile has been *
 
 ## 3) Rename player/stick nickname (optional curl)
 
-In Score Keeper, each row’s **Save** calls `PATCH /profiles/player/…` or `PATCH /profiles/stick/…`. From the shell, use an **`id` value** from the JSON in step 2 in the path — strings like `PLAYER_PROFILE_ID` in examples are **placeholders**, not real ids. If the backend returns `no player profile with id ...`, you pasted the example token literally.
+In Score Keeper, each row’s **Save** calls `PATCH /profiles/player/…` or `PATCH /profiles/stick/…`. From the shell, use an **`id` value** from the JSON in step 2 in the path — strings like `PLAYER_ID` in examples are **placeholders**, not real ids.
+
+**If you see** `no player profile with id 'PLAYER_ID'`: you used the example word literally. Run `GET /profiles` again, copy a real `id` from the `players` array, and use it in the URL (e.g. `…/profiles/player/p-8a2c…`, not `…/player/PLAYER_ID`).
+
+### When this step counts as “done” (success)
+
+1. `GET /profiles` shows at least one entry in `players` or `sticks` (or you intentionally validated with a hand-edited minimal file; see “empty list” above).
+2. You set a `display_name` (Score Keeper **Save** or `PATCH` with a **real** id) and a follow-up `GET /profiles` shows the new name.
+3. (Recommended) After restarting only the **backend** or only **edge** (with the same `--identities` path), `GET /profiles` still shows that `display_name` (proves the file on disk, not an in-memory cache).
 
 ```bash
 curl -s -X PATCH "http://127.0.0.1:8000/profiles/player/REAL_ID_FROM_curl_profiles" -H "Content-Type: application/json" -d '{"display_name":"Alex"}'

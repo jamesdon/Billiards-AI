@@ -405,11 +405,13 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     "Only (re)start edge if you **omitted** `--identities` earlier or you want to **verify** cold start.\n\n"
                     "**1) Edit names (recommended)** — Open **Score Keeper** while the API is on port **{api_port}**, scroll to **Player & stick names**, set a name, **Save**, then **Refresh** and confirm. "
                     "If the list is empty, keep `edge.main` running with the camera on people/sticks so profiles are created, then refresh.\n\n"
-                    "**2) Optional: curl** — Same as the UI; replace `PLAYER_ID` with a real `id` from the JSON, not the placeholder string:\n\n"
+                    "**2) Optional: curl** — You **cannot** use the literal text `PLAYER_ID` in the URL. First open **GET /profiles** (Quick link) and find a `players` entry, or run `curl -s http://127.0.0.1:{api_port}/profiles` and read the JSON. Copy that object’s real **`id`** string (e.g. `p-7f3a2…`) and put it in the path instead of the placeholder. Example (replace `REAL_ID` with the copied value):\n\n"
                     "```bash\n"
-                    "curl -s -X PATCH \"http://127.0.0.1:{api_port}/profiles/player/PLAYER_ID\" -H \"Content-Type: application/json\" -d '{\"display_name\":\"TestName\"}'\n"
+                    "curl -s -X PATCH \"http://127.0.0.1:{api_port}/profiles/player/REAL_ID\" -H \"Content-Type: application/json\" -d '{\"display_name\":\"TestName\"}'\n"
                     "```\n\n"
-                    "**3) Persistence check** — Stop and start **edge** (same command as before, with `--identities` unchanged) **or** only restart the backend; open **GET /profiles** again. `display_name` should still be **TestName** (file on disk, not a one-session memory)."
+                    "If `GET /profiles` returns `players: []` and `sticks: []`, no profile rows exist yet. Keep **edge** running with the camera showing **people** and/or a **cue stick** (ball-only video does not create player rows), then GET again or use **Score Keeper → Refresh** until a row appears. *Alternatively* for a quick API test without a camera, you may add a minimal hand-edited `identities.json` (see `docs/4` when the list is empty).\n\n"
+                    "If curl returns 404 and mentions `PLAYER_ID`, you used the **placeholder** in the path. Use a real `id` from the GET output.\n\n"
+                    "**3) Success for this step** — You have at least one **player** or **stick** in GET /profiles, you set `display_name` (UI or curl), and **GET /profiles** shows your new name. **3b) Persistence check** (optional but recommended) — Stop and start **edge** (same command, `--identities` unchanged) **or** only restart the backend; **GET /profiles** again. `display_name` should still be **TestName** (on disk, not one-session memory)."
                 ),
                 "record": "If the name did not round-trip, put the profile id and response snippet in Notes.",
             },
@@ -423,6 +425,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             "Replace --camera usb with csi on Jetson.",
             "“Profiles” are table-entity labels in `identities.json`; not face or person-in-the-room “user” detection.",
             "For one identities file, point both edge `--identities` and `BILLIARDS_IDENTITIES_PATH` (if set) at the same path.",
+            "404 for PATCH …/player/PLAYER_ID is expected: `PLAYER_ID` is not a real id. GET /profiles first and copy an `id` from the list.",
         ],
         "doc_refs": [{"label": "4 — Classification and identity", "path": "docs/4 Classification and identity.md"}],
     },
