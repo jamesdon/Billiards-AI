@@ -112,6 +112,10 @@ Ensure robust ball/player/stick detection and ID continuity.
 
 Validate ball class inference and persistent player/stick identity.
 
+### How to run this section (required workflow)
+
+Use the prescriptive **Workflow: start → success** in **`docs/4 Classification and identity.md`** (phases **A–F** with **gates** and a **Sign-off** checklist). The setup wizard step **Classification and identity** mirrors the same A–D summary and links to **GET /profiles** and **Score Keeper**. Do not skip **phase C** (non-empty profiles before renaming) or you will only see empty arrays or 404s on `PATCH` with placeholder ids.
+
 ### Test cases
 
 - cue/8/solid/stripe correctness
@@ -122,6 +126,7 @@ Validate ball class inference and persistent player/stick identity.
 ### Gate
 
 - acceptable confusion matrix + stable profile IDs
+- **operational (profiles):** at least one `GET /profiles` row, `display_name` set and visible on repeat **GET** after optional backend/edge restart (per **docs/4** phase **E**)
 
 ## 5. Event and foul detection
 

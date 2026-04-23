@@ -68,6 +68,10 @@ def test_setup_page_and_api():
     assert "GET /profiles" in p4v
     assert "Score Keeper" in p4v
     assert "curl" in p4v
+    va4 = p4["checklist"][0].get("verify_actions") or []
+    assert len(va4) >= 2
+    assert va4[0].get("label") == "Open GET /profiles"
+    assert "href_template" in va4[0]
     p4links = p4.get("links") or []
     assert any(
         (isinstance(x, dict) and x.get("label") == "GET /profiles (JSON)") for x in p4links

@@ -392,27 +392,32 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "summary": (
             "**What this proves (TEST_PLAN §4):** (1) **Ball classes** from the detector/classifier behave as expected in play. (2) **Player and cue-stick “profiles”** are stable ids in `identities.json` with editable **display names** used on the scoreboard—"
             "they are **not** app logins, face recognition, or “labeling end users” in a security sense; edge creates rows when it sees `person`/`player` and `cue_stick`/`stick` tracks, and you set nicknames. "
-            "Use **Score Keeper → Player & stick names** (same API as GET/PATCH /profiles) to rename any time, including at the start of a session."
+            "Follow the **Workflow: start → success** in `docs/4` (phases **A–F** with **gates**). Use **Score Keeper → Player & stick names** (same as GET/PATCH /profiles) for the D step."
         ),
         "checklist": [
             {
-                "item": "Display names for player/stick profiles persist; optional restart of edge to confirm load from disk",
+                "item": "Workflow A–F complete: non-empty GET /profiles, display_name set, optional persistence after restart (see doc)",
                 "verify": (
-                    "**Objective** — See JSON from **GET /profiles** (Quick link) with **player** and **stick** entries (ids + `display_name`). Confirm **renames** are saved to `identities.json` and still there after a restart. "
-                    "**Backend** must be running (`./scripts/run_backend.sh` or equivalent); edge must use the **same** identities file the API reads (default `./identities.json` or set `BILLIARDS_IDENTITIES_PATH` to match `--identities` on edge).\n\n"
-                    "**Keep one `edge.main`:** If you already started edge from **Detection and tracking** with `--identities \"{project_root}/identities.json\"`, you **do not** need a new edge process for this step -- "
-                    "let it run, have people/sticks in frame so profiles appear, then go to **Score Keeper** (link below) **or** GET /profiles to edit names. "
-                    "Only (re)start edge if you **omitted** `--identities` earlier or you want to **verify** cold start.\n\n"
-                    "**1) Edit names (recommended)** — Open **Score Keeper** while the API is on port **{api_port}**, scroll to **Player & stick names**, set a name, **Save**, then **Refresh** and confirm. "
-                    "If the list is empty, keep `edge.main` running with the camera on people/sticks so profiles are created, then refresh.\n\n"
-                    "**2) Optional: curl** — You **cannot** use the literal text `PLAYER_ID` in the URL. First open **GET /profiles** (Quick link) and find a `players` entry, or run `curl -s http://127.0.0.1:{api_port}/profiles` and read the JSON. Copy that object’s real **`id`** string (e.g. `p-7f3a2…`) and put it in the path instead of the placeholder. Example (replace `REAL_ID` with the copied value):\n\n"
+                    "**Prescriptive runbook (tables, gates, troubleshooting):** open **4 — Classification and identity** in Documentation → section **Workflow: start → success**.\n\n"
+                    "**A–B** — **Backend** on **{api_port}**; **`edge.main`** with `--identities \"{project_root}/identities.json\"` (must match `BILLIARDS_IDENTITIES_PATH` or the API’s default file). If **Detection and tracking** already used that flag, **keep the same edge process**.\n"
+                    "**C (gate)** — **GET /profiles** until `players` or `sticks` is non-empty: people and/or cue in frame, or minimal file in `docs/4`. **Buttons below** open JSON and Score Keeper.\n"
+                    "**D (gate)** — **Score Keeper** → **Player & stick names** → **Save** **or** `PATCH` with a real `id` from GET. **Do not** put the literal `PLAYER_ID` in the URL.\n"
+                    "**E–F** — Restart **backend or edge** (same `--identities`); **GET /profiles** should still show the name. Check **Sign-off** in the doc.\n\n"
+                    "**Optional curl** after you have a real `id` (replace `REAL_ID`):\n\n"
                     "```bash\n"
                     "curl -s -X PATCH \"http://127.0.0.1:{api_port}/profiles/player/REAL_ID\" -H \"Content-Type: application/json\" -d '{\"display_name\":\"TestName\"}'\n"
-                    "```\n\n"
-                    "If `GET /profiles` returns `players: []` and `sticks: []`, no profile rows exist yet. Keep **edge** running with the camera showing **people** and/or a **cue stick** (ball-only video does not create player rows), then GET again or use **Score Keeper → Refresh** until a row appears. *Alternatively* for a quick API test without a camera, you may add a minimal hand-edited `identities.json` (see `docs/4` when the list is empty).\n\n"
-                    "If curl returns 404 and mentions `PLAYER_ID`, you used the **placeholder** in the path. Use a real `id` from the GET output.\n\n"
-                    "**3) Success for this step** — You have at least one **player** or **stick** in GET /profiles, you set `display_name` (UI or curl), and **GET /profiles** shows your new name. **3b) Persistence check** (optional but recommended) — Stop and start **edge** (same command, `--identities` unchanged) **or** only restart the backend; **GET /profiles** again. `display_name` should still be **TestName** (on disk, not one-session memory)."
+                    "```\n"
                 ),
+                "verify_actions": [
+                    {
+                        "label": "Open GET /profiles",
+                        "href_template": "http://127.0.0.1:{api_port}/profiles",
+                    },
+                    {
+                        "label": "Open Score Keeper",
+                        "href_template": "http://127.0.0.1:{api_port}/scorekeeper",
+                    },
+                ],
                 "record": "If the name did not round-trip, put the profile id and response snippet in Notes.",
             },
         ],
