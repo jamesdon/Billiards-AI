@@ -74,7 +74,7 @@ This script performs:
 - MJPEG readiness checks for each run
 - per-run logs under repo root: `.phase3_n1.log`, `.phase3_n2.log`, `.phase3_n3.log`
 
-**Viewing video:** Phase 3 does **not** open a desktop window. `edge.main` serves an MJPEG stream over HTTP. When the script prints `Live MJPEG`, open **`http://127.0.0.1:<port>/mjpeg`** in Safari or Chrome (default port **8080** for the first segment; later segments use **8082**, **8083**). **`/health`** on the same port reports JSON status.
+**Viewing video:** Phase 3 does **not** open a desktop window. `edge.main` serves an MJPEG stream over HTTP. When the script prints `Live MJPEG`, open **`http://127.0.0.1:<port>/mjpeg`** in Safari or Chrome. **If you do not set `MJPEG_PORT`**, the script picks a free port in **18080–18255** (avoids EADDRINUSE if something already holds 8080). The sweep then uses that base port, **+2**, and **+3** for the other segments. Set **`export MJPEG_PORT=8080`** to pin the classic ports 8080 / 8082 / 8083. **`/health`** on the same port as each run reports JSON status.
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -84,10 +84,11 @@ CLASS_MAP_PATH="/home/$USER/Billiards-AI/models/class_map.json" \
 PHASE3_CAMERA=csi \
 CSI_SENSOR_ID=0 \
 CSI_FLIP_METHOD=6 \
-MJPEG_PORT=8080 \
 EDGE_TIMEOUT_SECONDS=1200 \
 "/home/$USER/Billiards-AI/scripts/phase3.sh"
 ```
+
+Unset `MJPEG_PORT` in the environment for auto port selection, or `export MJPEG_PORT=8080` before the same command to pin 8080.
 
 **macOS (Apple Silicon):** `scripts/phase3.sh` defaults to **`PHASE3_CAMERA=usb`** (there is no Jetson CSI). Grant **Camera** permission to the app that runs the shell (Terminal, iTerm, or Cursor) under **System Settings → Privacy & Security → Camera**. If the wrong webcam is selected, try **`PHASE3_USB_INDEX=1`**. An ONNXRuntime message that **CUDAExecutionProvider** is unavailable is normal; CoreML or CPU is used instead. The phase script uses **`timeout`** when available; stock macOS has no `/usr/bin/timeout`, so the helper falls back to **`gtimeout`** (Homebrew `coreutils`) or runs **without** a wall-clock cap—either is fine for local smoke tests. Scripts call **`sleep`** from your `PATH` (not `/usr/bin/sleep`), which avoids hosts where that path is missing.
 

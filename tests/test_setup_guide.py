@@ -38,6 +38,8 @@ def test_setup_page_and_api():
     assert p3["checklist"][0].get("verify")
     assert p3["checklist"][1].get("verify_actions")
     assert p3["checklist"][1]["verify_actions"][0]["label"] == "Open MJPEG overlay"
+    assert p3["checklist"][1]["verify_actions"][1]["label"] == "Open edge /health"
+    assert p3.get("links") == []
 
     r = client.get("/api/setup/doc", params={"path": "README.md"})
     assert r.status_code == 200

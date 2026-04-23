@@ -368,9 +368,11 @@
   function formatChecklistField(raw) {
     if (!raw) return "";
     const root = state.context.project_root || "";
-    const withApi = String(raw).split("{api_port}").join(String(getApiPort()));
-    if (!withApi.includes("{project_root}")) return escWithLineBreaks(withApi);
-    const segs = withApi.split("{project_root}");
+    const ap = String(getApiPort());
+    const mj = String(getMjpegPort());
+    const withPort = String(raw).split("{api_port}").join(ap).split("{mjpeg_port}").join(mj);
+    if (!withPort.includes("{project_root}")) return escWithLineBreaks(withPort);
+    const segs = withPort.split("{project_root}");
     let out = "";
     segs.forEach((p, i) => {
       out += escWithLineBreaks(p);
@@ -384,7 +386,10 @@
   function applyTemplatePlaceholders(raw) {
     if (raw == null) return "";
     const root = state.context.project_root || "";
-    return String(raw).split("{api_port}").join(String(getApiPort())).split("{project_root}").join(root);
+    return String(raw)
+      .split("{api_port}").join(String(getApiPort()))
+      .split("{mjpeg_port}").join(String(getMjpegPort()))
+      .split("{project_root}").join(root);
   }
 
   /** Backtick text that is a label, expected output, or not worth pasting in a shell — no Copy button. */

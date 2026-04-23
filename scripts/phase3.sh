@@ -13,7 +13,6 @@ MODEL_PATH="${MODEL_PATH:-$PROJECT_ROOT/models/model.onnx}"
 CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/models/class_map.json}"
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
-MJPEG_PORT="${MJPEG_PORT:-8080}"
 EDGE_TIMEOUT_SECONDS="${EDGE_TIMEOUT_SECONDS:-1200}"
 BASELINE_SECONDS="${BASELINE_SECONDS:-20}"
 SWEEP_SECONDS="${SWEEP_SECONDS:-20}"
@@ -86,6 +85,31 @@ EOF
   exit 1
 fi
 require_file "$CLASS_MAP_PATH"
+
+# If MJPEG_PORT is unset, pick a free localhost port (avoids EADDRINUSE on 8080 from a
+# stray edge or browser). Set MJPEG_PORT=8080 to pin. Same range as phase2.sh.
+if [[ -z "${MJPEG_PORT:-}" ]]; then
+  MJPEG_PORT="$(
+    "$PYTHON_BIN" - <<'PY'
+import socket
+for p in range(18080, 18256):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("127.0.0.1", p))
+    except OSError:
+        continue
+    finally:
+        s.close()
+    print(p)
+    break
+else:
+    raise SystemExit("no free TCP port in 18080-18255 for phase3 MJPEG")
+PY
+  )"
+  echo "[Phase3] Auto-selected MJPEG_PORT=${MJPEG_PORT} (export MJPEG_PORT=8080 to pin 8080)." >&2
+else
+  echo "[Phase3] Using MJPEG_PORT=${MJPEG_PORT} from environment." >&2
+fi
 
 EDGE_PID=""
 cleanup() {
