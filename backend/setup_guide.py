@@ -390,9 +390,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     "```bash\n"
                     'cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --identities identities.json --calib calibration.json --mjpeg-port {mjpeg_port}\n'
                     "```\n\n"
-                    "2) Set a test display name for your id, e.g. (replace `PLAYER_PROFILE_ID` with a real value from the list above):\n\n"
+                    "2) Set a test display name for your id, e.g. (copy a real `id` from **GET /profiles** — the string `PLAYER_PROFILE_ID` in the curl line is only a doc placeholder):\n\n"
                     "```bash\n"
-                    'curl -s -X PATCH "http://127.0.0.1:{api_port}/profiles/player/PLAYER_PROFILE_ID" -H "Content-Type: application/json" -d \'{"display_name":"TestName"}\'\n'
+                    "# List ids (or use the Quick link): curl -s \"http://127.0.0.1:{api_port}/profiles\"\n"
+                    'curl -s -X PATCH "http://127.0.0.1:{api_port}/profiles/player/REAL_PLAYER_ID_FROM_GET_PROFILES" -H "Content-Type: application/json" -d \'{"display_name":"TestName"}\'\n'
                     "```\n\n"
                     "3) Stop that edge, start the **same** command again, and open **GET /profiles** once more. The same profile should still list `display_name` as **TestName** (persistence in the file, not a re-detect on camera)."
                 ),

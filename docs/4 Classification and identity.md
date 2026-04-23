@@ -29,9 +29,11 @@ curl -s "http://127.0.0.1:8000/profiles"
 
 ## 3) Rename player/stick nickname
 
+Use an **`id` value** from the JSON in step 2 in the path — strings like `PLAYER_PROFILE_ID` in examples are **placeholders**, not real ids. If the backend returns `no player profile with id ...`, you pasted the example token literally.
+
 ```bash
-curl -s -X PATCH "http://127.0.0.1:8000/profiles/player/PLAYER_PROFILE_ID" -H "Content-Type: application/json" -d '{"display_name":"Alex"}'
-curl -s -X PATCH "http://127.0.0.1:8000/profiles/stick/STICK_PROFILE_ID" -H "Content-Type: application/json" -d '{"display_name":"Break Cue"}'
+curl -s -X PATCH "http://127.0.0.1:8000/profiles/player/REAL_ID_FROM_curl_profiles" -H "Content-Type: application/json" -d '{"display_name":"Alex"}'
+curl -s -X PATCH "http://127.0.0.1:8000/profiles/stick/REAL_STICK_ID_FROM_curl_profiles" -H "Content-Type: application/json" -d '{"display_name":"Break Cue"}'
 ```
 
 ## 4) Restart edge and verify persistence
