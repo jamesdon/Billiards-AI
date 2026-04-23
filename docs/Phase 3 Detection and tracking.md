@@ -84,6 +84,12 @@ The **Setup guide** (when the backend is running: open **Phase 3** in the wizard
 
 **Viewing video:** Phase 3 does **not** open a desktop window. `edge.main` serves an MJPEG stream over HTTP. When the script prints `Live MJPEG`, open the printed URL. The script uses fixed sweep ports **8001** (baseline, `detect_every_n=2`), **8004** (`detect_every_n=1`), and **8005** (`detect_every_n=3`). See **`docs/PORTS.md`**. Override with **`PHASE3_PORT_N2`**, **`PHASE3_PORT_N1`**, **`PHASE3_PORT_N3`** (each **8001–8005**; not **8000**, API). **`/health`** on each run’s port reports JSON status.
 
+**MJPEG port already in use** (`OSError: [Errno 48] Address already in use` or `MJPEG port 8001 is already in use` in `.phase3_n2.log`): another process is still bound to that port—commonly a **stale `python -m edge.main`**, a **browser tab** or **Setup guide** still loading `http://127.0.0.1:8001/mjpeg`, or a second Phase 3 run.
+
+1. See what is listening: `lsof -nP -iTCP:8001 -sTCP:LISTEN` (macOS/Linux).
+2. Stop that process (e.g. `kill <pid>`) or close tabs/apps using the stream, then re-run the script.
+3. Or point the **baseline** at another free port in **8001–8005**, e.g. `PHASE3_PORT_N2=8002` when invoking `scripts/phase3.sh`. If you use the Setup guide overlay buttons, set the **MJPEG** field in the sidebar to the same port as your edge run.
+
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
