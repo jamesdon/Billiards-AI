@@ -3,6 +3,10 @@ Guided setup wizard: step metadata + optional persisted progress (local JSON).
 
 Open in browser after starting the backend: GET /setup
 
+Checklist verify text is split on backticks in static/setup/app.js for inline code
+and Copy buttons. Do not put backticks around short tokens in the prose before a
+multiline shell block, or the block will be split and the full command will not show.
+
 Docs: GET /api/setup/doc?path=docs%2FTEST_PLAN.md (markdown rendered to HTML)
 
 Optional local script launch: POST /api/setup/launch (requires SETUP_ALLOW_LAUNCH=1 and 127.0.0.1).
@@ -324,10 +328,10 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "summary": "Smoke-test detector + tracker (TEST_PLAN §3). Headless: view output in a browser via MJPEG (not an OpenCV window).",
         "checklist": [
             {
-                "item": "You start `edge.main` with the ONNX, class map, and calibration the repo expects (then optional `phase3.sh`)",
+                "item": "You start edge.main with the ONNX, class map, and calibration the repo expects (then optional phase3.sh)",
                 "verify": (
-                    "**1) In a new terminal, run the edge process** (edit paths only if you keep files outside the clone). "
-                    "Default: macOS + USB index `0` from the repo root; **Jetson:** use `--camera csi` and drop `--usb-index`.\n"
+                    "**1) In a new terminal, run the edge process** (paths below use your project root; change if your clone is elsewhere). "
+                    "Default: macOS + USB 0. **Jetson:** use --camera csi, omit --usb-index.\n"
                     '`cd "{project_root}"\n'
                     'source "{project_root}/.venv/bin/activate"\n'
                     "python3 -m edge.main \\\n"
@@ -337,18 +341,27 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     '  --class-map "{project_root}/models/class_map.json" \\\n'
                     '  --calib "{project_root}/calibration.json" \\\n'
                     "  --mjpeg-port {mjpeg_port}`\n"
-                    "**2) Optional —** full detector sweep: "
+                    "**Exact (Mac) — copy as-is if your clone is at the same path** (from docs/3):\n"
+                    '`cd "/Users/jdonn/AppDev/Billiards-AI"\n'
+                    'source "/Users/jdonn/AppDev/Billiards-AI/.venv/bin/activate"\n'
+                    "python3 -m edge.main \\\n"
+                    "  --camera usb \\\n"
+                    "  --usb-index 0 \\\n"
+                    '  --onnx-model "/Users/jdonn/AppDev/Billiards-AI/models/model.onnx" \\\n'
+                    '  --class-map "/Users/jdonn/AppDev/Billiards-AI/models/class_map.json" \\\n'
+                    '  --calib "/Users/jdonn/AppDev/Billiards-AI/calibration.json" \\\n'
+                    "  --mjpeg-port 8001`\n"
+                    "**2) Optional** — full detector sweep, then if hung, tail the n2 log:\n"
                     '`cd "{project_root}" && source .venv/bin/activate && bash scripts/phase3.sh`'
-                    " (macOS USB defaults; Jetson: set `PHASE3_USB_INDEX` if needed). If startup looks hung, wait for ONNX + camera, or tail "
-                    '`tail -f "{project_root}/.phase3_n2.log"`.'
+                    "\n`tail -f \"{project_root}/.phase3_n2.log\"`"
                 ),
-                "record": "If you had to set `PHASE3_USB_INDEX` or `detect_every_n`, note values in Notes.",
+                "record": "If you had to set PHASE3_USB_INDEX or detect_every_n, note values in Notes.",
             },
             {
                 "item": "Overlay shows stable track IDs during motion",
                 "verify": (
-                    "After the command in step 1 is running, **test it:** set the MJPEG field in the sidebar to the same `--mjpeg-port` you used (default 8001). "
-                    "Use the two buttons below to open the **live overlay** and **`/health`**. "
+                    "After the command in step 1 is running, **test it:** set the MJPEG field in the sidebar to the same --mjpeg-port you used (default 8001). "
+                    "Use the two buttons below to open the **live overlay** and **/health** in the browser. "
                     "On the table, move objects: track IDs should not flicker at random."
                 ),
                 "verify_actions": [
