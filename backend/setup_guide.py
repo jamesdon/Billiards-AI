@@ -27,6 +27,27 @@ from pydantic import BaseModel, Field
 # Repo root: backend/setup_guide.py -> parents[1]
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+# FastAPI + setup guide HTTP port (run_backend.sh, Dockerfile). Chosen to sit away from edge MJPEG (8080).
+DEFAULT_API_PORT: int = 8780
+
+
+def _api_port_from_request(request: Request) -> int:
+    h = (request.headers.get("host") or "").strip()
+    if h and ":" in h:
+        try:
+            p = int(h.rsplit(":", 1)[-1])
+            if 1 <= p <= 65535:
+                return p
+        except ValueError:
+            pass
+    p = request.url.port
+    if p is not None and 1 <= p <= 65535:
+        return int(p)
+    try:
+        return int((os.environ.get("BACKEND_PORT") or str(DEFAULT_API_PORT)).strip())
+    except ValueError:
+        return DEFAULT_API_PORT
+
 # Must match `TEXT_ROOT_PX` in `static/setup/index.html` and `app.js` (html root / rem base).
 _TEXT_SIZE_TO_PX: dict[str, str] = {
     "small": "14px",
@@ -313,17 +334,24 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
             {
                 "item": "Overlay shows stable track IDs during motion",
-                "verify": "Open the MJPEG quick link for this step while the camera sees the table; move objects and check that track IDs do not flicker randomly.",
+                "verify": (
+                    "Use the Open MJPEG overlay button below while the camera sees the table; move objects and check that track "
+                    "IDs do not flicker randomly."
+                ),
+                "verify_actions": [
+                    {
+                        "label": "Open MJPEG overlay",
+                        "href_template": "http://127.0.0.1:{mjpeg_port}/mjpeg",
+                    }
+                ],
                 "record": "If you change confidence, camera, or port, a short line in Notes helps later.",
             },
         ],
         "links": [
             {
-                "label": "Open detection / tracking overlay (MJPEG)",
-                "href_template": "http://127.0.0.1:{mjpeg_port}/mjpeg",
-                "note": "Use the same port as --mjpeg-port (Phase 3 sweep also uses +2 / +3).",
+                "label": "Edge MJPEG /health (same port as --mjpeg-port)",
+                "href_template": "http://127.0.0.1:{mjpeg_port}/health",
             },
-            {"label": "Health JSON (same host/port)", "href_template": "http://127.0.0.1:{mjpeg_port}/health"},
         ],
         "hints": ["CUDA provider warnings on Mac are normal; CoreML/CPU is used."],
         "doc_refs": [{"label": "Phase 3", "path": "docs/Phase 3 Detection and tracking.md"}],
@@ -336,10 +364,11 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "item": "Backend responds on /health",
                 "verify": (
-                    "1) Start the API (separate terminal; use port 8000 or change the `curl` URL to match):\n"
-                    '`cd "{project_root}" && .venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 8000`'
+                    "1) Start the API in a separate terminal (this guide’s default is port {api_port} — set `BACKEND_PORT` in "
+                    "`run_backend.sh` or the environment to change it; it must match the port in your browser’s URL for this page):\n"
+                    '`cd "{project_root}" && .venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port {api_port}`'
                     "\n\n2) When it is up:\n"
-                    "`curl -s http://127.0.0.1:8000/health`"
+                    "`curl -s http://127.0.0.1:{api_port}/health`"
                     "\nExpect JSON with an ok field (see Phase 4 doc for the exact response)."
                 ),
                 "record": "If `/health` is not what you expect, paste the `curl` body in Notes.",
@@ -356,7 +385,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         ],
         "links": [
             {"label": "Setup wizard (this UI)", "href": "/setup"},
-            {"label": "Backend health", "href": "http://127.0.0.1:8000/health"},
+            {"label": "Backend health", "href_template": "http://127.0.0.1:{api_port}/health"},
         ],
         "hints": ["Replace --camera usb with csi on Jetson."],
         "doc_refs": [{"label": "Phase 4", "path": "docs/Phase 4 Classification and identity.md"}],
@@ -460,13 +489,15 @@ def _normalize_checklist(raw: list[Any]) -> list[dict[str, Any]]:
                 }
             )
         elif isinstance(item, dict):
-            out.append(
-                {
-                    "item": str(item.get("item", "")),
-                    "verify": str(item.get("verify", "")),
-                    "record": str(item.get("record", "")),
-                }
-            )
+            entry: dict[str, Any] = {
+                "item": str(item.get("item", "")),
+                "verify": str(item.get("verify", "")),
+                "record": str(item.get("record", "")),
+            }
+            va = item.get("verify_actions")
+            if isinstance(va, list) and va:
+                entry["verify_actions"] = va
+            out.append(entry)
         else:
             continue
     return out
@@ -540,11 +571,13 @@ def build_router() -> APIRouter:
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
 
     @router.get("/api/setup/context")
-    def setup_context() -> dict[str, Any]:
+    def setup_context(request: Request) -> dict[str, Any]:
         return {
             "project_root": str(_PROJECT_ROOT),
             "launch_enabled": os.environ.get("SETUP_ALLOW_LAUNCH", "").strip() == "1",
             "markdown_installed": _HAS_MARKDOWN,
+            "api_port": _api_port_from_request(request),
+            "api_default_port": DEFAULT_API_PORT,
         }
 
     @router.get("/api/setup/steps")

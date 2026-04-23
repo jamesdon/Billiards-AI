@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.backend
     container_name: billiards-backend
     ports:
-      - "8000:8000"
+      - "8780:8780"
     environment:
       - AWS_REGION=${AWS_REGION:-}
       - BILLIARDS_DDB_PLAYER_TABLE=${BILLIARDS_DDB_PLAYER_TABLE:-}

@@ -9,7 +9,7 @@ PROJECT_ROOT="${PROJECT_ROOT:-$_default_root}"
 unset _common_dir _default_root
 VENV_PATH="${VENV_PATH:-$PROJECT_ROOT/.venv}"
 BACKEND_HOST="${BACKEND_HOST:-0.0.0.0}"
-BACKEND_PORT="${BACKEND_PORT:-8000}"
+BACKEND_PORT="${BACKEND_PORT:-8780}"
 
 require_file() {
   local p="$1"

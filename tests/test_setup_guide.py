@@ -25,6 +25,9 @@ def test_setup_page_and_api():
     assert "launch_enabled" in data
     assert data["launch_enabled"] is False
     assert isinstance(data.get("markdown_installed"), bool)
+    assert data.get("api_default_port") == 8780
+    assert isinstance(data.get("api_port"), int)
+    assert 1 <= int(data.get("api_port", 0)) <= 65535
 
     r = client.get("/api/setup/steps")
     assert r.status_code == 200
@@ -33,6 +36,8 @@ def test_setup_page_and_api():
     assert any(s["id"] == "phase3" for s in steps)
     p3 = next(s for s in steps if s["id"] == "phase3")
     assert p3["checklist"][0].get("verify")
+    assert p3["checklist"][1].get("verify_actions")
+    assert p3["checklist"][1]["verify_actions"][0]["label"] == "Open MJPEG overlay"
 
     r = client.get("/api/setup/doc", params={"path": "README.md"})
     assert r.status_code == 200

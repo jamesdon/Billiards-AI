@@ -10,6 +10,6 @@ docker compose -f "$PROJECT_ROOT/docker-compose.jetson.yml" up -d
 docker compose -f "$PROJECT_ROOT/docker-compose.jetson.yml" ps
 
 echo "Jetson stack started."
-echo "Backend: http://127.0.0.1:8000/health"
+echo "Backend: http://127.0.0.1:8780/health"
 echo "MJPEG:   http://127.0.0.1:8080/mjpeg"
 

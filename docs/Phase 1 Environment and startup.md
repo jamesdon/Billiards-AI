@@ -61,14 +61,14 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8000
+uvicorn backend.app:app --host 0.0.0.0 --port 8780
 ```
 
 In another terminal:
 
 ```bash
-curl -s "http://127.0.0.1:8000/health"
-curl -s "http://127.0.0.1:8000/live/state"
+curl -s "http://127.0.0.1:8780/health"
+curl -s "http://127.0.0.1:8780/live/state"
 ```
 
 ## 4) Start edge (no model smoke test)
@@ -181,7 +181,7 @@ python -m pip install --upgrade --force-reinstall "numpy<2"
 cd "/home/$USER/Billiards-AI"
 scripts/docker_jetson_build.sh
 scripts/docker_jetson_up.sh
-curl -s "http://127.0.0.1:8000/health"
+curl -s "http://127.0.0.1:8780/health"
 curl -s "http://127.0.0.1:8080/mjpeg" >/dev/null
 ```
 

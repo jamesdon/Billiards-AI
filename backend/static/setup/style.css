@@ -84,6 +84,15 @@ a {
   vertical-align: middle;
 }
 
+.api-hint {
+  padding: 0 0.85rem 0.45rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  margin: 0 0 0.4rem;
+}
+
 .mjpeg-toolbar {
   padding: 0 0.85rem 0.55rem;
   border-bottom: 1px solid var(--border);
@@ -121,6 +130,19 @@ a {
 
 .mjpeg-edge-status.mjpeg-bad {
   color: #e88a7a;
+}
+
+.verify-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.4rem 0 0.65rem;
+  align-items: center;
+}
+
+.verify-action-btn {
+  text-decoration: none;
+  display: inline-block;
 }
 
 .nav-steps {

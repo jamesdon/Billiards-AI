@@ -34,8 +34,9 @@
       <aside class="sidebar">
         <h1>Setup guide</h1>
         <p class="sub">Work through steps in order or jump back anytime. Status: <span class="legend"><span class="signal red" title="Not started"></span> not started</span> · <span class="legend"><span class="signal yellow" title="In progress"></span> in progress</span> · <span class="legend"><span class="signal green" title="Complete"></span> complete</span></p>
+        <p class="api-hint" id="api-hint" role="status">Loading…</p>
         <div class="mjpeg-toolbar">
-          <label for="mjpeg-port">MJPEG port (edge overlay; separate from the API on 8000)</label>
+          <label for="mjpeg-port">MJPEG port (edge live video, default 8080)</label>
           <input type="number" id="mjpeg-port" min="1024" max="65535" value="8080" />
           <p class="mjpeg-edge-status" id="mjpeg-edge-status" role="status" aria-live="polite">
             Overlay server not checked yet.

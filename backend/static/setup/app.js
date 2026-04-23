@@ -181,6 +181,24 @@
     return v;
   }
 
+  function getApiPort() {
+    const p = state.context && state.context.api_port;
+    if (typeof p === "number" && p >= 1 && p <= 65535) return p;
+    if (typeof p === "string" && /^\d+$/.test(p)) {
+      const n = parseInt(p, 10);
+      if (n >= 1 && n <= 65535) return n;
+    }
+    const d = state.context && state.context.api_default_port;
+    if (typeof d === "number" && d >= 1) return d;
+    return 8780;
+  }
+
+  function resolveLinkHref(tpl) {
+    return String(tpl)
+      .replace(/\{mjpeg_port\}/g, String(getMjpegPort()))
+      .replace(/\{api_port\}/g, String(getApiPort()));
+  }
+
   async function refreshMjpegEdgeHealth() {
     if (!mjpegStatusEl) return;
     const port = getMjpegPort();
@@ -220,7 +238,7 @@
     } catch (_) {
       mjpegStatusEl.classList.add("mjpeg-bad");
       mjpegStatusEl.textContent =
-        "Health check failed (is this page served from the backend on :8000?).";
+        "Health check failed (is this page served from the local backend?).";
     }
   }
 
@@ -350,8 +368,9 @@
   function formatChecklistField(raw) {
     if (!raw) return "";
     const root = state.context.project_root || "";
-    if (!raw.includes("{project_root}")) return escWithLineBreaks(raw);
-    const segs = raw.split("{project_root}");
+    const withApi = String(raw).split("{api_port}").join(String(getApiPort()));
+    if (!withApi.includes("{project_root}")) return escWithLineBreaks(withApi);
+    const segs = withApi.split("{project_root}");
     let out = "";
     segs.forEach((p, i) => {
       out += escWithLineBreaks(p);
@@ -362,10 +381,10 @@
     return out;
   }
 
-  function fillProjectRootPlain(raw) {
-    if (!raw) return "";
+  function applyTemplatePlaceholders(raw) {
+    if (raw == null) return "";
     const root = state.context.project_root || "";
-    return raw.split("{project_root}").join(root);
+    return String(raw).split("{api_port}").join(String(getApiPort())).split("{project_root}").join(root);
   }
 
   /** Backtick text that is a label, expected output, or not worth pasting in a shell — no Copy button. */
@@ -419,7 +438,7 @@
     if (!raw.includes("`")) {
       return formatChecklistField(raw);
     }
-    const t = fillProjectRootPlain(raw);
+    const t = applyTemplatePlaceholders(raw);
     const parts = t.split(/`([^`]*)`/);
     let out = "";
     for (let j = 0; j < parts.length; j += 1) {
@@ -542,6 +561,20 @@
                     : ""
                 }
                 ${
+                  Array.isArray(item.verify_actions) && item.verify_actions.length
+                    ? `<div class="verify-actions" role="group" aria-label="Step actions">${item.verify_actions
+                        .map((a) => {
+                          if (!a || !a.href_template) return "";
+                          const href = resolveLinkHref(a.href_template);
+                          return `<a class="btn btn-primary verify-action-btn" href="${escapeHtml(
+                            href
+                          )}" target="_blank" rel="noopener">${escapeHtml(a.label || "Open")}</a>`;
+                        })
+                        .filter(Boolean)
+                        .join("")}</div>`
+                    : ""
+                }
+                ${
                   item.record
                     ? `<p class="record"><strong>What to record:</strong> ${formatChecklistWithBackticks(
                         item.record,
@@ -582,7 +615,6 @@
 
   function renderLinks(step) {
     const links = step.links || [];
-    const port = getMjpegPort();
     if (!links.length) return "";
     return `<section><h3>Quick links</h3><div class="quick-links">${links
       .map((L) => {
@@ -590,7 +622,7 @@
           return `<div class="ql"><a href="${escapeHtml(L.href)}" target="_blank" rel="noopener">${escapeHtml(L.label)}</a>${L.note ? `<p class="ql-note">${escapeHtml(L.note)}</p>` : ""}</div>`;
         }
         if (L.href_template) {
-          const href = L.href_template.replace(/\{mjpeg_port\}/g, String(port));
+          const href = resolveLinkHref(L.href_template);
           return `<div class="ql"><a href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(L.label)}</a>${L.note ? `<p class="ql-note">${escapeHtml(L.note)}</p>` : ""}</div>`;
         }
         if (L.launch) {
@@ -738,6 +770,14 @@
 
       prEl.textContent = state.context.project_root || "(unknown)";
 
+      const apiHint = $("#api-hint");
+      if (apiHint) {
+        apiHint.textContent =
+          "This guide: http://127.0.0.1:" +
+          getApiPort() +
+          "/setup (BACKEND_PORT, default 8780 — distinct from edge MJPEG on 8080).";
+      }
+
       state.activeId =
         state.progress.last_step_id && state.steps.some((s) => s.id === state.progress.last_step_id)
           ? state.progress.last_step_id
@@ -763,7 +803,7 @@
       renderContent();
     } catch (e) {
       content.innerHTML =
-        "<p>Could not load setup data. Start the backend: <code>uvicorn backend.app:app --host 127.0.0.1 --port 8000</code></p>";
+        "<p>Could not load setup data. Start the backend: <code>./scripts/run_backend.sh</code> or <code>uvicorn backend.app:app --host 127.0.0.1 --port 8780</code></p>";
     }
   }
 
