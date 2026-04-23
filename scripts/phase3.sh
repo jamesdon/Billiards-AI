@@ -103,28 +103,47 @@ for v in PHASE3_PORT_N2 PHASE3_PORT_N1 PHASE3_PORT_N3; do
 done
 echo "[Phase3] MJPEG sweep ports: ${PHASE3_PORT_N2} (n=2), ${PHASE3_PORT_N1} (n=1), ${PHASE3_PORT_N3} (n=3)" >&2
 
-# This script spawns its own edge per segment. If you already have edge.main (or anything) on any of
-# these ports—e.g. you tested manually on 8001 and curl /health is ok—bind() will fail with EADDRINUSE.
-phase3_mjpeg_port_is_free() {
-  local p="$1"
-  "$PYTHON_BIN" -c "import socket, sys
+# This script spawns its own edge per segment. edge.main’s MJPEG server binds 0.0.0.0:port
+# (see edge/overlay/stream_mjpeg.py). The preflight must use the same bind + SO_REUSEADDR as
+# ThreadingMixin HTTPServer, or we can get false “in use” vs netstat, or false free vs real edge.
+# Python: exit 0 = port free, 1 = EADDRINUSE (no stderr), 2 = other (message on stderr)
+phase3_mjpeg_port_would_bind() {
+  local p="$1" st
+  if ! "$PYTHON_BIN" -c "import errno, socket, sys
 p = int(sys.argv[1])
-s = socket.socket()
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 try:
-  s.bind(('127.0.0.1', p))
+  s.bind(('0.0.0.0', p))
   s.close()
-except OSError:
-  sys.exit(1)
-sys.exit(0)
-" "$p" 2>/dev/null
+except OSError as e:
+  if e.errno == errno.EADDRINUSE:
+    sys.exit(1)
+  print('bind preflight: %s' % (e,), file=sys.stderr)
+  sys.exit(2)
+" "$p"; then
+    st=$?
+    if (( st == 1 )); then
+      return 1
+    fi
+    echo "[Phase3] FATAL: unexpected bind preflight (exit $st) for 0.0.0.0:${p} (see message above if any)." >&2
+    exit 1
+  fi
+  return 0
 }
 
 for v in PHASE3_PORT_N2 PHASE3_PORT_N1 PHASE3_PORT_N3; do
   pr="${!v}"
-  if ! phase3_mjpeg_port_is_free "$pr"; then
-    echo "[Phase3] FATAL: 127.0.0.1:${pr} is already in use. This script must bind each port itself." >&2
-    echo "[Phase3]        Stop the other process first. Common: a manual  edge.main  you left running for smoke tests." >&2
-    echo "[Phase3]        Find listener:  lsof -nP -iTCP:${pr} -sTCP:LISTEN" >&2
+  if ! phase3_mjpeg_port_would_bind "$pr"; then
+    echo "[Phase3] FATAL: TCP :${pr} (0.0.0.0) is already in use. This script must bind each port itself." >&2
+    echo "[Phase3]        Stop the other process first. Common: a manual  edge.main  for smoke tests." >&2
+    if command -v lsof >/dev/null 2>&1; then
+      echo "[Phase3]        Listeners (if any) on this port:" >&2
+      lsof -nP -iTCP:"$pr" -sTCP:LISTEN 2>/dev/null | sed 's/^/[Phase3]   /' >&2 || true
+    else
+      echo "[Phase3]        Find with:  lsof -nP -iTCP:${pr} -sTCP:LISTEN" >&2
+    fi
+    echo "[Phase3]        Or:  netstat -anv -p tcp 2>/dev/null | head -1;  netstat -anv -p tcp | grep \"\\.${pr} \"" >&2
     echo "[Phase3]        Or use other ports, e.g.  PHASE3_PORT_N2=8002 PHASE3_PORT_N1=8003 PHASE3_PORT_N3=8004  (see docs/PORTS.md)" >&2
     exit 1
   fi
