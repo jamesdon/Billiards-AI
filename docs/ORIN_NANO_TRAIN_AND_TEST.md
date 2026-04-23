@@ -23,9 +23,9 @@ Use **`~/Billiards-AI`** (or `cd "$PROJECT_ROOT"`). Plain one-liners also live i
 | **Calibration (interactive)** | `cd ~/Billiards-AI && bash scripts/start_calibration.sh` — writes `calibration.json` (or set `CALIB_OUT`). If `gst-launch-1.0 nvarguscamerasrc ...` reports **No cameras available**, Argus does not see a CSI module (cable/port/driver); use USB: `bash scripts/start_calibration.sh --camera usb`, or fix CSI then retry. |
 | **Calibration (headless check)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 2` |
 | **Backend + CSI smoke (TEST_PLAN §1)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 1` |
-| **Detector + tracking (TEST_PLAN §3)** | Requires `models/model.onnx`. Then: `cd ~/Billiards-AI && bash scripts/run_phase.sh 3` — or `bash scripts/jetson_phases_1_3.sh` (runs 1 then 3) |
+| **Detector + tracking (TEST_PLAN §3)** | Requires `models/model.onnx`. Run `edge.main` per `docs/3` (setup guide **Detection and tracking**). Optional: `bash scripts/jetson_phases_1.sh` runs TEST_PLAN §1 only. |
 | **Live app + MJPEG** | With calib + ONNX in place: `cd ~/Billiards-AI && bash scripts/jetson_edge_smoke_csi.sh` — open `http://<device-ip>:8001/mjpeg` until Ctrl+C |
-| **YOLO train → ONNX → smoke again** | After labeled images exist: `jetson_yolo_train.sh` → `jetson_yolo_export_latest.sh` → `run_phase.sh 3` / `scripts/phase3.sh` or `jetson_edge_smoke_csi.sh` again |
+| **YOLO train → ONNX → smoke again** | After labeled images exist: `jetson_yolo_train.sh` → `jetson_yolo_export_latest.sh` → `edge.main` smoke per `docs/3`, or `jetson_edge_smoke_csi.sh` again |
 
 **Minimum “it works on the table” path:** `jetson_train_env.sh` → `start_calibration.sh` → place or export `models/model.onnx` → `jetson_edge_smoke_csi.sh` (confirm overlay/stream).
 
@@ -102,9 +102,11 @@ Defaults write under `data/datasets/billiards/images/capture/`. After labeling, 
 
    `cd ~/Billiards-AI && bash scripts/jetson_pytest.sh`
 
-6. **TEST_PLAN §1 and §3** (`jetson_phases_1_3.sh`)
+6. **TEST_PLAN §1** (`jetson_phases_1.sh`)
 
-   `cd ~/Billiards-AI && bash scripts/jetson_phases_1_3.sh`
+   `cd ~/Billiards-AI && bash scripts/jetson_phases_1.sh`
+
+   **§3 (detection/tracking):** run `edge.main` per `docs/3` (not a `run_phase` number).
 
 7. **Edge CSI smoke** (runs until Ctrl+C)
 
@@ -184,7 +186,7 @@ ls -lh "/home/$USER/Billiards-AI/models/model.onnx" "/home/$USER/Billiards-AI/mo
 
 ### Block 5–7
 
-Use `jetson_pytest.sh`, `jetson_phases_1_3.sh`, and `jetson_edge_smoke_csi.sh` (Option A) instead of duplicating long blocks here.
+Use `jetson_pytest.sh`, `jetson_phases_1.sh`, and `jetson_edge_smoke_csi.sh` (Option A) instead of duplicating long blocks here.
 
 ---
 

@@ -2,18 +2,18 @@
 
 ## Training vs deploying a new device
 
-**Training and billiards-specific tuning are optional and usually done once** (or occasionally when you want a better shared detector). You build a labeled dataset, train a YOLO-family model, export ONNX, and iterate on hard examples until metrics and `scripts/phase3.sh` runs look good.
+**Training and billiards-specific tuning are optional and usually done once** (or occasionally when you want a better shared detector). You build a labeled dataset, train a YOLO-family model, export ONNX, and iterate on hard examples until manual `edge.main` detection/tracking (see `docs/3`) looks good.
 
 **Normal setup of additional tables or edge devices does not repeat training.** You reuse the same artifacts under a **single directory**:
 
 - `models/model.onnx` — detector weights (not committed; override with `MODEL_PATH` / Docker `MODEL_PATH`)
 - `models/class_map.json` — same class indices as training (`0..4` → `ball`, `person`, `cue_stick`, `rack`, `pockets`; committed template in repo)
 
-`scripts/phase3.sh`, `phase4.sh`, and `phase9.sh` default `CLASS_MAP_PATH` to `$PROJECT_ROOT/models/class_map.json`. Jetson-family Docker (Orin Nano compose) mounts `./models` at `/models` and uses the same filenames by default.
+`phase4.sh` and `phase9.sh` default `CLASS_MAP_PATH` to `$PROJECT_ROOT/models/class_map.json`. Jetson-family Docker (Orin Nano compose) mounts `./models` at `/models` and uses the same filenames by default.
 
 Per-device variation is handled by **calibration** (homography, pocket geometry), not by retraining the detector, unless the camera or scene is radically different from what the model saw.
 
-The sections below describe dataset → train → export → optional TensorRT. Treat that whole path as **model authoring**; treat copying ONNX into `models/` plus running the detection/tracking smoke (`docs/3 Detection and tracking.md`, `scripts/phase3.sh`) as **device bring-up**.
+The sections below describe dataset → train → export → optional TensorRT. Treat that whole path as **model authoring**; treat copying ONNX into `models/` plus running the detection/tracking smoke in `docs/3 Detection and tracking.md` as **device bring-up**.
 
 ## Why one `ball` class in the detector (§3) vs type in §4
 
@@ -69,7 +69,7 @@ Follow this once (or when refreshing the shared model). All paths use `"/home/$U
    `cp runs/detect/train/weights/best.onnx models/model.onnx`  
    (`*.onnx` is gitignored; this file lives only on disk or in your release storage.)
 
-8. **Verify** — Run `scripts/phase3.sh` with defaults, or a short smoke:  
+8. **Verify** — Short `edge.main` smoke (see `docs/3`):  
    `python -m edge.main --camera csi --onnx-model models/model.onnx --class-map models/class_map.json --detect-every-n 2 --mjpeg-port 8001`  
    Tune `conf_thres` / training data if boxes are noisy; see **Runtime knobs** and `docs/3 Detection and tracking.md`.
 
@@ -136,7 +136,7 @@ Use this to get a first usable detector quickly.
 4. Split train/val by session (not random frame-level only) to avoid leakage.
 5. Train YOLO baseline.
 6. Export ONNX.
-7. Run `scripts/phase3.sh` and collect failures.
+7. Run `edge.main` on device and collect failures (see `docs/3`).
 8. Add hard examples, retrain, repeat.
 
 Recommended starter volume:

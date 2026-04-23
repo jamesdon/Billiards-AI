@@ -678,7 +678,7 @@
     return `<section class="setup-hints"><h3>Tips</h3><ul class="hints">${hints
       .map((h) => {
         if (h.includes("`")) {
-          /* Tips are prose, not a shell block — no Copy (avoids e.g. `phase3.sh` as pasteable) */
+          /* Tips are prose, not a shell block — no Copy next to short backticks */
           return `<li class="hint-line">${formatChecklistWithBackticks(h, false)}</li>`;
         }
         return `<li class="hint-line">${escWithLineBreaks(h)}</li>`;

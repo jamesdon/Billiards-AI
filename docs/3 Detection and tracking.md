@@ -4,7 +4,7 @@
 
 Verify ONNX detection and multi-track stability.
 
-**Order:** start **`edge.main`** (§3) with model + class map + calibration, **then** confirm MJPEG and `/health` in the browser. **Optionally** run **`scripts/phase3.sh`** (§4) for a full sweep. From **Detection and tracking** onward, the setup sidebar can show a short **edge** line. You do **not** start `edge.main` in **§1** or before `calibration.json` exists.
+**Order:** start **`edge.main`** (§3) with model + class map + calibration, **then** confirm MJPEG and `/health` in the browser. From **Detection and tracking** onward, the setup sidebar can show health lamps for the API and MJPEG port. You do **not** start `edge.main` in **§1** or before `calibration.json` exists.
 
 **Prerequisite note:** This section assumes `models/model.onnx` and `models/class_map.json` are already on the device. **Training that model is a separate, optional step** (see `docs/MODEL_OPTIMIZATION.md`); day-to-day new installs typically **reuse the same exported model** and only run calibration plus this detection/tracking smoke.
 
@@ -29,7 +29,7 @@ EOF
 ## 2) Bootstrap a starter ONNX model (from scratch)
 
 If you are starting from scratch and do not yet have a trained billiards model,
-you must create one before running this step (`scripts/phase3.sh` or `edge.main`). This is a bootstrap path to get a
+you must create one before running this step (see `edge.main` in §3 below). This is a bootstrap path to get a
 valid detector artifact quickly (accuracy will depend on your dataset quality).
 
 ### 2a) Train a small YOLO model (example with Ultralytics)
@@ -85,55 +85,21 @@ python3 -m edge.main \
 
 **Then test (after models load; first response can take 30–90+ s):** in a browser, open `http://127.0.0.1:8001/mjpeg` and `http://127.0.0.1:8001/health` (or the port you passed to `--mjpeg-port`). The setup guide **Detection and tracking** step uses the same order: run this command, **then** use its overlay / health buttons (MJPEG field must match the port you chose).
 
-`edge.main` does **not** open a desktop window; video is over HTTP. Grant **Camera** to your terminal on macOS if prompted.
+`edge.main` does **not** open a desktop window; video is over HTTP.
 
-## 4) Optional: verification sweep (`scripts/phase3.sh`)
+**macOS (Apple Silicon):** defaults use **USB** (`--camera usb`); there is no Jetson CSI. Grant **Camera** under **System Settings → Privacy & Security → Camera** for the app that runs the shell (Terminal, iTerm, or Cursor). If the wrong webcam is selected, try a different `--usb-index`. An ONNXRuntime message that **CUDAExecutionProvider** is unavailable is normal; CoreML or CPU is used.
 
-**Not required** if you already validated detection/tracking with **manual** `edge.main` + the overlay: this sweep only helps compare `detect_every_n` values and leaves **`.phase3_*.log`** for debugging.
-
-**Before `phase3.sh`:** the script **starts and stops** its own `edge.main` on the sweep ports (defaults **8001**, **8004**, **8005**). If you still have a **manual** `edge.main` running from above (e.g. `curl http://127.0.0.1:8001/health` works), that process holds **8001** and the script will fail with **Address already in use** unless you **stop** that `edge` first, or set **`PHASE3_PORT_N2` / `PHASE3_PORT_N1` / `PHASE3_PORT_N3`** to three **free** ports in **8001–8005**.
-
-This script performs:
-
-- baseline run at `--detect-every-n 2`
-- sweep runs at `--detect-every-n 1` and `--detect-every-n 3`
-- MJPEG readiness checks for each run
-- per-run logs under repo root: `.phase3_n1.log`, `.phase3_n2.log`, `.phase3_n3.log`
-
-**Startup can look “hung”:** After each `[Phase3] Starting …` line the script waits for the first good `/mjpeg` response with **no** OpenCV window. On a cold Mac that often takes **30–90+ seconds** (ONNX + camera). In another terminal, tail the per-run log at the **repo root** (paths are on one line; adjust to your clone):
-
-```bash
-tail -f "/Users/jdonn/AppDev/Billiards-AI/.phase3_n2.log"
-```
-
-The **Setup guide** (when the backend is running: open **Detection and tracking** in the wizard) shows the same `tail` command with your real clone path and a one-click **Copy** next to it. You can also wait for **`[Phase3] Live MJPEG`**. The wait is capped by **`PHASE3_MJPEG_WAIT_SECONDS`** (default **90**).
-
-**Viewing video:** This step does **not** open a desktop window. `edge.main` serves an MJPEG stream over HTTP. When the script prints `Live MJPEG`, open the printed URL. The script uses fixed sweep ports **8001** (baseline, `detect_every_n=2`), **8004** (`detect_every_n=1`), and **8005** (`detect_every_n=3`). See **`docs/PORTS.md`**. Override with **`PHASE3_PORT_N2`**, **`PHASE3_PORT_N1`**, **`PHASE3_PORT_N3`** (each **8001–8005**; not **8000**, API). **`/health`** on each run’s port reports JSON status.
-
-**MJPEG port already in use** (`OSError: [Errno 48] Address already in use` or `MJPEG port 8001 is already in use` in `.phase3_n2.log`): another process is still bound to that port—commonly a **stale `python -m edge.main`**, a second `scripts/phase3.sh` run, or another script (`phase1.sh`, `phase2.sh`, `jetson_csi_setup.sh`, Docker edge, etc.) that started `edge.main` in the background.
+**MJPEG port already in use** (`OSError: [Errno 48] Address already in use` or similar in the terminal): another process is still bound to that port—commonly a **stale `python -m edge.main`**, or another script (`phase1.sh`, `phase2.sh`, `jetson_csi_setup.sh`, Docker edge, etc.) that started `edge.main` in the background.
 
 **“The overlay works but I didn’t start edge in *this* terminal.”** The setup guide and the browser **do not** launch `edge.main`; they only open URLs. Something else is still listening (often an **older** terminal session, a **minimized** window, a **Cursor** task, a **manual** `edge.main` you forgot, or **Docker** edge). The browser does not *host* MJPEG—it only connects to whatever is already bound to the port.
 
-**Does this repo detach `edge.main` on purpose?** `scripts/phase1.sh`, `phase2.sh`, and `phase3.sh` start `edge.main` in the background (`&`) so the script can poll `/health` and `/mjpeg`, but they **`kill` that process** when each step finishes and use a shell **`trap` on `EXIT`** so edge is not left running after a **normal** script end. `scripts/phase3.sh` runs `python -m edge.main` **without** a `gtimeout`/`timeout` wrapper so background `$!` is the real Python PID (a wrapper PID can leave `edge` bound to 8001 after `kill`). `phase1.sh` / `phase2.sh` may still use `timeout`/`gtimeout` around `edge` — a known sharp edge on some systems. Phases do **not** use `nohup` or `disown` for edge. If a run is ended with **`kill -9`**, the trap may not run and a stray `edge.main` is possible. The backend’s **`POST /api/setup/launch`** uses `subprocess` with `start_new_session=True` only for **`start_calibration.sh`** (when `SETUP_ALLOW_LAUNCH=1`), not for `edge.main`. Nothing in the repo auto-starts MJPEG without a `python -m edge.main` (or a wrapper) you or a tool invoked.
+**Does this repo detach `edge.main` on purpose?** `scripts/phase1.sh` and `phase2.sh` may start `edge.main` in the background (`&`) and **`kill` it** when each step finishes, with a shell **`trap` on `EXIT`**. `phase1.sh` / `phase2.sh` may use `timeout`/`gtimeout` around `edge` on some systems — a known sharp edge (wrapper PID vs Python PID) if not cleaned up. Phases do **not** use `nohup` or `disown` for edge. If a run is ended with **`kill -9`**, the trap may not run and a stray `edge.main` is possible. The backend’s **`POST /api/setup/launch`** uses `subprocess` with `start_new_session=True` only for **`start_calibration.sh`**, not for `edge.main`. The setup app does not start MJPEG; only `edge.main` (or another process you start) does.
 
-1. See what is listening: `lsof -nP -iTCP:8001 -sTCP:LISTEN` (macOS/Linux). Then inspect the command line: `ps -p <pid> -o args=` (replace `8001` if you use another `--mjpeg-port`).
-2. Stop that process (`kill <pid>`) or stop the Docker stack, then start fresh if you need a clean run. Closing browser tabs alone does not stop the server.
-3. Or point the **baseline** at another free port in **8001–8005**, e.g. `PHASE3_PORT_N2=8002` when invoking `scripts/phase3.sh`. If you use the Setup guide overlay buttons, set the **MJPEG** field in the sidebar to the same port as your edge run.
+1. See what is listening: `lsof -nP -iTCP:8001 -sTCP:LISTEN` (macOS/Linux). Then: `ps -p <pid> -o args=` (use your `--mjpeg-port` if not 8001).
+2. Stop that process (`kill <pid>`) or stop the Docker stack. Closing browser tabs alone does not stop the server.
+3. If you use the Setup guide overlay, set the sidebar **MJPEG** field to the same port as your `edge.main` run.
 
-```bash
-cd "/home/$USER/Billiards-AI"
-source "/home/$USER/Billiards-AI/.venv/bin/activate"
-MODEL_PATH="/ABSOLUTE/PATH/TO/model.onnx" \
-CLASS_MAP_PATH="/home/$USER/Billiards-AI/models/class_map.json" \
-PHASE3_CAMERA=csi \
-CSI_SENSOR_ID=0 \
-CSI_FLIP_METHOD=6 \
-"/home/$USER/Billiards-AI/scripts/phase3.sh"
-```
-
-**macOS (Apple Silicon):** `scripts/phase3.sh` defaults to **`PHASE3_CAMERA=usb`** (there is no Jetson CSI). Grant **Camera** permission to the app that runs the shell (Terminal, iTerm, or Cursor) under **System Settings → Privacy & Security → Camera**. If the wrong webcam is selected, try **`PHASE3_USB_INDEX=1`**. An ONNXRuntime message that **CUDAExecutionProvider** is unavailable is normal; CoreML or CPU is used instead. Scripts call **`sleep`** from your `PATH` (not `/usr/bin/sleep`), which avoids hosts where that path is missing.
-
-## 5) Optional manual single-run command (Jetson / CSI)
+## 4) Optional manual single-run command (Jetson / CSI)
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -160,5 +126,4 @@ On macOS for a manual run, use `--camera usb` (and `--usb-index` if needed) inst
 - no detector/tracker crashes
 - IDs remain stable for moving balls/players/sticks in normal play
 - manual `edge.main` (§3) serves MJPEG and `/health` on the chosen port
-- optional: `scripts/phase3.sh` (§4) — sweep logs exist for `n=1,2,3` and each run reaches MJPEG endpoint
 

@@ -14,7 +14,8 @@ Examples:
   scripts/run_phase.sh all
 
 Notes:
-  - `phase2.sh` / `phase3.sh` / `phase4.sh` / `phase9.sh` may require runtime inputs (camera/model/class-map).
+  - `phase2.sh` / `phase4.sh` / `phase9.sh` may require runtime inputs (camera/model/class-map).
+  - There is no `phase3.sh`; use `python3 -m edge.main` for detection/tracking (see `docs/3` and the setup guide).
   - Override paths/settings with env vars (PROJECT_ROOT, MODEL_PATH, etc.).
 EOF
 }
@@ -38,7 +39,7 @@ main() {
   local arg="$1"
 
   case "$arg" in
-    1|2|3|4|5|6|7|8|9)
+    1|2|4|5|6|7|8|9)
       run_phase "$arg"
       ;;
     all)
@@ -47,8 +48,8 @@ main() {
         run_phase "$n"
       done
       echo "Completed default all set (1,5,6,7,8)."
-      echo "Run steps 2,3,4,9 (phase2.sh …) manually when camera/model are available."
-      echo "Step 3 (detection) now supports automated sweep via MODEL_PATH + CLASS_MAP_PATH env vars."
+      echo "Run steps 2,4,9 (phase2.sh, phase4.sh, phase9.sh) manually when camera/model are available."
+      echo "Detection/tracking: run edge.main (see docs/3) — not a numbered phase script."
       ;;
     -h|--help|help)
       usage

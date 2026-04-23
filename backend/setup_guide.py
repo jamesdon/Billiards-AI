@@ -323,9 +323,9 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "summary": "Start edge.main, open the table MJPEG overlay, and check /health (TEST_PLAN §3). You need models/model.onnx, models/class_map.json, and the calibration.json from the previous step. You do not need another doc to begin: the checklist below is the only instruction. Output is over HTTP in the browser, not an OpenCV window.",
         "checklist": [
             {
-                "item": "You start edge.main with the ONNX, class map, and calibration the repo expects (then optional phase3.sh)",
+                "item": "You start edge.main with the ONNX, class map, and calibration the repo expects",
                 "verify": (
-                    "**1) In a new terminal,** paste and run the block below once (sidebar shows your repo path; on Jetson use --camera csi and drop the --usb-index lines). Default for this block: macOS + USB 0.\n"
+                    "In a new terminal, paste and run the block below once (sidebar shows your repo path; on Jetson use --camera csi and drop the --usb-index lines). Default: macOS + USB 0.\n"
                     '`cd "{project_root}"\n'
                     'source "{project_root}/.venv/bin/activate"\n'
                     "python3 -m edge.main \\\n"
@@ -334,14 +334,9 @@ SETUP_STEPS: list[dict[str, Any]] = [
                     '  --onnx-model "{project_root}/models/model.onnx" \\\n'
                     '  --class-map "{project_root}/models/class_map.json" \\\n'
                     '  --calib "{project_root}/calibration.json" \\\n'
-                    "  --mjpeg-port {mjpeg_port}`\n"
-                    "**2) Optional** — `scripts/phase3.sh` only if you want an automated **three-segment** sweep (different `detect_every_n` on 8001 / 8004 / 8005) with per-run logs. You can **skip** it if checklist **2** (overlay + stable IDs) is enough. "
-                    "If you run it: **stop the manual `edge` from (1) first** — the script must start and stop its own `edge` on those ports. "
-                    "Override ports if needed: `PHASE3_PORT_N2` / `PHASE3_PORT_N1` / `PHASE3_PORT_N3` (each 8001–8005). If startup looks hung, tail the n2 log:\n"
-                    '`cd "{project_root}" && source .venv/bin/activate && bash scripts/phase3.sh`'
-                    "\n`tail -f \"{project_root}/.phase3_n2.log\"`"
+                    "  --mjpeg-port {mjpeg_port}`"
                 ),
-                "record": "If you had to set PHASE3_USB_INDEX or detect_every_n, note values in Notes.",
+                "record": "If you change camera, USB index, or MJPEG port, a short line in Notes helps later.",
             },
             {
                 "item": "Overlay shows stable track IDs during motion",
@@ -365,9 +360,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
         ],
         "links": [],
         "hints": [
-            "On this step and later, the sidebar polls GET /health on the MJPEG port you set (via this backend). It only tells you an edge process is listening; it does not run `edge.main` or `scripts/phase3.sh` for you.",
-            "Checklist line 1 is the `edge.main` command (then optional `phase3.sh`). Checklist line 2 is the quality bar: stable track IDs while things move.",
-            "Re-running scripts/phase3.sh overwrites .phase3_n1.log, .phase3_n2.log, and .phase3_n3.log at the repo root each time.",
+            "On this step and later, the sidebar polls GET /health on the MJPEG port you set (via this backend). It only tells you an edge process is listening; it does not start `edge.main` for you.",
+            "Checklist line 1 is the `edge.main` command. Checklist line 2 is the quality bar: stable track IDs while things move.",
             "CUDA provider warnings on Mac are normal; CoreML/CPU is used.",
         ],
         "doc_refs": [{"label": "3 — Detection and tracking", "path": "docs/3 Detection and tracking.md"}],

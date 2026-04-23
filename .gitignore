@@ -26,7 +26,6 @@ htmlcov/
 
 # Phase scripts / local calibration outputs
 .phase2_*.log
-.phase3_*.log
 calibration.json
 calibration_invalid.json
 scripts/*.bak.*

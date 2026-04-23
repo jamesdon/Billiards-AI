@@ -134,7 +134,6 @@ Billiards-AI/
     run_phase.sh                    Entry point for phase scripts
     phase1.sh                       Environment + backend + CSI smoke checks
     phase2.sh                       Headless calibration validation (no GUI); fixed MJPEG **8002** / **8003** (`PHASE2_PORT_VALID` / `PHASE2_PORT_INVALID`); `PHASE2_CAMERA` (unset → **usb** on macOS/Darwin, **csi** on Linux/Jetson; or explicit `usb` / numeric V4L index) plus `CSI_*` / `PHASE2_USB_INDEX`
-    phase3.sh                       Optional detection/tracking sweep (n=1/2/3); fixed MJPEG **8001** / **8004** / **8005** (`PHASE3_PORT_*`); `edge.main` is spawned without a `gtimeout` wrapper so `kill` targets Python and frees the port; preflight: exit if any sweep port is already listening; stderr while waiting for `/mjpeg` (`PHASE3_MJPEG_WAIT_SECONDS`, default 90s)
     phase4.sh                       Identity/profile persistence checks
     phase5.sh                       Foul event injection sanity checks
     phase6.sh                       Rules test execution
@@ -147,7 +146,7 @@ Billiards-AI/
     jetson_yolo_train.sh            Ultralytics train (Apple Silicon: higher default epochs/batch/workers; Jetson/Linux: conservative; env overrides); exits early if `data/datasets/billiards/images/train` has no JPEG/PNG
     jetson_yolo_export_latest.sh    Orin Nano: export newest best.pt to models/model.onnx
     jetson_pytest.sh                Orin Nano: pytest tests/
-    jetson_phases_1_3.sh            Orin Nano: run_phase 1 then 3
+    jetson_phases_1.sh              Orin Nano: `run_phase` 1 only; for TEST_PLAN §3 use `edge.main` per `docs/3` (replaces `jetson_phases_1_3.sh` + removed `phase3.sh`)
     jetson_edge_smoke_csi.sh        Orin Nano: edge.main CSI smoke (until Ctrl+C)
     JETSON_ONE_LINERS.txt           Plain-text paste list for bash (no Markdown fences)
     jetson_capture_training_frames.sh  Wrapper: live CSI → JPEGs for YOLO labeling
