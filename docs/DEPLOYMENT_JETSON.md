@@ -135,7 +135,7 @@ scripts/docker_jetson_up.sh
 
 Notes:
 
-- Place detector assets in `/home/$USER/Billiards-AI/models/` (`model.onnx` + `class_map.json`; same paths in Docker via `./models` → `/models`)
+- Detector assets live under `/home/$USER/Billiards-AI/models/` (`model.onnx` + `class_map.json`; same paths in Docker via `./models` → `/models`). **`model.onnx` is intended to live in git** on your team branch—bring the device up with **`git pull`**, then see `scripts/publish_trained_model.sh` / `docs/MODEL_OPTIMIZATION.md` when refreshing weights.
 - Place calibration JSON in `/home/$USER/Billiards-AI/data/` (or your chosen `CALIB_PATH`)
 - Player/stick profiles live at **`<repo>/identities.json`** (bind-mounted into containers as `/app/identities.json`; create the file before first `docker compose` if missing, e.g. `echo '{\"players\":[],\"sticks\":[]}' > identities.json`)
 - CSI camera is default in container command (`--camera csi`)

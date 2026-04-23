@@ -4,16 +4,29 @@
 
 **Training and billiards-specific tuning are optional and usually done once** (or occasionally when you want a better shared detector). You build a labeled dataset, train a YOLO-family model, export ONNX, and iterate on hard examples until manual `edge.main` detection/tracking (see `docs/3`) looks good.
 
-**Normal setup of additional tables or edge devices does not repeat training.** You reuse the same artifacts under a **single directory**:
+**Normal setup of additional tables or edge devices does not repeat training.** You reuse the same artifacts under **`models/`**:
 
-- `models/model.onnx` — detector weights (not committed; override with `MODEL_PATH` / Docker `MODEL_PATH`)
+- `models/model.onnx` — exported detector weights (**commit to this repository** after training so every machine gets them with `git pull`; override at runtime with `MODEL_PATH` / Docker `MODEL_PATH` if needed)
 - `models/class_map.json` — same class indices as training (`0..4` → `ball`, `person`, `cue_stick`, `rack`, `pockets`; committed template in repo)
 
 `phase4.sh` and `phase9.sh` default `CLASS_MAP_PATH` to `$PROJECT_ROOT/models/class_map.json`. Jetson-family Docker (Orin Nano compose) mounts `./models` at `/models` and uses the same filenames by default.
 
 Per-device variation is handled by **calibration** (homography, pocket geometry), not by retraining the detector, unless the camera or scene is radically different from what the model saw.
 
-The sections below describe dataset → train → export → optional TensorRT. Treat that whole path as **model authoring**; treat copying ONNX into `models/` plus running the **edge vision** smoke in `docs/3 Detection and tracking.md` / the **`/setup`** step **Detection, tracking, classification, and identity** as **device bring-up**.
+The sections below describe dataset → train → export → **publish to git** → optional TensorRT. Treat **train + export + commit** as **model authoring**; treat **`git pull`** plus the **edge vision** smoke in `docs/3 Detection and tracking.md` / the **`/setup`** step **Detection, tracking, classification, and identity** as **device bring-up**.
+
+### Canonical detector in git (recommended team workflow)
+
+1. Train and export on a machine that has the labeled dataset (often **not** the CSI edge venv—see `requirements-train.txt` notes in `docs/1 Environment and startup.md`).
+2. From the repo root after a successful export to `models/model.onnx`:
+   - **`bash scripts/publish_trained_model.sh`** — stages and commits `models/model.onnx` (and `models/class_map.json` only if it changed).
+   - **`GIT_PUSH=1 bash scripts/publish_trained_model.sh`** — same, then **`git push`**.
+3. One-shot (train → export latest `best.pt` → commit): **`bash scripts/jetson_yolo_train_export_publish.sh`** (optional **`GIT_PUSH=1`** in the environment for the publish step).
+4. Everyone else: **`git pull`** — no ad-hoc `scp` of weights unless you are bootstrapping a machine with no network access to the remote.
+
+**Git ignore rules:** every `*.onnx` except **`models/model.onnx`** stays ignored (Ultralytics leaves many ONNX files under `runs/`).
+
+**Very large ONNX files:** GitHub warns above ~50MB and blocks above 100MB. If your export is that big, use **Git LFS** (`git lfs install`, then `git lfs track "models/model.onnx"`, commit `.gitattributes`, then commit the model).
 
 ## Why one `ball` class in the detector (§3) vs type in §4
 
@@ -65,11 +78,15 @@ Follow this once (or when refreshing the shared model). All paths use `"/home/$U
    `yolo export model="runs/detect/train/weights/best.pt" format=onnx imgsz=640`  
    (use the actual run path Ultralytics prints).
 
-7. **Install weights** — Copy the exported file to the canonical name:  
-   `cp runs/detect/train/weights/best.onnx models/model.onnx`  
-   (`*.onnx` is gitignored; this file lives only on disk or in your release storage.)
+7. **Install weights** — Prefer the repo scripts (newest run under `runs/detect/*/weights/best.pt`):  
+   `bash scripts/jetson_yolo_export_latest.sh`  
+   Or manually: `cp runs/detect/<run>/weights/best.onnx models/model.onnx`
 
-8. **Verify** — Short `edge.main` smoke (see `docs/3`):  
+8. **Commit the detector** — Check in the artifact so clones and CI stay aligned:  
+   `bash scripts/publish_trained_model.sh`  
+   Optional: `GIT_PUSH=1 bash scripts/publish_trained_model.sh`
+
+9. **Verify** — Short `edge.main` smoke (see `docs/3`):  
    `python -m edge.main --camera csi --onnx-model models/model.onnx --class-map models/class_map.json --detect-every-n 2 --mjpeg-port 8001`  
    Tune `conf_thres` / training data if boxes are noisy; see **Runtime knobs** and `docs/3 Detection and tracking.md`.
 
@@ -301,31 +318,25 @@ ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
 
 This is usually the fastest path overall.
 
-On training machine:
+On training machine (same repo clone):
 
 ```bash
 python3 -m pip install -U ultralytics
 yolo detect train data="/ABSOLUTE/PATH/TO/billiards-data.yaml" model="yolov8n.pt" imgsz=640 epochs=100 batch=16
 yolo export model="/ABSOLUTE/PATH/TO/runs/detect/train/weights/best.pt" format=onnx imgsz=640
+cp "/ABSOLUTE/PATH/TO/runs/detect/train/weights/best.onnx" "/ABSOLUTE/PATH/TO/Billiards-AI/models/model.onnx"
+cd "/ABSOLUTE/PATH/TO/Billiards-AI"
+bash scripts/publish_trained_model.sh
+# optional: GIT_PUSH=1 bash scripts/publish_trained_model.sh
 ```
 
-Copy artifact to Orin Nano:
+On Orin Nano (or any edge box): **`git pull`** — the detector ships with the branch.
 
-```bash
-mkdir -p "/home/$USER/Billiards-AI/models"
-scp "/ABSOLUTE/PATH/TO/best.onnx" "$USER@<ORIN_NANO_IP>:/home/$USER/Billiards-AI/models/model.onnx"
-```
-
-Verify on Orin Nano:
-
-```bash
-ls -lh "/home/$USER/Billiards-AI/models/model.onnx"
-```
+**Offline / no git remote:** fall back to `scp` of `models/model.onnx` into the tree (same path as above).
 
 ## From-scratch baseline model procedure (required before sections 3+)
 
-If you are starting from scratch, there is no detector artifact in this repo.
-You must create/export `model.onnx` before **§3**, **§4**, or **§9** in the test plan.
+If you are starting from scratch, **`models/model.onnx` may be absent** until someone completes train → export → **`publish_trained_model.sh`** (or you add the first binary in a PR). After the first commit containing the ONNX, **`git pull`** is enough for new clones. You still need a trained file before **§3**, **§4**, or **§9** in the test plan.
 
 ### 1) Train a lightweight detector
 

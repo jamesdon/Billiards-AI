@@ -39,8 +39,10 @@ data/datasets/
 # Web setup wizard progress (backend /setup)
 data/setup_wizard_progress.json
 
-# Local runtime / large artifacts (adjust if you need to version samples)
+# Local runtime / large artifacts
 *.onnx
+# Canonical exported detector (train → jetson_yolo_export_latest.sh → publish_trained_model.sh)
+!models/model.onnx
 *.engine
 *.trt
 models/checkpoints/

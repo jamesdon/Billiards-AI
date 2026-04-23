@@ -111,7 +111,7 @@ Required runtime assets:
 - Detector bundle (single directory `models/`): `model.onnx` + `class_map.json` with matching class indices (`MODEL_PATH` / `CLASS_MAP_PATH` override defaults; Docker mounts `./models` → `/models`)
 - `/home/$USER/Billiards-AI/data/calibration.json` (per table / per camera install)
 
-There is **no bundled `model.onnx`** (weights are gitignored). The repo **does** ship `models/class_map.json` as the canonical label map for training and runtime. **Most new devices only copy** a team-approved `model.onnx` into `models/` beside that file—**training is optional** and done when you create or refresh the shared model. See `docs/MODEL_OPTIMIZATION.md` for the full training walkthrough vs normal deployment.
+The repo ships **`models/class_map.json`** as the canonical label map. **`models/model.onnx`** is the exported detector: **track it in git** after training (see `docs/MODEL_OPTIMIZATION.md`). Typical flow on a trainer: `bash scripts/jetson_yolo_train_export_publish.sh`, or export then `bash scripts/publish_trained_model.sh` (set **`GIT_PUSH=1`** to push). Other machines **`git pull`** and run—no manual `scp` of weights. If the ONNX exceeds GitHub’s size guidance (~50–100MB), use **Git LFS** for `models/model.onnx` (documented in `docs/MODEL_OPTIMIZATION.md`).
 
 Stop:
 

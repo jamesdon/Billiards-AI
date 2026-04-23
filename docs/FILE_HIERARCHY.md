@@ -31,7 +31,7 @@ Billiards-AI/
 
   models/                           Single location for detector runtime + training contract
     class_map.json                  Maps ONNX class index → pipeline label (`ball`, `person`, `cue_stick`, `rack`, `pockets`); committed
-    model.onnx                      Exported detector weights (not in git; copy or export here)
+    model.onnx                      Exported detector weights (tracked in git when present; see `scripts/publish_trained_model.sh` + `docs/MODEL_OPTIMIZATION.md`)
 
   config/
     calib_overlay.json              Schematic label anchors (`x_L`,`y_W` per `id`) + `break_box` styles; the **only** committed overlay file for the calibration UI. `start_calibration.sh` passes `--overlay-json` here by default (override env `CALIB_OVERLAY_JSON`). `labels` in that file win over table-diagram geometry for those ids; geometry fills only missing ids. Press **e** in GUI to edit, **s** to save to this file path (or the path you passed with `--overlay-json`). Legacy `captions` key still supported
@@ -150,7 +150,9 @@ Billiards-AI/
     jetson_train_env.sh             Orin Nano: git pull + venv + requirements + requirements-train
     jetson_prepare_yolo_dataset.sh  Orin Nano: chmod + run bootstrap + grep path line
     jetson_yolo_train.sh            Ultralytics train (Apple Silicon: higher default epochs/batch/workers; Jetson/Linux: conservative; env overrides); exits early if `data/datasets/billiards/images/train` has no JPEG/PNG
-    jetson_yolo_export_latest.sh    Orin Nano: export newest best.pt to models/model.onnx (if no runs, prints train / scp / copy hints)
+    jetson_yolo_export_latest.sh    Export newest runs/detect/*/weights/best.pt → models/model.onnx; hints if no runs
+    jetson_yolo_train_export_publish.sh  Train → export → publish_trained_model (commit; GIT_PUSH=1 to push)
+    publish_trained_model.sh        git add/commit models/model.onnx (+ class_map.json if changed); GIT_PUSH=1 optional
     jetson_pytest.sh                Orin Nano: pytest tests/
     jetson_phases_1.sh              Orin Nano: `run_phase` 1 only; for TEST_PLAN §3 use `edge.main` per `docs/3` (replaces `jetson_phases_1_3.sh` + removed `phase3.sh`)
     jetson_edge_smoke_csi.sh        Orin Nano: edge.main CSI smoke (until Ctrl+C)
