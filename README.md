@@ -17,7 +17,7 @@ python3 -m edge.main --help
 
 ## Guided setup (browser) — start here
 
-The **setup guide** is the first-run UI: **`GET /setup`** in the FastAPI app (per-step **traffic-light** status, checklists, **Copy** on shell one-liners, in-browser Markdown for `docs/…` via `/api/setup/doc?path=…`, optional **Quick links** and **Launch** when enabled). The left sidebar has the **project root**, **text size**, **MJPEG port (8001–8005)**, and a **server-side** `GET /api/setup/edge-health?port=…` check against `http://127.0.0.1:<port>/health` for edge.
+The **setup guide** is the first-run UI: **`GET /setup`** in the FastAPI app (per-step **traffic-light** status, checklists, **Copy** on shell one-liners, in-browser Markdown for `docs/…` via `/api/setup/doc?path=…`, optional **Quick links** and **Launch** when enabled). The left sidebar has a fixed **API BACKEND_PORT: default 8000** line, **project root**, **text size**, **MJPEG port** (8001–8005), and (from **Detection and tracking** onward) a short **server-side** `GET /api/setup/edge-health?port=…` line against `http://127.0.0.1:<port>/health` for edge.
 
 **1. Start the API (this serves the guide):** from the repo root, with the venv you use for this repo:
 

@@ -33,14 +33,18 @@
     <div class="layout">
       <aside class="sidebar">
         <h1>Setup guide</h1>
-        <p class="sub">Work through steps in order or jump back anytime. Status: <span class="legend"><span class="signal red" title="Not started"></span> not started</span> · <span class="legend"><span class="signal yellow" title="In progress"></span> in progress</span> · <span class="legend"><span class="signal green" title="Complete"></span> complete</span></p>
-        <p class="api-hint" id="api-hint" role="status">Loading…</p>
+        <p class="api-backend-line">API BACKEND_PORT: default 8000</p>
         <div class="mjpeg-toolbar">
-          <label for="mjpeg-port">MJPEG (8001–8005; default 8001 — not 8000, that is the API)</label>
+          <label for="mjpeg-port">MJPEG port: default 8001</label>
+          <p class="mjpeg-ports-allowed">Only ports 8001–8005 can be used</p>
           <input type="number" id="mjpeg-port" min="8001" max="8005" value="8001" />
-          <p class="mjpeg-edge-status" id="mjpeg-edge-status" role="status" aria-live="polite">
-            Overlay server not checked yet.
-          </p>
+          <p
+            class="mjpeg-edge-status"
+            id="mjpeg-edge-status"
+            role="status"
+            aria-live="polite"
+            hidden
+          ></p>
         </div>
         <ul class="nav-steps" id="nav-steps"></ul>
         <div class="sidebar-footer">

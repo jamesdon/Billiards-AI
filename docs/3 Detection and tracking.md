@@ -4,7 +4,7 @@
 
 Verify ONNX detection and multi-track stability.
 
-**Where to run the live pipeline:** the setup wizard’s **Detection and tracking** step lists the same `edge.main` one-liner the UI uses (relative paths from the repo root). The sidebar’s MJPEG health line, when no edge is listening, also prints a **copy-pastable** command including `--onnx-model`, `--class-map`, and `--usb-index` defaults. You do **not** start `edge.main` in **§1** or before `calibration.json` exists — you need model + class map + calibration first, otherwise startup errors are expected.
+**Where to run the live pipeline:** the setup wizard’s **Detection and tracking** step lists the same `edge.main` one-liner the UI uses (relative paths from the repo root). From this step onward, the sidebar can show a short **edge** line (up / not listening on the MJPEG port you set). You do **not** start `edge.main` in **§1** or before `calibration.json` exists — you need model + class map + calibration first, otherwise startup errors are expected.
 
 **Prerequisite note:** This section assumes `models/model.onnx` and `models/class_map.json` are already on the device. **Training that model is a separate, optional step** (see `docs/MODEL_OPTIMIZATION.md`); day-to-day new installs typically **reuse the same exported model** and only run calibration plus this detection/tracking smoke.
 

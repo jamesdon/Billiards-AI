@@ -22,6 +22,19 @@
   const mjpegStatusEl = $("#mjpeg-edge-status");
   let edgeHealthTimer = null;
 
+  /** Show MJPEG edge /health line only on steps where the user is expected to run edge. */
+  const STEPS_WITH_MJPEG_STATUS = new Set([
+    "phase3",
+    "phase4",
+    "dataset_training",
+    "jetson_deploy",
+    "phases_advanced",
+  ]);
+
+  function mjpegStatusStepActive() {
+    return STEPS_WITH_MJPEG_STATUS.has(state.activeId);
+  }
+
   const TEXT_SIZE_KEY = "billiards-setup-text-size";
   const PROGRESS_LSK = "billiards-setup-progress-v1";
   const SIDEBAR_W_LSK = "billiards-setup-sidebar-width-px";
@@ -199,8 +212,38 @@
       .replace(/\{api_port\}/g, String(getApiPort()));
   }
 
-  async function refreshMjpegEdgeHealth() {
+  function setMjpegStatusVisible(show) {
     if (!mjpegStatusEl) return;
+    if (show) {
+      mjpegStatusEl.removeAttribute("hidden");
+      mjpegStatusEl.setAttribute("aria-hidden", "false");
+    } else {
+      mjpegStatusEl.setAttribute("hidden", "");
+      mjpegStatusEl.setAttribute("aria-hidden", "true");
+      mjpegStatusEl.textContent = "";
+      mjpegStatusEl.classList.remove("mjpeg-ok", "mjpeg-bad");
+    }
+  }
+
+  function reconfigureMjpegEdgePolling() {
+    if (edgeHealthTimer) {
+      clearInterval(edgeHealthTimer);
+      edgeHealthTimer = null;
+    }
+    if (!mjpegStatusEl) return;
+    if (!mjpegStatusStepActive()) {
+      setMjpegStatusVisible(false);
+      return;
+    }
+    setMjpegStatusVisible(true);
+    void refreshMjpegEdgeHealth();
+    edgeHealthTimer = setInterval(() => {
+      void refreshMjpegEdgeHealth();
+    }, 10000);
+  }
+
+  async function refreshMjpegEdgeHealth() {
+    if (!mjpegStatusEl || !mjpegStatusStepActive()) return;
     const port = getMjpegPort();
     mjpegStatusEl.classList.remove("mjpeg-ok", "mjpeg-bad");
     mjpegStatusEl.textContent = "Checking 127.0.0.1:" + port + "…";
@@ -210,8 +253,7 @@
       );
       if (!r.ok) {
         mjpegStatusEl.classList.add("mjpeg-bad");
-        mjpegStatusEl.textContent =
-          "Could not run health check (HTTP " + r.status + ").";
+        mjpegStatusEl.textContent = "Could not run health check (HTTP " + r.status + ").";
         return;
       }
       const j = await r.json();
@@ -223,50 +265,13 @@
         );
         mjpegStatusEl.appendChild(document.createElement("br"));
         mjpegStatusEl.appendChild(
-          document.createTextNode(
-            "Stream: http://127.0.0.1:" + port + "/mjpeg"
-          )
+          document.createTextNode("Stream: http://127.0.0.1:" + port + "/mjpeg")
         );
         return;
       }
       mjpegStatusEl.classList.add("mjpeg-bad");
       const d = (j.detail && String(j.detail)) || "no response";
-      const rsn = j.reason || "";
-      const root = JSON.stringify((state.context && state.context.project_root) || ".");
-      const example =
-        "cd " +
-        root +
-        " && .venv/bin/python3 -m edge.main --camera usb --usb-index 0" +
-        " --onnx-model models/model.onnx --class-map models/class_map.json" +
-        " --calib calibration.json --mjpeg-port " +
-        port +
-        " (Jetson: replace usb with --camera csi; override paths if files are not under models/ or the repo root)";
-      if (
-        rsn === "connection_refused" ||
-        /Connection refused|Errno 61|Errno 111/i.test(d)
-      ) {
-        mjpegStatusEl.textContent = "";
-        mjpegStatusEl.appendChild(
-          document.createTextNode(
-            "Port " +
-              port +
-              ": no edge (MJPEG) yet — only this matters for the stream. " +
-              "In a new terminal, run the example line below, or set this number to your edge --mjpeg-port if it is already running."
-          )
-        );
-        mjpegStatusEl.appendChild(document.createElement("br"));
-        mjpegStatusEl.appendChild(
-          document.createTextNode("Example: " + example + ".")
-        );
-        return;
-      }
-      mjpegStatusEl.textContent =
-        "No response from edge on 127.0.0.1:" +
-        port +
-        ". " +
-        example +
-        ". " +
-        d;
+      mjpegStatusEl.textContent = "No edge on port " + port + " (" + d + ").";
     } catch (_) {
       mjpegStatusEl.classList.add("mjpeg-bad");
       mjpegStatusEl.textContent =
@@ -793,6 +798,8 @@
         if (u) window.open(u, "_blank", "noopener");
       });
     });
+
+    reconfigureMjpegEdgePolling();
   }
 
   async function init() {
@@ -823,14 +830,6 @@
 
       prEl.textContent = state.context.project_root || "(unknown)";
 
-      const apiHint = $("#api-hint");
-      if (apiHint) {
-        apiHint.textContent =
-          "This guide: http://127.0.0.1:" +
-          getApiPort() +
-          "/setup (BACKEND_PORT default 8000; MJPEG 8001–8005, see docs/PORTS.md).";
-      }
-
       state.activeId =
         state.progress.last_step_id && state.steps.some((s) => s.id === state.progress.last_step_id)
           ? state.progress.last_step_id
@@ -840,17 +839,7 @@
         state.progress.mjpeg_port = getMjpegPort();
         scheduleSave();
         renderContent();
-        void refreshMjpegEdgeHealth();
       });
-
-      if (edgeHealthTimer) {
-        clearInterval(edgeHealthTimer);
-        edgeHealthTimer = null;
-      }
-      void refreshMjpegEdgeHealth();
-      edgeHealthTimer = setInterval(() => {
-        void refreshMjpegEdgeHealth();
-      }, 10000);
 
       renderNav();
       renderContent();
