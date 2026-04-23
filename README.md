@@ -13,6 +13,23 @@ python3 -m pip install -r requirements.txt
 python3 -m edge.main --help
 ```
 
+**Jetson / aarch64 (including Orin Nano):** `requirements.txt` intentionally **does not** install `opencv-python` from PyPI on `aarch64`/`arm64` (those wheels usually lack GStreamer, which CSI needs). Use **distro** OpenCV and a venv that can see it:
+
+```bash
+cd "/home/$USER/Billiards-AI"
+sudo /usr/bin/apt-get update
+sudo /usr/bin/apt-get install -y python3-venv python3-pip python3-opencv python3-gst-1.0 gstreamer1.0-tools
+/usr/bin/rm -rf "/home/$USER/Billiards-AI/.venv"
+/usr/bin/python3 -m venv --system-site-packages "/home/$USER/Billiards-AI/.venv"
+source "/home/$USER/Billiards-AI/.venv/bin/activate"
+export PYTHONNOUSERSITE=1
+python3 -m pip install -U pip
+python3 -m pip install -r requirements.txt
+python3 -c "import cv2; print(cv2.__file__); print('GStreamer:', 'YES' if 'GStreamer:                   YES' in cv2.getBuildInformation() else 'NO')"
+```
+
+If `import cv2` still fails, see **`docs/DEPLOYMENT_JETSON.md`** and **`docs/1 Environment and startup.md`** (NumPy `<2`, user-site shadows, and optional `--no-deps` installs).
+
 **Fixed local ports (defaults):** see **`docs/PORTS.md`** (API **8000**, MJPEG **8001**–**8005**).
 
 ## Guided setup (browser) — start here
