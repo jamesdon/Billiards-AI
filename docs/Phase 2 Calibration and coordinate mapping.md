@@ -6,6 +6,8 @@ Validate calibration schema, pocket labels, and coordinate mapping assumptions.
 
 `scripts/phase2.sh` is **headless** (writes a baseline JSON, runs `edge.main` smoke checks). It does **not** open the OpenCV calibration GUI. For the click-to-calibrate window, run `scripts/start_calibration.sh` (on the Orin Nano desktop, or with X11 forwarding over SSH).
 
+**macOS:** `PHASE2_CAMERA` defaults to **usb** (there is no Jetson CSI + GStreamer path with pip OpenCV). Use `PHASE2_CAMERA=csi` only on a GStreamer-enabled OpenCV on Jetson-style hosts.
+
 ## What is automated vs manual today
 
 - **Automated derivation from calibration corners**:
