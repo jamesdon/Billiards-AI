@@ -416,122 +416,149 @@
     return d.innerHTML;
   }
 
-  function escWithLineBreaks(s) {
-    if (s == null) return "";
-    return String(s)
-      .split("\n")
-      .map((line) => escapeHtml(line))
-      .join("<br />");
+  /** Private-use sentinels so {project_root} can be template-expanded after Markdown-ish parsing. */
+  const _REPO_START = "\uE000";
+  const _REPO_END = "\uE001";
+  const REPO_PLACEHOLDER = _REPO_START + "BILLIARDS_PROJECT_ROOT" + _REPO_END;
+
+  /** Expand API/MJPEG ports and mark project root (rendered as <code> later). */
+  function applyTemplateForRich(raw) {
+    if (raw == null) return "";
+    return String(raw)
+      .split("{api_port}")
+      .join(String(getApiPort()))
+      .split("{mjpeg_port}")
+      .join(String(getMjpegPort()))
+      .split("{project_root}")
+      .join(REPO_PLACEHOLDER);
   }
 
-  /** Replaces {project_root} and wraps that path in <code> for readability. */
-  function formatChecklistField(raw) {
-    if (!raw) return "";
-    const root = state.context.project_root || "";
-    const ap = String(getApiPort());
-    const mj = String(getMjpegPort());
-    const withPort = String(raw).split("{api_port}").join(ap).split("{mjpeg_port}").join(mj);
-    if (!withPort.includes("{project_root}")) return escWithLineBreaks(withPort);
-    const segs = withPort.split("{project_root}");
+  function applyBoldToLine(line) {
+    const segs = String(line).split("**");
+    if (segs.length === 1) return escapeHtml(line);
     let out = "";
-    segs.forEach((p, i) => {
-      out += escWithLineBreaks(p);
-      if (i < segs.length - 1) {
-        out += `<code class="repo-path-inline">${escapeHtml(root)}</code>`;
-      }
-    });
+    for (let k = 0; k < segs.length; k += 1) {
+      if (k % 2 === 0) out += escapeHtml(segs[k]);
+      else out += "<strong>" + escapeHtml(segs[k]) + "</strong>";
+    }
     return out;
   }
 
-  function applyTemplatePlaceholders(raw) {
-    if (raw == null) return "";
-    const root = state.context.project_root || "";
-    return String(raw)
-      .split("{api_port}").join(String(getApiPort()))
-      .split("{mjpeg_port}").join(String(getMjpegPort()))
-      .split("{project_root}").join(root);
+  function applyBoldToSegment(s) {
+    if (!s) return "";
+    return s.split("\n").map(applyBoldToLine).join("<br />");
   }
 
-  /** Backtick text that is a label, expected output, or not worth pasting in a shell — no Copy button. */
-  const NO_COPY_BACKTICKS = new Set([
-    "OK",
-    "H",
-    "names:",
-    "path:",
-    "pockets",
-    "cv2",
-    "cd",
-    "imports-ok",
-    '{"ok":true}',
-    /* File / label fragments, not shell (avoid Copy next to inline filenames) */
-    "model.onnx",
-    "start_calibration.sh",
-    "run_backend",
-    "run_backend.sh",
-    "scripts/run_backend.sh",
-    "uvicorn",
-    /* Shorthand in prose, not a runnable one-liner */
-    "edge.main",
-  ]);
+  /** Single backticks = inline only (no Copy). */
+  function renderProsePart(t) {
+    const parts = String(t).split(/`([^`]*)`/);
+    let h = "";
+    for (let j = 0; j < parts.length; j += 1) {
+      if (j % 2 === 0) h += applyBoldToSegment(parts[j]);
+      else h += '<code class="setup-inline-code">' + escapeHtml(parts[j]) + "</code>";
+    }
+    return h;
+  }
 
-  function shouldShowCopyForBacktick(s) {
-    const t = (s || "").trim();
-    if (!t) return false;
-    if (NO_COPY_BACKTICKS.has(t)) return false;
-    /* Notes / label lines (e.g. "0..4 ball..pockets"), not shell */
-    if (/\d+\.\.\d+.*\.\./.test(t) && /ball|pocket/i.test(t)) return false;
-    /* e.g. PHASE3_USB_INDEX, CUDA_VISIBLE_DEVICES — not a full shell command */
-    if (/^[A-Z][A-Z0-9_]+$/.test(t)) return false;
-    /* e.g. `--camera csi` (inline flags, not a runnable line) */
-    if (t.startsWith("--") && !/\b(cd|source|bash|sh|python3?)\b/i.test(t) && !/&&|;\s*\S|^\s*ssh\s/.test(t)) {
-      return false;
+  function renderProseWithRepo(t) {
+    if (!t) return "";
+    if (t.indexOf(REPO_PLACEHOLDER) === -1) return renderProsePart(t);
+    const root = state.context.project_root || "";
+    return t.split(REPO_PLACEHOLDER)
+      .map((seg, si) => {
+        if (si % 2 === 0) return renderProsePart(seg);
+        return `<code class="repo-path-inline">${escapeHtml(root)}</code>`;
+      })
+      .join("");
+  }
+
+  function extractFenceInner(inner) {
+    let t = inner;
+    if (t.startsWith("\r\n")) t = t.slice(2);
+    else if (t.startsWith("\n")) t = t.slice(1);
+    const nl = t.indexOf("\n");
+    if (nl === -1) {
+      if (/^[a-zA-Z][\w-]*$/.test(t)) return "";
+      return t;
     }
-    if (t.length < 2) return false;
-    if (t.length === 2 && t !== "ls") return false;
-    if (t.length === 3 && t !== "pwd" && t !== "ls" && t !== "set") return false;
-    if (t.length < 4) {
-      if (t === "ls" || t === "pwd" || t === "set") return true;
-      return false;
+    const first = t.slice(0, nl);
+    if (/^[a-zA-Z][\w-]*$/.test(first)) return t.slice(nl + 1);
+    return t;
+  }
+
+  function splitByFences(s) {
+    const out = [];
+    let i = 0;
+    while (i < s.length) {
+      if (s.startsWith("```", i)) {
+        const afterTicks = i + 3;
+        const closeIdx = s.indexOf("```", afterTicks);
+        if (closeIdx === -1) {
+          out.push({ type: "text", content: s.slice(i) });
+          break;
+        }
+        const rawInner = s.slice(afterTicks, closeIdx);
+        const code = extractFenceInner(rawInner);
+        out.push({ type: "code", content: code });
+        i = closeIdx + 3;
+        if (s[i] === "\r" && s[i + 1] === "\n") i += 2;
+        else if (s[i] === "\n" || s[i] === "\r") i += 1;
+        continue;
+      }
+      const next = s.indexOf("```", i);
+      if (next === -1) {
+        out.push({ type: "text", content: s.slice(i) });
+        break;
+      }
+      if (next > i) out.push({ type: "text", content: s.slice(i, next) });
+      i = next;
     }
-    if (/\s|&&|;\s*|\|/.test(t)) return true;
-    if (/^(cd|test|ls|bash|curl|export|source|which|python|python3|\.venv|http)/i.test(t)) {
-      return true;
-    }
-    if (t.length >= 8) return true;
-    return false;
+    if (out.length === 0) out.push({ type: "text", content: s });
+    return out;
   }
 
   /**
-   * Backticked segments: optional Copy (verify = real shell commands only). Record text never shows Copy.
+   * Fenced ``` blocks = real commands (How to verify: optional Copy). Single backticks = inline (no Copy).
+   * `**bold**` is supported in prose. Use triple backticks in setup_guide for paste-ready shell, not ad-hoc
+   * backtick+Copy heuristics.
    */
+  function formatSetupPageRichText(tIn, options) {
+    const allowFenceCopy = options && options.allowFenceCopy;
+    if (tIn == null || tIn === "") return "";
+    const t = String(tIn);
+    const segs = splitByFences(t);
+    const parts = segs
+      .map((seg) => {
+        if (seg.type === "text") {
+          return renderProseWithRepo(seg.content);
+        }
+        const root = state.context.project_root || "";
+        let code = String(seg.content).replace(/\r\n/g, "\n").replace(/\n+$/, "");
+        if (code.indexOf(REPO_PLACEHOLDER) !== -1) {
+          code = code.split(REPO_PLACEHOLDER).join(root);
+        }
+        const enc = encodeURIComponent(code);
+        const pre =
+          '<div class="setup-fence-wrap"><pre class="setup-fence"><code>' +
+          escapeHtml(code) +
+          "</code></pre>";
+        const btn = allowFenceCopy
+          ? `<button type="button" class="btn btn-primary copy-inline-cmd" data-copy="${enc}" title="Copy to paste in Terminal">Copy</button>`
+          : "";
+        return pre + btn + "</div>";
+      })
+      .join("");
+    return parts;
+  }
+
+  function formatChecklistField(raw) {
+    if (!raw) return "";
+    return formatSetupPageRichText(applyTemplateForRich(raw), { allowFenceCopy: false });
+  }
+
   function formatChecklistWithBackticks(raw, allowCommandCopy) {
     if (!raw) return "";
-    if (!raw.includes("`")) {
-      return formatChecklistField(raw);
-    }
-    const t = applyTemplatePlaceholders(raw);
-    const parts = t.split(/`([^`]*)`/);
-    let out = "";
-    for (let j = 0; j < parts.length; j += 1) {
-      if (j % 2 === 0) {
-        out += escWithLineBreaks(parts[j]);
-      } else {
-        const seg = parts[j];
-        out += `<code class="verify-inline-code">${escapeHtml(seg)}</code>`;
-        if (
-          allowCommandCopy &&
-          shouldShowCopyForBacktick(seg)
-        ) {
-          const multiline = /\r|\n/.test(seg);
-          out += `${multiline ? "<br />" : " "}<button type="button" class="btn btn-primary copy-inline-cmd" data-copy="${encodeURIComponent(
-            seg
-          )}" title="Copy command to paste in Terminal">Copy</button><br />`;
-        } else {
-          out += " ";
-        }
-      }
-    }
-    return out;
+    return formatSetupPageRichText(applyTemplateForRich(raw), { allowFenceCopy: !!allowCommandCopy });
   }
 
   function getCurrentTextSize() {
@@ -676,13 +703,7 @@
     const hints = step.hints || [];
     if (!hints.length) return "";
     return `<section class="setup-hints"><h3>Tips</h3><ul class="hints">${hints
-      .map((h) => {
-        if (h.includes("`")) {
-          /* Tips are prose, not a shell block — no Copy next to short backticks */
-          return `<li class="hint-line">${formatChecklistWithBackticks(h, false)}</li>`;
-        }
-        return `<li class="hint-line">${escWithLineBreaks(h)}</li>`;
-      })
+      .map((h) => `<li class="hint-line">${formatChecklistWithBackticks(h, false)}</li>`)
       .join("")}</ul></section>`;
   }
 
@@ -722,9 +743,12 @@
     const noteVal = state.progress.notes[step.id] || "";
     const sig = stepSignal(step);
 
+    const summaryHtml = formatSetupPageRichText(applyTemplateForRich(step.summary || ""), {
+      allowFenceCopy: false,
+    });
     content.innerHTML = `
       <h2>${signalHtml(sig)} ${escapeHtml(step.title)}</h2>
-      <p class="summary">${escapeHtml(step.summary || "")}</p>
+      <p class="summary">${summaryHtml}</p>
       ${renderChecklist(step)}
       ${renderLinks(step)}
       ${renderDocs(step)}

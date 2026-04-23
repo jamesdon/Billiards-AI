@@ -365,6 +365,11 @@ main h2 {
   margin-bottom: 1.25rem;
 }
 
+.summary strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .checklist-intro {
   font-size: 0.88rem;
   color: var(--muted);
@@ -504,10 +509,9 @@ button.btn-primary {
   line-height: 1.5;
 }
 
-.setup-hints .hint-line .copy-inline-cmd,
-.hints .copy-inline-cmd {
-  margin-left: 0.2rem;
-  margin-top: 0.2rem;
+.setup-hints .setup-fence-wrap .copy-inline-cmd,
+.checklist-block .setup-fence-wrap .copy-inline-cmd {
+  margin: 0.4rem 0 0.15rem 0.15rem;
   vertical-align: middle;
 }
 
@@ -533,31 +537,51 @@ button.btn-primary {
   font-weight: 500;
 }
 
-/* Checklist copy buttons match “Copy command”; <br> after each starts the rest of the line on a new row. */
+/* Copy appears only on fenced ``` blocks in How to verify (not on inline `tokens`). */
 .checklist-block .verify .btn,
 .checklist-block .record .btn {
   margin-left: 0.35rem;
   vertical-align: middle;
 }
 
-.verify-inline-code {
-  font-size: 0.95em;
-}
-
-/* One backtick “segment” can be a multiline shell block; <code> is inline by default and collapses newlines. */
-.checklist-block .verify .verify-inline-code {
-  display: block;
+.setup-inline-code {
+  font-size: 0.92em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: rgba(18, 21, 28, 0.95);
+  border: 1px solid rgba(42, 48, 64, 0.85);
+  color: #dbe2f0;
   white-space: pre-wrap;
   word-break: break-word;
-  margin: 0.4rem 0 0.5rem;
-  padding: 0.5rem 0.65rem;
+}
+
+.setup-fence-wrap {
+  max-width: 100%;
+  margin: 0.5rem 0 0.65rem;
+}
+
+.summary .setup-fence-wrap {
+  margin: 0.4rem 0 0.55rem;
+}
+
+pre.setup-fence {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
   border-radius: 6px;
   background: #12151c;
   border: 1px solid var(--border);
+  overflow-x: auto;
   max-width: 100%;
   box-sizing: border-box;
   font-size: 0.82rem;
   line-height: 1.45;
+}
+
+pre.setup-fence code {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  white-space: pre;
+  word-break: normal;
+  display: block;
 }
 
 .repo-path-inline {
