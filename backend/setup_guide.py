@@ -318,6 +318,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "item": "calibration.json produced for this camera + table",
                 "verify": (
+                    "**Jetson CSI first:** if you have never verified the camera on this board, run **`bash scripts/jetson_csi_setup.sh`** "
+                    "once, then **`start_calibration.sh`** (it preflights Argus before opening the GUI).\n\n"
                     "1) From the repository root, start the interactive calibration flow (GUI; needs a desktop or forwarded display on Jetson):\n\n"
                     "```bash\n"
                     'cd "{project_root}" && bash scripts/start_calibration.sh\n'

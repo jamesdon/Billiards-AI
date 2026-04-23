@@ -45,6 +45,7 @@ Environment overrides (optional):
   CSI_FLIP_METHOD   (default: 6)
   CSI_FRAMERATE     (default: 30)
   CSI_OPEN_RETRIES  (default: 8; Argus CSI reopen attempts in calib_click.py)
+  SKIP_CSI_PREFLIGHT  (if non-empty, skip Jetson CSI gst-launch probe before GUI)
   FRAME_WIDTH       (default: 1280)
   FRAME_HEIGHT      (default: 720)
   UNITS             (default: imperial)
@@ -224,6 +225,64 @@ ensure_cv2_numpy_abi() {
   exit 2
 }
 
+_print_csi_preflight_failure() {
+  local blob="$1"
+  echo "" >&2
+  echo "================================================================" >&2
+  echo "CSI camera: Argus did not deliver frames (preflight failed)." >&2
+  echo "The calibration GUI was not started — fix CSI before retrying." >&2
+  echo "================================================================" >&2
+  echo "" >&2
+  echo "Run in this order (hardware first, then software):" >&2
+  echo "  1) Re-seat the CSI ribbon (correct orientation, full latch)." >&2
+  echo "  2) sudo systemctl restart nvargus-daemon && sleep 2" >&2
+  echo "  3) bash \"$PROJECT_ROOT/scripts/jetson_csi_setup.sh\"" >&2
+  echo "  4) Other CSI connector: CSI_SENSOR_ID=1 bash \"$PROJECT_ROOT/scripts/start_calibration.sh\"" >&2
+  echo "  5) Lighter mode: bash \"$PROJECT_ROOT/scripts/start_calibration.sh\" --width 640 --height 480 --csi-framerate 15" >&2
+  echo "  6) USB instead (if you have /dev/video0): bash \"$PROJECT_ROOT/scripts/start_calibration.sh\" --camera 0" >&2
+  echo "  7) Cold boot; then: sudo dmesg | grep -iE 'imx|tegra|nv_camera'" >&2
+  echo "" >&2
+  echo "To skip this probe (only if you know Argus is flaky in your setup):" >&2
+  echo "  SKIP_CSI_PREFLIGHT=1 bash \"$PROJECT_ROOT/scripts/start_calibration.sh\"" >&2
+  echo "" >&2
+  echo "Last gst-launch lines:" >&2
+  echo "$blob" | /usr/bin/tail -n 24 >&2
+}
+
+_preflight_csi_argus() {
+  if [[ -n "${SKIP_CSI_PREFLIGHT:-}" ]]; then
+    echo "Skipping CSI preflight (SKIP_CSI_PREFLIGHT is set)."
+    return 0
+  fi
+  if [[ "$(uname -s)" != "Linux" ]]; then
+    return 0
+  fi
+  local m
+  m="$(uname -m)"
+  if [[ "$m" != "aarch64" && "$m" != "arm64" ]]; then
+    return 0
+  fi
+  if [[ "${CAMERA_SOURCE:-csi}" != "csi" ]]; then
+    return 0
+  fi
+
+  echo "CSI preflight: nvarguscamerasrc sensor-id=$CSI_SENSOR_ID (one buffer)…"
+  local _out
+  set +e
+  _out="$(run_with_timeout 15 /usr/bin/gst-launch-1.0 -e nvarguscamerasrc sensor-id="$CSI_SENSOR_ID" num-buffers=1 ! fakesink 2>&1)"
+  set -e
+
+  if echo "$_out" | /usr/bin/grep -qi "No cameras available"; then
+    _print_csi_preflight_failure "$_out"
+    exit 3
+  fi
+  if echo "$_out" | /usr/bin/grep -qiE "Failed to create CaptureSession|No EGLDisplay|ERROR.*nvargus"; then
+    _print_csi_preflight_failure "$_out"
+    exit 3
+  fi
+  echo "CSI preflight: OK"
+}
+
 main() {
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || "${1:-}" == "help" ]]; then
     usage
@@ -234,6 +293,7 @@ main() {
   activate_venv
   ensure_cv2_numpy_abi
   assert_calibration_gui_features
+  _preflight_csi_argus
 
   echo "Launching calibration GUI from: $CALIB_SCRIPT"
   echo "Output calibration path: $CALIB_OUT"

@@ -6,6 +6,8 @@ Validate calibration schema, pocket labels, and coordinate mapping assumptions.
 
 `scripts/phase2.sh` is **headless** (writes a baseline JSON, runs `edge.main` smoke checks). It does **not** open the OpenCV calibration GUI. For the click-to-calibrate window, run `scripts/start_calibration.sh` (on the Orin Nano desktop, or with X11 forwarding over SSH).
 
+**Jetson CSI before the GUI:** if `nvarguscamerasrc` prints **No cameras available**, Argus does not see the sensor — re-seat the ribbon, restart **`nvargus-daemon`**, run **`bash scripts/jetson_csi_setup.sh`**, try **`CSI_SENSOR_ID=1`**, then **`start_calibration.sh`** again. `start_calibration.sh` now runs a short **CSI preflight** on Linux aarch64 so the GUI does not start until Argus can grab one frame (override with **`SKIP_CSI_PREFLIGHT=1`** only if you must).
+
 **macOS:** `PHASE2_CAMERA` defaults to **usb** (there is no Jetson CSI + GStreamer path with pip OpenCV). Use `PHASE2_CAMERA=csi` only on a GStreamer-enabled OpenCV on Jetson-style hosts.
 
 ## What is automated vs manual today
