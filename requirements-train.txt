@@ -4,6 +4,11 @@
 #
 # Pins NumPy 1.x because `ultralytics` often pulls NumPy 2.x, which then breaks
 # matplotlib/OpenCV binary stacks on Jetson-family devices (see docs/ORIN_NANO_TRAIN_AND_TEST.md).
+#
+# Ultralytics installs pip `opencv-python`, which satisfies `import cv2` but often has
+# GStreamer: NO. For `--camera csi` on Jetson, prefer distro `python3-opencv` + a venv
+# with `--system-site-packages` and no pip opencv wheel (see README Jetson section,
+# docs/DEPLOYMENT_JETSON.md). Separate venvs for train vs edge CSI avoids the conflict.
 numpy>=1.23,<2
 matplotlib>=3.7
 ultralytics>=8.2.0

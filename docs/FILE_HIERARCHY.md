@@ -178,7 +178,7 @@ Billiards-AI/
   pyproject.toml                    Python tooling config (ruff/pytest)
   requirements.txt                  Runtime deps (edge + backend optional); on aarch64/arm64 skips pip `opencv-python` — install `python3-opencv` via apt and use a venv with `--system-site-packages` (see README Jetson quickstart, `docs/DEPLOYMENT_JETSON.md`)
   requirements-audio.txt            Optional `sounddevice` + PortAudio for `--mic-device` live capture
-  requirements-train.txt              Optional Ultralytics stack; pin numpy<2 for stable OpenCV/Ultralytics ABI on Jetson-family devices
+  requirements-train.txt              Optional Ultralytics stack; pin numpy<2; pulls pip `opencv-python` (often no GStreamer — fine for training, not ideal for Jetson CSI; see file header + `docs/DEPLOYMENT_JETSON.md`)
   README.md                         Quickstart
 ```
 
