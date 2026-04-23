@@ -61,13 +61,13 @@ a {
   overflow: hidden;
 }
 
-/* Top row: Setup guide + Score Keeper (tabs). */
+/* Setup guide / Score Keeper tabs — below API + MJPEG port status so health lines do not shift with mode/QR. */
 .sidebar-app-head {
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
   gap: 0.4rem 0.5rem;
-  margin: 0 0.6rem 0.5rem 0.85rem;
+  margin: 0.45rem 0.6rem 0.5rem 0.85rem;
   line-height: 1.3;
   flex-shrink: 0;
 }

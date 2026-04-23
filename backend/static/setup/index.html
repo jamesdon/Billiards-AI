@@ -32,33 +32,6 @@
   <body data-ui-mode="setup">
     <div class="layout">
       <aside class="sidebar">
-        <div class="sidebar-app-head" role="tablist" aria-label="View">
-          <button
-            type="button"
-            class="sidebar-tab sidebar-tab--active"
-            id="tab-setup"
-            data-ui-mode="setup"
-            role="tab"
-            aria-selected="true"
-          >
-            Setup guide
-          </button>
-          <button
-            type="button"
-            class="sidebar-tab"
-            id="tab-sk"
-            data-ui-mode="scorekeeper"
-            role="tab"
-            aria-selected="false"
-          >
-            Score Keeper
-          </button>
-        </div>
-        <div id="sk-qr-block" class="sk-qr-block" hidden>
-          <p class="sk-qr-hint">Open Score Keeper on this network (scan on phone or tablet):</p>
-          <div id="sk-qr-canvas" class="sk-qr-canvas" aria-label="QR code to Score Keeper"></div>
-          <p class="sk-qr-url" id="sk-qr-url"></p>
-        </div>
         <p class="api-backend-line" id="api-backend-line">
           <span
             class="health-lamp health-lamp--unknown"
@@ -99,6 +72,33 @@
               >
             </p>
           </div>
+        </div>
+        <div class="sidebar-app-head" role="tablist" aria-label="View">
+          <button
+            type="button"
+            class="sidebar-tab sidebar-tab--active"
+            id="tab-setup"
+            data-ui-mode="setup"
+            role="tab"
+            aria-selected="true"
+          >
+            Setup guide
+          </button>
+          <button
+            type="button"
+            class="sidebar-tab"
+            id="tab-sk"
+            data-ui-mode="scorekeeper"
+            role="tab"
+            aria-selected="false"
+          >
+            Score Keeper
+          </button>
+        </div>
+        <div id="sk-qr-block" class="sk-qr-block" hidden>
+          <p class="sk-qr-hint">Open Score Keeper on this network (scan on phone or tablet):</p>
+          <div id="sk-qr-canvas" class="sk-qr-canvas" aria-label="QR code to Score Keeper"></div>
+          <p class="sk-qr-url" id="sk-qr-url"></p>
         </div>
         <ul class="nav-steps" id="nav-steps"></ul>
         <div class="sidebar-footer">
