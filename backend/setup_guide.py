@@ -240,7 +240,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "environment",
         "title": "Environment and startup",
-        "summary": "Create the venv, install dependencies, and **start the API once** (`./scripts/run_backend.sh` or your process manager) so `/setup` and `/health` work. **Later steps assume the API is already up**—if the sidebar shows the API as healthy, do not start a second server on the same port. On Jetson, see docs/1 for OpenCV + GStreamer.",
+        "summary": "Create the venv, install dependencies, and **start the API once** (`./scripts/run_backend.sh` or your process manager) so `/setup` and `/health` work. **Later steps assume the API is already up**—if the sidebar shows the API as healthy, do not start a second server on the same port. **Pick your platform first** (`uname -s` / `uname -m` → **`docs/1 Environment and startup.md` §0–§1c**): Linux ARM64 (Jetson CSI) differs from macOS / Linux x86.",
         "checklist": [
             {
                 "item": "Virtual environment exists at .venv",
@@ -250,20 +250,34 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "item": "Core dependencies install without error",
                 "verify": (
-                    "1) At the repository root, run this one-line install. Wait for pip to finish. "
-                    "A pip line marked ERROR is a failure; most warnings are OK.\n\n"
+                    "1) **Detect the machine** (run at the repo root). Use the output to choose the matching section in "
+                    "**`docs/1 Environment and startup.md`** (§0 table → §1a / §1b / §1c).\n\n"
+                    "```bash\n"
+                    "/usr/bin/uname -s\n"
+                    "/usr/bin/uname -m\n"
+                    "```\n\n"
+                    "- **Linux + aarch64 or arm64** (Jetson-family): follow **§1a** in that doc (apt `python3-opencv`, "
+                    "`python3 -m venv --system-site-packages`, then `pip install -r requirements.txt`). "
+                    "A plain `python3 -m venv .venv` **without** §1a is the usual reason `import cv2` fails or CSI sees "
+                    "`GStreamer: NO`. Do **not** install `requirements-train.txt` in the **same** venv if you need CSI "
+                    "(Ultralytics installs pip OpenCV).\n\n"
+                    "- **Linux + x86_64** or **Darwin** (macOS): you can use this one-liner, then the import check below.\n\n"
                     "```bash\n"
                     'cd "{project_root}" && python3 -m venv .venv && .venv/bin/python3 -m pip install -U pip && '
                     ".venv/bin/python3 -m pip install -r requirements.txt\n"
                     "```\n\n"
-                    "2) Confirm onnxruntime and OpenCV (cv2) import (Jetson may use system cv2; that is fine if this command succeeds; expect a single line of output, no Python traceback).\n\n"
+                    "2) Confirm **onnxruntime** and **cv2** import (on Jetson after §1a, `cv2` usually loads from "
+                    "`/usr/lib/.../dist-packages`; expect one line `imports-ok`, no traceback).\n\n"
                     "```bash\n"
                     '.venv/bin/python3 -c "import onnxruntime,cv2; print(\'imports-ok\')"\n'
                     "```\n\n"
-                    "3) Optional — only if you need training tools on this machine, install training extras in the same venv.\n\n"
+                    "3) **Optional — training only:** if you need Ultralytics on **this** machine **and** you are **not** "
+                    "using Jetson CSI in the same venv, install:\n\n"
                     "```bash\n"
                     'cd "{project_root}" && .venv/bin/python3 -m pip install -r requirements-train.txt\n'
-                    "```"
+                    "```\n\n"
+                    "On **Linux ARM64 + CSI**, use a **separate** clone/venv for training, or expect to repair OpenCV per "
+                    "**`README.md`** (Jetson repair block) and **`docs/1`** §1a."
                 ),
                 "record": "If pip or the import check failed, paste the last error lines in Notes. If a package upgrade was unexpected, name it in Notes.",
             },

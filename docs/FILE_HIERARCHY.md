@@ -23,6 +23,7 @@ Billiards-AI/
     ORIN_NANO_TRAIN_AND_TEST.md     On-device YOLO train + env guardrails + pytest + `run_phase` / `phase*.sh` (`/home/$USER/Billiards-AI`); Jetson Orin Nano / JetPack 5.x
     JETSON_NANO_TRAIN_AND_TEST.md   Bookmark alias → see ORIN_NANO_TRAIN_AND_TEST.md
     DEPLOYMENT_JETSON.md            Orin Nano (JetPack 5.x) setup + systemd service + runbook
+    1 Environment and startup.md    §0 `uname` platform table + §1a Linux ARM64 (Jetson CSI / distro OpenCV) vs §1b x86_64 vs §1c macOS USB; integrity checks + edge smoke commands
     BACKEND.md                      Optional backend API + storage + websockets
     API.md                          Message schemas + endpoints
     TEST_PLAN.md                    §1–§9 delivery gates; **§3+§4** map to one **`/setup`** step (Detection, tracking, classification, and identity; optional `docs/3` / `docs/4` mirrors)
