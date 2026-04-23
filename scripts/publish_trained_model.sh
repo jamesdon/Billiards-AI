@@ -13,7 +13,16 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
   exit 1
 fi
 
-require_file "models/model.onnx"
+if [[ ! -f "models/model.onnx" ]]; then
+  echo "Missing models/model.onnx — publish only runs after the ONNX exists at that path." >&2
+  echo "" >&2
+  echo "Create it first, for example:" >&2
+  echo "  • Trained here: bash \"$PROJECT_ROOT/scripts/jetson_yolo_export_latest.sh\"" >&2
+  echo "  • Full train+export: bash \"$PROJECT_ROOT/scripts/jetson_yolo_train_export_publish.sh\"" >&2
+  echo "  • From another machine: copy or scp your exported file to models/model.onnx" >&2
+  echo "See docs/MODEL_OPTIMIZATION.md" >&2
+  exit 1
+fi
 
 # If the tree still ignores the path (stale rules), force-add once.
 if git check-ignore -q -- "models/model.onnx" 2>/dev/null; then
