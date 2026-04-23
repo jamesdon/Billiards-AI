@@ -218,9 +218,9 @@
       if (j.ok) {
         mjpegStatusEl.classList.add("mjpeg-ok");
         mjpegStatusEl.textContent =
-          "edge /health OK on 127.0.0.1:" +
+          "Port " +
           port +
-          " (live check only, not a Phase 3 pass/fail). Overlay: http://127.0.0.1:" +
+          ": edge is up. Stream: http://127.0.0.1:" +
           port +
           "/mjpeg";
         return;
