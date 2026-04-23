@@ -87,9 +87,11 @@ python3 -m edge.main \
 
 `edge.main` does **not** open a desktop window; video is over HTTP. Grant **Camera** to your terminal on macOS if prompted.
 
-## 4) Run the verification script (`scripts/phase3.sh`) (full sweep, recommended after §3)
+## 4) Optional: verification sweep (`scripts/phase3.sh`)
 
-**Before `phase3.sh`:** the script **starts and stops** its own `edge.main` on the sweep ports (defaults **8001**, **8004**, **8005**). If you still have a **manual** `edge.main` running from §3 (e.g. `curl http://127.0.0.1:8001/health` works), that process holds **8001** and the script will fail with **Address already in use** unless you **stop** that `edge` first, or set **`PHASE3_PORT_N2` / `PHASE3_PORT_N1` / `PHASE3_PORT_N3`** to three **free** ports in **8001–8005**.
+**Not required** if you already validated detection/tracking with **manual** `edge.main` + the overlay: this sweep only helps compare `detect_every_n` values and leaves **`.phase3_*.log`** for debugging.
+
+**Before `phase3.sh`:** the script **starts and stops** its own `edge.main` on the sweep ports (defaults **8001**, **8004**, **8005**). If you still have a **manual** `edge.main` running from above (e.g. `curl http://127.0.0.1:8001/health` works), that process holds **8001** and the script will fail with **Address already in use** unless you **stop** that `edge` first, or set **`PHASE3_PORT_N2` / `PHASE3_PORT_N1` / `PHASE3_PORT_N3`** to three **free** ports in **8001–8005**.
 
 This script performs:
 
@@ -112,7 +114,7 @@ The **Setup guide** (when the backend is running: open **Detection and tracking*
 
 **“The overlay works but I didn’t start edge in *this* terminal.”** The setup guide and the browser **do not** launch `edge.main`; they only open URLs. Something else is still listening (often an **older** terminal session, a **minimized** window, a **Cursor** task, a **manual** `edge.main` you forgot, or **Docker** edge). The browser does not *host* MJPEG—it only connects to whatever is already bound to the port.
 
-**Does this repo detach `edge.main` on purpose?** `scripts/phase1.sh`, `phase2.sh`, and `phase3.sh` start `edge.main` in the background (`&`) so the script can poll `/health` and `/mjpeg`, but they **`kill` that process** when each step finishes and use a shell **`trap` on `EXIT`** so edge is not left running after a **normal** script end. They do **not** use `nohup` or `disown` for edge. If a phase run is ended with **`kill -9`**, the trap does not run and a stray `edge.main` is possible. The backend’s **`POST /api/setup/launch`** uses `subprocess` with `start_new_session=True` only for **`start_calibration.sh`** (when `SETUP_ALLOW_LAUNCH=1`), not for `edge.main`. Nothing in the repo auto-starts MJPEG without a `python -m edge.main` (or a wrapper script) you or a tool invoked.
+**Does this repo detach `edge.main` on purpose?** `scripts/phase1.sh`, `phase2.sh`, and `phase3.sh` start `edge.main` in the background (`&`) so the script can poll `/health` and `/mjpeg`, but they **`kill` that process** when each step finishes and use a shell **`trap` on `EXIT`** so edge is not left running after a **normal** script end. `scripts/phase3.sh` runs `python -m edge.main` **without** a `gtimeout`/`timeout` wrapper so background `$!` is the real Python PID (a wrapper PID can leave `edge` bound to 8001 after `kill`). `phase1.sh` / `phase2.sh` may still use `timeout`/`gtimeout` around `edge` — a known sharp edge on some systems. Phases do **not** use `nohup` or `disown` for edge. If a run is ended with **`kill -9`**, the trap may not run and a stray `edge.main` is possible. The backend’s **`POST /api/setup/launch`** uses `subprocess` with `start_new_session=True` only for **`start_calibration.sh`** (when `SETUP_ALLOW_LAUNCH=1`), not for `edge.main`. Nothing in the repo auto-starts MJPEG without a `python -m edge.main` (or a wrapper) you or a tool invoked.
 
 1. See what is listening: `lsof -nP -iTCP:8001 -sTCP:LISTEN` (macOS/Linux). Then inspect the command line: `ps -p <pid> -o args=` (replace `8001` if you use another `--mjpeg-port`).
 2. Stop that process (`kill <pid>`) or stop the Docker stack, then start fresh if you need a clean run. Closing browser tabs alone does not stop the server.
@@ -126,11 +128,10 @@ CLASS_MAP_PATH="/home/$USER/Billiards-AI/models/class_map.json" \
 PHASE3_CAMERA=csi \
 CSI_SENSOR_ID=0 \
 CSI_FLIP_METHOD=6 \
-EDGE_TIMEOUT_SECONDS=1200 \
 "/home/$USER/Billiards-AI/scripts/phase3.sh"
 ```
 
-**macOS (Apple Silicon):** `scripts/phase3.sh` defaults to **`PHASE3_CAMERA=usb`** (there is no Jetson CSI). Grant **Camera** permission to the app that runs the shell (Terminal, iTerm, or Cursor) under **System Settings → Privacy & Security → Camera**. If the wrong webcam is selected, try **`PHASE3_USB_INDEX=1`**. An ONNXRuntime message that **CUDAExecutionProvider** is unavailable is normal; CoreML or CPU is used instead. The phase script uses **`timeout`** when available; stock macOS has no `/usr/bin/timeout`, so the helper falls back to **`gtimeout`** (Homebrew `coreutils`) or runs **without** a wall-clock cap—either is fine for local smoke tests. Scripts call **`sleep`** from your `PATH` (not `/usr/bin/sleep`), which avoids hosts where that path is missing.
+**macOS (Apple Silicon):** `scripts/phase3.sh` defaults to **`PHASE3_CAMERA=usb`** (there is no Jetson CSI). Grant **Camera** permission to the app that runs the shell (Terminal, iTerm, or Cursor) under **System Settings → Privacy & Security → Camera**. If the wrong webcam is selected, try **`PHASE3_USB_INDEX=1`**. An ONNXRuntime message that **CUDAExecutionProvider** is unavailable is normal; CoreML or CPU is used instead. Scripts call **`sleep`** from your `PATH` (not `/usr/bin/sleep`), which avoids hosts where that path is missing.
 
 ## 5) Optional manual single-run command (Jetson / CSI)
 

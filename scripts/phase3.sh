@@ -13,7 +13,6 @@ MODEL_PATH="${MODEL_PATH:-$PROJECT_ROOT/models/model.onnx}"
 CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/models/class_map.json}"
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
-EDGE_TIMEOUT_SECONDS="${EDGE_TIMEOUT_SECONDS:-1200}"
 BASELINE_SECONDS="${BASELINE_SECONDS:-20}"
 SWEEP_SECONDS="${SWEEP_SECONDS:-20}"
 AUTO_WRITE_CLASS_MAP="${AUTO_WRITE_CLASS_MAP:-1}"
@@ -166,7 +165,11 @@ run_case() {
   local label="$5"
 
   echo "[Phase3] Starting ${label} detect_every_n=${detect_n} port=${port}"
-  run_with_timeout "${EDGE_TIMEOUT_SECONDS}" "$PYTHON_BIN" -m edge.main \
+  # No `timeout`/`gtimeout` around `edge.main`: background `$!` must be the real
+  # Python PID so `kill` + `trap` stop the listener. A `gtimeout` wrapper PID
+  # can orphan `edge.main` (port 8001 etc. still bound). Each run is bounded by
+  # `sleep` + `kill`+`wait` below.
+  "$PYTHON_BIN" -m edge.main \
     "${PHASE3_CAM_ARGS[@]}" \
     --onnx-model "$MODEL_PATH" \
     --class-map "$CLASS_MAP_PATH" \
