@@ -4,6 +4,7 @@
 #
 # Override with env vars, e.g. wired profile:
 #   sudo NM_CONNECTION="Wired connection 1" STATIC_IPV4=192.168.1.102 /home/$USER/Billiards-AI/scripts/jetson_static_ip.sh
+# To revert a profile to DHCP (e.g. wired after using Wi-Fi static): see jetson_nm_ipv4_dhcp.sh
 
 set -euo pipefail
 
