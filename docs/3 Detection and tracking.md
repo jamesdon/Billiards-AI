@@ -85,7 +85,7 @@ python3 -m edge.main \
 
 Add **`--show-track-debug-overlay`** so the stream shows what the model actually returned (not just internal game state):
 
-- **Top-right panel:** whether ONNX is loaded, frame index, whether **inference ran this frame** (skipped on non-inference frames when `--detect-every-n` is 2 or more), **model output total** plus **counts per class string** (from your `class_map`), and **track total** plus **counts for each of the four trackers** (ball / player / stick / rack).
+- **Top-right panel** (medium-sized text): whether ONNX is loaded, frame index, whether **inference ran this frame** (skipped on non-inference frames when `--detect-every-n` is 2 or more), **model output total** plus **counts per class string** (from your `class_map`), then **four separate lines** for **Balls / Players / Sticks / Racks** IoU track counts (always shown, so **Sticks** is never only a single-letter code). The bottom bar repeats the same full-word track summary.
 - **Thin boxes + `class 0.85` text:** each raw **NMS output** from the detector (label and confidence from `class_map`). If this is always **0**, raise confidence in your runbook or check lighting / model / camera.
 - **Thicker boxes + `trk b12 …` text:** **multi-object tracks** (IDs) used by the pipeline.
 

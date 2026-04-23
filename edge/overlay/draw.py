@@ -27,26 +27,36 @@ _TRACK_KIND_COLORS: dict = {
 
 # Order for vision-debug **track** stats (matches pipeline IoU trackers)
 _TRACK_KIND_ORDER: Tuple[str, ...] = ("ball", "player", "stick", "rack")
-_TRACK_KIND_ABBR: Dict[str, str] = {"ball": "b", "player": "p", "stick": "s", "rack": "r"}
+# Spelled-out names so each type is obvious in the panel (no single-letter confusion).
+_TRACK_KIND_NAMES: Dict[str, str] = {
+    "ball": "Balls",
+    "player": "Players",
+    "stick": "Sticks",  # cue stick IoU track — always listed explicitly
+    "rack": "Racks",
+}
 
 
 def _format_raw_label_counts(m: object) -> str:
     """Format ONNX NMS outputs: one count per class string (class_map label)."""
     if not isinstance(m, dict) or not m:
-        return "—"
+        return "(none)"
     items = sorted(((str(k), int(v)) for k, v in m.items()), key=lambda kv: (-kv[1], kv[0]))
-    return "  ".join(f"{k}×{v}" for k, v in items)
+    return "  ".join(f"{k} = {v}" for k, v in items)
 
 
-def _format_track_kind_counts(m: object) -> str:
-    """Always show all four pipeline track types: ball, player, stick, rack."""
+def _format_track_kind_one_line(m: object) -> str:
+    """Single-line summary: full words, same order every time, complete list."""
     if not isinstance(m, dict):
-        return "—"
-    parts: List[str] = []
-    for k in _TRACK_KIND_ORDER:
-        ab = _TRACK_KIND_ABBR.get(k, k[0])
-        parts.append(f"{ab}×{int(m.get(k, 0) or 0)}")
-    return "  ".join(parts)
+        return "Balls: ?  Players: ?  Sticks: ?  Racks: ?"
+    parts = [f"{_TRACK_KIND_NAMES[k]}: {int(m.get(k, 0) or 0)}" for k in _TRACK_KIND_ORDER]
+    return "   ".join(parts)
+
+
+def _track_kind_count_lines(m: object) -> List[str]:
+    """Four lines, one per tracker type, for the panel (always complete)."""
+    if not isinstance(m, dict):
+        return [f"  {_TRACK_KIND_NAMES[k]}: (n/a)" for k in _TRACK_KIND_ORDER]
+    return [f"  {_TRACK_KIND_NAMES[k]}: {int(m.get(k, 0) or 0)}" for k in _TRACK_KIND_ORDER]
 
 
 def _put_text(img: np.ndarray, text: str, xy: Tuple[int, int], color: Tuple[int, int, int]) -> None:
@@ -83,12 +93,29 @@ def _clip_xyxy(
     return x1, y1, x2, y2
 
 
-def _put_dbg_line(
-    out: np.ndarray, text: str, xy: tuple[int, int], color: tuple[int, int, int], size: float = 0.45
+# Vision debug panel + on-frame labels: medium-size vs default 0.5 game HUD
+_VISION_DBG_FONT: float = 0.58
+_VISION_DBG_FONT_COMPACT: float = 0.52
+_VISION_DBG_FONT_BOX: float = 0.5
+_VISION_DBG_LINE: int = 26
+_VISION_STROKE_OUT: int = 5
+_VISION_STROKE_IN: int = 2
+
+
+def _put_vision_text(
+    out: np.ndarray,
+    text: str,
+    xy: tuple[int, int],
+    color: tuple[int, int, int],
+    *,
+    size: float | None = None,
 ) -> None:
     x, y = xy
-    cv2.putText(out, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, size, (0, 0, 0), 2, cv2.LINE_AA)
-    cv2.putText(out, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, size, color, 1, cv2.LINE_AA)
+    fs = _VISION_DBG_FONT if size is None else size
+    cv2.putText(out, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, fs, (0, 0, 0), _VISION_STROKE_OUT, cv2.LINE_AA)
+    cv2.putText(
+        out, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, fs, color, _VISION_STROKE_IN, cv2.LINE_AA
+    )
 
 
 def _draw_vision_debug_overlay(out: np.ndarray, snap: object) -> None:
@@ -115,9 +142,9 @@ def _draw_vision_debug_overlay(out: np.ndarray, snap: object) -> None:
         col = _raw_det_bgr_for_label(lab)
         # dashed-ish: two parallel thin rects
         cv2.rectangle(out, (x1, y1), (x2, y2), col, 1, cv2.LINE_AA)
-        tlab = f"{lab} {conf:.2f}"[:32]
-        tx, ty = x1, max(13, y1 - 2)
-        _put_dbg_line(out, tlab, (tx, ty), (220, 240, 255), 0.38)
+        tlab = f"{lab} {conf:.2f}"[:40]
+        tx, ty = x1, max(18, y1 - 2)
+        _put_vision_text(out, tlab, (tx, ty), (220, 240, 255), size=_VISION_DBG_FONT_BOX)
 
     # 2) **Tracks** (IDs): thicker, on top
     for b in snap.get("boxes") or []:
@@ -132,33 +159,39 @@ def _draw_vision_debug_overlay(out: np.ndarray, snap: object) -> None:
         col = _TRACK_KIND_COLORS.get(kind, (180, 180, 180))
         cv2.rectangle(out, (x1, y1), (x2, y2), col, 2, cv2.LINE_AA)
         bid = b.get("id", "?")
-        short_lab = str(b.get("label") or "")[:10]
-        lab = f"trk {kind[0]}{bid} {short_lab}".strip()
-        tx, ty = x1, min(h - 4, y2 + 12)
-        _put_dbg_line(out, lab, (tx, ty), col, 0.4)
+        short_lab = str(b.get("label") or "")[:12]
+        lab = f"trk {kind} id {bid} {short_lab}".strip()
+        tx, ty = x1, min(h - 6, y2 + 16)
+        _put_vision_text(out, lab, (tx, ty), col, size=_VISION_DBG_FONT_BOX)
 
-    # 3) Summary (top-right): totals + **per-class** raw outputs + **per-kind** tracks
+    # 3) Summary (top-right): full words for every track type + larger text
     raw_lbl = _format_raw_label_counts(snap.get("raw_count_by_label"))
-    trk_kinds = _format_track_kind_counts(snap.get("track_count_by_kind"))
-    tw = min(540, w - 16)
+    tcm = snap.get("track_count_by_kind")
+    trk_one = _format_track_kind_one_line(tcm)
+    trk_lines = _track_kind_count_lines(tcm)
+    tw = min(640, w - 12)
     x0 = w - tw - 8
-    y0 = 8
-    line_h = 15
-    panel_lines = [
+    y0 = 10
+    line_h = _VISION_DBG_LINE
+    text_col = (200, 255, 255)
+    panel_lines: List[str] = [
         "Vision debug",
         f"ONNX: {'yes' if det_loaded else 'NO (pass --onnx-model)'}",
-        f"Frame {fr}  infer this frame: {'yes' if det_ran else f'no (every {every})'}",
-        f"Model outputs (total): {n_raw}" + ("" if det_ran else "  (skipped)"),
-        "  by label: " + (raw_lbl if det_ran else "—  (skipped)"),
-        f"Tracks (total): {n_tr}",
-        "  by kind: " + trk_kinds + "  (b ball  p player  s stick  r rack)",
-        "D = raw detector   trk = track ID",
+        f"Frame {fr}  infer: {'yes' if det_ran else f'no (skip every {every} frames)'}",
+        f"Model outputs (total): {n_raw}" + ("" if det_ran else "  (inference skipped)"),
+        "  By class: " + (raw_lbl if det_ran else "(inference skipped)"),
+        f"Track objects (total): {n_tr}",
+        "  By type (ball / person / stick / rack IoU):",
     ]
+    panel_lines.extend(trk_lines)
+    panel_lines.append("  (Raw = this frame NMS)  (trk = stable track ID)")
     for i, ln in enumerate(panel_lines):
-        _put_dbg_line(out, ln, (x0, y0 + i * line_h), (180, 255, 255), 0.4)
-    y_line = h - 10
-    sum_line = f"[vision debug]  frame {fr}  raw: {n_raw}  |  {trk_kinds}"
-    _put_dbg_line(out, sum_line, (8, y_line), (100, 255, 200), 0.45)
+        _put_vision_text(
+            out, ln, (x0, y0 + i * line_h), text_col, size=_VISION_DBG_FONT_COMPACT if i >= 4 else _VISION_DBG_FONT
+        )
+    y_line = h - 8
+    sum_line = f"[vision debug]  frame {fr}  model raw: {n_raw}  |  {trk_one}"
+    _put_vision_text(out, sum_line, (6, y_line), (100, 255, 200), size=_VISION_DBG_FONT_COMPACT)
 
 
 def _projector_pixel_span(calib: Calibration) -> Optional[Tuple[float, float, float, float]]:
