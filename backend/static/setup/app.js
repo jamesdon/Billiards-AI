@@ -65,6 +65,17 @@
     document.querySelectorAll('input[name="text-size"]').forEach((el) => {
       el.checked = el.value === size;
     });
+    const skI = document.getElementById("sk-iframe");
+    if (skI && skI.contentWindow) {
+      try {
+        skI.contentWindow.postMessage(
+          { type: "billiards-text-size", size },
+          window.location.origin
+        );
+      } catch (_) {
+        /* ignore */
+      }
+    }
   }
 
   function initTextSizeControls() {

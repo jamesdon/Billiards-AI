@@ -1,10 +1,56 @@
 (function () {
+  /** Same keys and root px as setup `static/setup/index.html` + `app.js` (Text size). */
+  const TEXT_SIZE_KEY = "billiards-setup-text-size";
+  const TEXT_ROOT_PX = { small: "14px", medium: "17px", large: "28px" };
+
   const connEl = document.getElementById("sk-conn");
   const elTeams = document.getElementById("sk-teams");
   const elPlayers = document.getElementById("sk-players");
   const elTurn = document.getElementById("sk-turn");
   const elClock = document.getElementById("sk-clock");
   const elRecent = document.getElementById("sk-recent");
+
+  function applyTextSize(size) {
+    if (size !== "small" && size !== "medium" && size !== "large") size = "medium";
+    document.documentElement.setAttribute("data-text-size", size);
+    document.documentElement.style.fontSize = TEXT_ROOT_PX[size];
+    try {
+      localStorage.setItem(TEXT_SIZE_KEY, size);
+    } catch (_) {
+      /* ignore */
+    }
+    try {
+      document.cookie =
+        "setup_text_size=" +
+        encodeURIComponent(size) +
+        "; path=/; max-age=31536000; SameSite=Lax";
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function initTextSize() {
+    var cur = "medium";
+    var a = document.documentElement.getAttribute("data-text-size");
+    if (a === "small" || a === "medium" || a === "large") cur = a;
+    applyTextSize(cur);
+  }
+
+  initTextSize();
+
+  window.addEventListener("storage", (e) => {
+    if (e.key !== TEXT_SIZE_KEY) return;
+    const v = e.newValue;
+    if (v === "small" || v === "medium" || v === "large") applyTextSize(v);
+  });
+
+  window.addEventListener("message", (e) => {
+    if (e.origin !== location.origin) return;
+    const d = e.data;
+    if (!d || d.type !== "billiards-text-size") return;
+    const s = d.size;
+    if (s === "small" || s === "medium" || s === "large") applyTextSize(s);
+  });
 
   function setConn(text, kind) {
     if (!connEl) return;

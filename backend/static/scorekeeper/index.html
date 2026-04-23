@@ -5,6 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Billiards-AI — Score Keeper</title>
     <link rel="stylesheet" href="/static/scorekeeper/style.css" />
+    <script>
+      (function () {
+        var ROOT_PX = { small: "14px", medium: "17px", large: "28px" };
+        var k = "billiards-setup-text-size";
+        var choice = "medium";
+        try {
+          var s = localStorage.getItem(k);
+          if (s === "small" || s === "medium" || s === "large") choice = s;
+        } catch (e) {
+          /* ignore */
+        }
+        document.documentElement.setAttribute("data-text-size", choice);
+        document.documentElement.style.fontSize = ROOT_PX[choice];
+        try {
+          document.cookie =
+            "setup_text_size=" +
+            encodeURIComponent(choice) +
+            "; path=/; max-age=31536000; SameSite=Lax";
+        } catch (e) {
+          /* ignore */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div class="sk-root">

@@ -54,6 +54,7 @@ def test_setup_page_and_api():
     assert r_sk.status_code == 200
     assert "Score Keeper" in r_sk.text
     assert "sk-root" in r_sk.text or "sk-teams" in r_sk.text
+    assert "billiards-setup-text-size" in r_sk.text
 
     r = client.get("/api/setup/steps")
     assert r.status_code == 200
