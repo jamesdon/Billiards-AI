@@ -1,5 +1,20 @@
 # Test Plan
 
+## Setup wizard (`/setup`) vs phases here
+
+The browser guide at `http://127.0.0.1:8000/setup` uses **numbered steps 1–8** in the left nav. Those numbers are **not** always the same as **Phase 1–9** in this file:
+
+| Wizard step (nav) | What it covers | `TEST_PLAN` / doc phase |
+| --- | --- | --- |
+| 1. Environment & dependencies | venv, `requirements.txt` | **Phase 1** |
+| 2. Detector model (ONNX) | `models/model.onnx`, `class_map.json` | Prereq to Phase 3 smoke (training/export: step 6, `MODEL_OPTIMIZATION.md`) |
+| 3. Calibration | homography, pockets | **Phase 2** |
+| 4. Detection & tracking | `phase3.sh` / edge + MJPEG | **Phase 3** |
+| 5. Identity & profiles | `/profiles`, `identities.json` | **Phase 4** |
+| 6. Dataset & training (optional) | Roboflow, train, export | Optional; not a pass/fail gate in the same sense as 1–5 |
+| 7. Jetson deployment | device copy, Docker, CSI | `DEPLOYMENT_JETSON.md` |
+| 8. Events, rules, … (Phases 5–9) | fouls, rules, stats, acceptance | **Phases 5–9** in this file |
+
 This plan is organized by major delivery phases. Each phase has:
 
 - objective

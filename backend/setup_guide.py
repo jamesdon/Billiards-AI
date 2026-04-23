@@ -209,6 +209,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
         ],
         "links": [],
         "hints": [
+            "Wizard order vs doc phases (docs/TEST_PLAN.md): step 1 = Phase 1 (environment); step 2 = detector ONNX (prereq to Phase 3 smoke, not a gate phase in the plan); step 3 = Phase 2 (calibration); step 4 = Phase 3 (detection/tracking); step 5 = Phase 4 (identity); step 6 = optional training path; step 7 = Jetson runbook; step 8 = Phases 5–9. The first number in the nav is the wizard step, not the same digit as 'Phase N' in every row.",
             "Progress is kept in the repo file data/setup_wizard_progress.json and a browser copy (localStorage); both update when you save, auto-save, or leave the page.",
             "Status lights: red = not started, yellow = in progress, green = complete.",
         ],
@@ -216,8 +217,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "environment",
-        "title": "1. Environment & dependencies",
-        "summary": "Create the venv and install Python dependencies. On Jetson, follow Phase 1 docs for distro OpenCV + GStreamer.",
+        "title": "1. Environment & dependencies (Phase 1)",
+        "summary": "Create the venv and install Python dependencies. Same scope as TEST_PLAN Phase 1. On Jetson, follow Phase 1 docs for distro OpenCV + GStreamer.",
         "checklist": [
             {
                 "item": "Virtual environment exists at .venv",
@@ -248,7 +249,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "model",
         "title": "2. Detector model (ONNX)",
-        "summary": "Use ONNX exported from this repo’s latest training run (same runs/ tree) at models/model.onnx, with models/class_map.json matching that training.",
+        "summary": "Use ONNX at models/model.onnx and models/class_map.json. Not a separately numbered row in TEST_PLAN — it is the artifact Phase 3 smoke tests need. For training/refresh, see step 6.",
         "checklist": [
             {
                 "item": "models/model.onnx exists",
@@ -276,8 +277,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "calibration",
-        "title": "3. Calibration (table + camera)",
-        "summary": "Homography + pocket labels map pixels to table coordinates. On macOS, the starter script uses a USB camera by default; Jetson uses CSI. Use the GUI on a desktop session (or X11-forwarded Jetson).",
+        "title": "3. Calibration (table + camera) (Phase 2)",
+        "summary": "Homography + pocket labels: TEST_PLAN Phase 2. On macOS, the starter script uses a USB camera by default; Jetson uses CSI. Use the GUI on a desktop session (or X11-forwarded Jetson).",
         "checklist": [
             {
                 "item": "calibration.json produced for this camera + table",
@@ -320,8 +321,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "phase3",
-        "title": "4. Phase 3 — Detection & tracking",
-        "summary": "Smoke-test detector + tracker. Phase 3 is headless: view output in a browser via MJPEG (not an OpenCV window).",
+        "title": "4. Detection & tracking (Phase 3)",
+        "summary": "Smoke-test detector + tracker (TEST_PLAN Phase 3). Headless: view output in a browser via MJPEG (not an OpenCV window).",
         "checklist": [
             {
                 "item": "Automated Phase 3 script completes or manual edge run works",
@@ -369,8 +370,8 @@ SETUP_STEPS: list[dict[str, Any]] = [
     },
     {
         "id": "phase4",
-        "title": "5. Phase 4 — Identity & profiles",
-        "summary": "Run the backend and edge together with identities.json for persistent player/stick profiles.",
+        "title": "5. Identity & profiles (Phase 4)",
+        "summary": "Backend + edge with identities.json (TEST_PLAN Phase 4). Persistent player/stick profiles.",
         "checklist": [
             {
                 "item": "Backend responds on /health",
@@ -406,7 +407,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "dataset_training",
         "title": "6. Dataset & training (optional)",
-        "summary": "Roboflow Universe → merge → train → export. Only when refreshing the shared detector.",
+        "summary": "Roboflow Universe → merge → train → export. Only when refreshing the detector; comes after the bring-up path (steps 1–5) in this wizard, not 'before' Phase 3 in time — you normally run Phase 3 with an existing model first.",
         "checklist": [
             {
                 "item": "ROBOFLOW_API_KEY available in the shell that downloads data",
