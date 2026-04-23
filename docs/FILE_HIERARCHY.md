@@ -170,6 +170,9 @@ Billiards-AI/
     start_calibration.sh            One-command calibration launcher (venv + NumPy/OpenCV ABI guard on **venv python** including GStreamer=YES for CSI + GUI); forwards `POCKET_ONNX`, `POCKET_CLASS_MAP`, `POCKET_MIN_CONF`, `RACK_STYLE` into calib_click; extra CLI args still appended
     jetson_csi_setup.sh             Jetson-family CSI triage: tolerant `apt-get update`, v4l-utils + gst tools, Argus restart, device list, gst smoke, edge.main probe
     jetson_static_ip.sh             Optional LAN static IPv4 via NetworkManager (`nmcli`); defaults **192.168.1.102/24**, gateway **192.168.1.1**, profile **Ether 2** (override `NM_CONNECTION`, `STATIC_IPV4`, `GATEWAY`, `DNS_SERVERS`); requires **sudo** on the device
+    install_x11vnc_boot_service.sh  Installs **`x11vnc`**, copies **`scripts/systemd/x11vnc-display0.service`** to `/etc/systemd/system/`, **`systemctl enable --now`** so VNC (**TCP 5900**) starts with the graphical stack; run with **sudo** on the device
+    systemd/
+      x11vnc-display0.service       systemd unit: mirror **`:0`** via x11vnc (installed by `install_x11vnc_boot_service.sh`)
     docker_jetson_build.sh          Build Jetson runtime image
     docker_jetson_up.sh             Start Jetson runtime container
     docker_jetson_down.sh           Stop Jetson runtime container

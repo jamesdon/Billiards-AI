@@ -1,0 +1,17 @@
+[Unit]
+Description=Billiards-AI: VNC mirror of X display :0 (x11vnc)
+After=graphical.target
+Wants=graphical.target
+
+[Service]
+Type=simple
+# -auth guess: locate X cookie for :0 (common on GDM/Lightdm Jetson images).
+# If this fails at boot, ensure a graphical session exists on :0 (e.g. autologin) or set XAUTHORITY in a drop-in.
+ExecStart=/usr/bin/x11vnc -display :0 -auth guess -forever -shared -rfbport 5900 -noxdamage
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=120
+StartLimitBurst=30
+
+[Install]
+WantedBy=graphical.target
