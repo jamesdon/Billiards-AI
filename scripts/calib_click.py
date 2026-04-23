@@ -1971,9 +1971,11 @@ def main() -> None:
     _air = int(28 * max(1.0, ui_scale))
     _head_sub = int(26 * max(1.0, ui_scale))
     _table_tail = int(22 * max(1.0, ui_scale))
-    _after_units_pad = int(16 * max(1.0, ui_scale))
-    _redetect_gap = int(32 * max(1.0, ui_scale))
-    _redetect_block = _after_units_pad + _redetect_gap + max(28, int(30 * max(1.0, ui_scale))) + int(4 * max(1.0, ui_scale))
+    _after_units_pad = int(10 * max(1.0, ui_scale))
+    _redetect_gap = int(14 * max(1.0, ui_scale))
+    _redetect_btn_h = max(22, int(24 * max(1.0, ui_scale)))
+    _redetect_hint_lines_h = int(50 * max(1.0, ui_scale))
+    _redetect_block = _after_units_pad + _redetect_gap + _redetect_btn_h + _redetect_hint_lines_h + int(6 * max(1.0, ui_scale))
     _left_column_h = (
         14
         + _air
@@ -2268,10 +2270,10 @@ def main() -> None:
         else:
             probe = _view_control_layout(0, 0)
             right_h = int(probe["reset_rect"][3]) + int(28 * max(1.0, ui_scale))
-            rbtn = max(28, int(30 * max(1.0, ui_scale)))
-            after_u = int(16 * max(1.0, ui_scale))
-            gap_re = int(32 * max(1.0, ui_scale))
-            redetect_extra = after_u + gap_re + rbtn + int(4 * max(1.0, ui_scale))
+            rbtn = max(22, int(24 * max(1.0, ui_scale)))
+            after_u = int(10 * max(1.0, ui_scale))
+            gap_re = int(14 * max(1.0, ui_scale))
+            redetect_extra = after_u + gap_re + rbtn + int(6 * max(1.0, ui_scale)) + _redetect_hint_lines_h
             left_bottom = (
                 units_top
                 + (len(UNIT_MENU) - 1) * row_spacing
@@ -2293,20 +2295,25 @@ def main() -> None:
         units_top = units_heading_y + head_sub
         view_top = inner_top + 14 + air + head_sub
         drag_handle_rect = (left, top, left + panel_w, top + panel_drag_handle_h)
-        rbtn2 = max(28, int(30 * max(1.0, ui_scale)))
-        after_u2 = int(16 * max(1.0, ui_scale))
-        gap_re2 = int(32 * max(1.0, ui_scale))
+        rbtn2 = max(22, int(24 * max(1.0, ui_scale)))
+        after_u2 = int(10 * max(1.0, ui_scale))
+        gap_re2 = int(14 * max(1.0, ui_scale))
         redetect_y1 = (
             float(units_top)
             + (len(UNIT_MENU) - 1) * float(row_spacing)
             + float(after_u2)
             + float(gap_re2)
         )
+        col1_pad_x = 8
+        btn_inner_left = int(col1_left) + col1_pad_x
+        btn_inner_right = int(col1_right) - col1_pad_x
+        inner_w_btn = max(72, btn_inner_right - btn_inner_left)
+        btn_w = min(112, max(76, int(inner_w_btn * 0.48)))
         redetect_rect = (
-            int(table_left) - 2,
+            btn_inner_left,
             int(redetect_y1),
-            int(col1_right) - 2,
-            int(redetect_y1 + rbtn2),
+            btn_inner_left + btn_w,
+            int(redetect_y1) + rbtn2,
         )
         return {
             "panel_left": left,
@@ -2857,6 +2864,40 @@ def main() -> None:
                 t = t[:-1]
             return t
 
+        def _wrap_text_lines(text: str, font_scale: float, max_w: int) -> List[str]:
+            words = str(text).replace("\n", " ").split()
+            lines_out: List[str] = []
+            cur = ""
+            for w in words:
+                trial = f"{cur} {w}".strip()
+                tw, _ = cv2.getTextSize(trial, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 1)[0]
+                if tw <= max_w:
+                    cur = trial
+                    continue
+                if cur:
+                    lines_out.append(cur)
+                piece = w
+                while piece:
+                    lo, hi = 1, len(piece)
+                    best = ""
+                    while lo <= hi:
+                        mid = (lo + hi) // 2
+                        cand = piece[:mid]
+                        tw2, _ = cv2.getTextSize(cand, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 1)[0]
+                        if tw2 <= max_w:
+                            best = cand
+                            lo = mid + 1
+                        else:
+                            hi = mid - 1
+                    if not best:
+                        best = piece[0]
+                    lines_out.append(best)
+                    piece = piece[len(best) :].lstrip()
+                cur = ""
+            if cur:
+                lines_out.append(cur)
+            return lines_out
+
         text_max = max(60, col1_right - table_left - 22)
         _micro_label(view, table_left, table_heading_y - 2, "TABLE")
         cv2.putText(
@@ -2953,6 +2994,10 @@ def main() -> None:
 
         last_unit_row_y = int(units_top + (len(UNIT_MENU) - 1) * row_spacing)
         rr = layout.get("redetect_rect")
+        col1_hint_pad = 8
+        hint_x0 = int(layout["col1_left"]) + col1_hint_pad
+        hint_x1 = int(layout["col1_right"]) - col1_hint_pad
+        hint_max_w = max(48, hint_x1 - hint_x0)
         if isinstance(rr, tuple) and len(rr) == 4:
             sep_y = (last_unit_row_y + int(rr[1])) // 2
             cv2.line(
@@ -2964,12 +3009,16 @@ def main() -> None:
                 lineType=cv2.LINE_AA,
             )
             _draw_button_primary(view, rr, "Re-detect")
-            _micro_label(
-                view,
-                int(rr[0]),
-                int(rr[3]) + 12,
-                "Pocket model if ONNX present, else CV, else aspect placeholder  (r)",
+            hint_body = (
+                "Re-run corner detection: pocket ONNX hull if available, else frame CV, "
+                "else table-aspect placeholder. Key r."
             )
+            hs = 0.32 * min(1.0, ui_scale + 0.05)
+            line_skip = int(15 * max(1.0, ui_scale))
+            ly = int(rr[3]) + 8
+            for ln in _wrap_text_lines(hint_body, hs, hint_max_w):
+                cv2.putText(view, ln, (hint_x0, ly), cv2.FONT_HERSHEY_SIMPLEX, hs, muted, 1, cv2.LINE_AA)
+                ly += line_skip
 
         controls = _view_control_layout(int(view_left), int(view_top))
         flip_h_center = controls["flip_h_center"]
