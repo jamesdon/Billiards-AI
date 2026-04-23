@@ -340,7 +340,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "item": "edge.main is running, MJPEG/health look good, and track IDs stay stable when objects move",
                 "verify": (
-                    "**1) Start `edge.main`** — In a new terminal, paste and run the block below once (sidebar shows your repo path; on Jetson use "
+                    "**1) Start** `edge.main` — In a new terminal, paste and run the block below once (sidebar shows your repo path; on Jetson use "
                     "`--camera csi` and drop the `--usb-index` lines). Default: macOS + USB 0.\n\n"
                     "```bash\n"
                     'cd "{project_root}"\n'

@@ -588,18 +588,31 @@
     return docHref(relPath).replace(/&/g, "&amp;");
   }
 
-  function copyText(text) {
+  function   copyText(text) {
     navigator.clipboard.writeText(text).then(
       () => showToast("Copied — paste in Terminal"),
       () => showToast("Copy failed")
     );
   }
 
+  /**
+   * Checklist line booleans for this step, length = current checklist def (ignore stale extra entries).
+   */
+  function getChecklistDoneSnapshot(step) {
+    const n = (step.checklist || []).length;
+    const raw = state.progress.checklist_done[step.id];
+    const arr = [];
+    for (let k = 0; k < n; k += 1) {
+      arr[k] = Array.isArray(raw) && k < raw.length ? !!raw[k] : false;
+    }
+    return arr;
+  }
+
   /** @returns {'red'|'yellow'|'green'} */
   function stepSignal(step) {
     const id = step.id;
     const n = (step.checklist || []).length;
-    const done = state.progress.checklist_done[id] || [];
+    const done = getChecklistDoneSnapshot(step);
     const checked = done.filter(Boolean).length;
     const complete = state.progress.completed[id];
     const hasNotes = ((state.progress.notes[id] || "").trim().length > 0);
@@ -639,8 +652,12 @@
     const checklist = step.checklist || [];
     if (!checklist.length) return "";
 
-    const arr = state.progress.checklist_done[step.id] || checklist.map(() => false);
-    while (arr.length < checklist.length) arr.push(false);
+    const raw = state.progress.checklist_done[step.id];
+    if (Array.isArray(raw) && raw.length > checklist.length) {
+      state.progress.checklist_done[step.id] = getChecklistDoneSnapshot(step);
+      scheduleSave();
+    }
+    const arr = getChecklistDoneSnapshot(step);
 
     return `<section><h3>Checklist</h3>
       <p class="checklist-intro">Check a line only after you have done the <strong>How to verify</strong> steps. If <strong>What to record</strong> applies, add that in Notes (this step) or skip if nothing is worth saving.</p>
@@ -652,7 +669,9 @@
           const rawV = item.verify || "";
           return `<div class="checklist-block">
             <div class="row-top">
-              <input type="checkbox" data-ci="${i}" id="${id}"${checked}/>
+              <input type="checkbox" class="checklist-line-cb" data-step-id="${escapeHtml(
+                step.id
+              )}" data-ci="${i}" id="${id}"${checked}/>
               <div>
                 <div class="item-text">${formatChecklistField(item.item || "")}</div>
                 ${
@@ -768,22 +787,6 @@
         <button type="button" class="btn btn-primary" id="btn-save">${escapeHtml(saveButtonLabel)}</button>
       </div>
     `;
-
-    content.querySelectorAll('.checklist-block input[type="checkbox"]').forEach((el) => {
-      el.addEventListener("change", () => {
-        const i = parseInt(el.getAttribute("data-ci") || "0", 10);
-        if (!state.progress.checklist_done[step.id]) {
-          state.progress.checklist_done[step.id] = checklist.map(() => false);
-        }
-        const row = state.progress.checklist_done[step.id];
-        while (row.length < checklist.length) row.push(false);
-        row[i] = el.checked;
-        scheduleSave();
-        renderNav();
-        const h2 = content.querySelector("h2");
-        if (h2) h2.innerHTML = `${signalHtml(stepSignal(step))} ${escapeHtml(step.title)}`;
-      });
-    });
 
     content.querySelectorAll(".launch-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -901,6 +904,33 @@
         "<p>Could not load setup data. Start the backend: <code>./scripts/run_backend.sh</code> or <code>uvicorn backend.app:app --host 127.0.0.1 --port 8000</code></p>";
     }
   }
+
+  function onChecklistLineChange(e) {
+    const t = e.target;
+    if (!t || t.getAttribute("type") !== "checkbox" || !t.classList.contains("checklist-line-cb")) {
+      return;
+    }
+    const sid = t.getAttribute("data-step-id");
+    if (!sid) return;
+    const st = state.steps.find((s) => s.id === sid);
+    if (!st) return;
+    const ch = st.checklist || [];
+    const n = ch.length;
+    if (n === 0) return;
+    const i = parseInt(t.getAttribute("data-ci") || "0", 10);
+    if (i < 0 || i >= n) return;
+    const next = getChecklistDoneSnapshot(st);
+    next[i] = t.checked;
+    state.progress.checklist_done[sid] = next;
+    scheduleSave();
+    renderNav();
+    if (state.activeId === sid) {
+      const h2 = content.querySelector("h2");
+      if (h2) h2.innerHTML = `${signalHtml(stepSignal(st))} ${escapeHtml(st.title)}`;
+    }
+  }
+
+  content.addEventListener("change", onChecklistLineChange);
 
   initTextSizeControls();
   initSidebarResize();
