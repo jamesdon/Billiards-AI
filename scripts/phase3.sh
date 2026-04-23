@@ -128,20 +128,30 @@ run_case() {
     --mjpeg-port "${port}" >"${log_file}" 2>&1 &
   EDGE_PID="$!"
 
+  # No terminal output from edge while log is redirected — startup can be 30–90s+ (ONNX, cv2, camera).
+  local max_wait="${PHASE3_MJPEG_WAIT_SECONDS:-90}"
+  echo "[Phase3] Waiting for first /mjpeg on 127.0.0.1:${port} (not stuck: tail -f ${log_file}) — up to ${max_wait}s." >&2
+
   local ready=0
-  for _ in $(seq 1 45); do
+  local w=0
+  while (( w < max_wait )); do
+    w=$((w + 1))
     if /usr/bin/curl -fsS "http://127.0.0.1:${port}/mjpeg" --max-time 2 --output /dev/null >/dev/null 2>&1; then
       ready=1
       break
     fi
     if ! kill -0 "$EDGE_PID" 2>/dev/null; then
+      echo "[Phase3] Edge exited before MJPEG (see ${log_file})" >&2
       break
+    fi
+    if (( w % 10 == 0 )); then
+      echo "[Phase3]   ... still waiting ${w}/${max_wait}s" >&2
     fi
     sleep 1
   done
 
   if [[ "$ready" -ne 1 ]]; then
-    echo "[Phase3] ${label} failed to start stream. Log: ${log_file}" >&2
+    echo "[Phase3] ${label} failed to start stream within ${max_wait}s. Log: ${log_file}" >&2
     exit 1
   fi
 

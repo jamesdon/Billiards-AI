@@ -134,7 +134,7 @@ Billiards-AI/
     run_phase.sh                    Entry point for phase scripts
     phase1.sh                       Environment + backend + CSI smoke checks
     phase2.sh                       Headless calibration validation (no GUI); fixed MJPEG **8002** / **8003** (`PHASE2_PORT_VALID` / `PHASE2_PORT_INVALID`); `PHASE2_CAMERA` (unset → **usb** on macOS/Darwin, **csi** on Linux/Jetson; or explicit `usb` / numeric V4L index) plus `CSI_*` / `PHASE2_USB_INDEX`
-    phase3.sh                       Detection/tracking verification sweep (n=1/2/3); fixed MJPEG **8001** / **8004** / **8005** (`PHASE3_PORT_N2` / `N1` / `N3`)
+    phase3.sh                       Detection/tracking verification sweep (n=1/2/3); fixed MJPEG **8001** / **8004** / **8005** (`PHASE3_PORT_*`); stderr progress while waiting for `/mjpeg` (`PHASE3_MJPEG_WAIT_SECONDS`, default 90s)
     phase4.sh                       Identity/profile persistence checks
     phase5.sh                       Foul event injection sanity checks
     phase6.sh                       Rules test execution
