@@ -8,14 +8,34 @@ Real-time billiards perception + rules engine designed for **NVIDIA Jetson Orin 
 cd "/home/$USER/Billiards-AI"
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -U pip
-python -m pip install -r requirements.txt
-python -m edge.main --help
+python3 -m pip install -U pip
+python3 -m pip install -r requirements.txt
+python3 -m edge.main --help
 ```
 
 **Fixed local ports (defaults):** see **`docs/PORTS.md`** (API **8000**, MJPEG **8001**–**8005**).
 
-**Guided setup (browser):** from the repo root, run **`./scripts/run_backend.sh`** (uses `.venv/bin/python3 -m uvicorn`, which still works if `.venv/bin/uvicorn` is broken after moving/renaming the project folder). Alternatively: `python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000` with the venv active. Open **http://127.0.0.1:8000/setup** for a step-by-step menu: traffic-light status per step, per-line **How to verify** text with backticked shell you can **Copy** into a terminal, **documentation links** that open Markdown in the browser (`/api/setup/doc?path=…`), and links to open files in **VS Code** / **Cursor**. Progress is saved under `data/setup_wizard_progress.json`. **Step names match `docs/TEST_PLAN.md` section titles** where a Phase applies (see the table at the top of that file). Optional: set **`SETUP_ALLOW_LAUNCH=1`** before uvicorn to allow the Calibration step to **start `scripts/start_calibration.sh` from the UI** (localhost only).
+## Guided setup (browser) — start here
+
+The **setup guide** is the first-run UI: **`GET /setup`** in the FastAPI app (per-step **traffic-light** status, checklists, **Copy** on shell one-liners, in-browser Markdown for `docs/…` via `/api/setup/doc?path=…`, optional **Quick links** and **Launch** when enabled). The left sidebar has the **project root**, **text size**, **MJPEG port (8001–8005)**, and a **server-side** `GET /api/setup/edge-health?port=…` check against `http://127.0.0.1:<port>/health` for edge.
+
+**1. Start the API (this serves the guide):** from the repo root, with the venv you use for this repo:
+
+```bash
+./scripts/run_backend.sh
+```
+
+This runs **`.venv/bin/python3 -m uvicorn backend.app:app`** (avoids a broken **`.venv/bin/uvicorn`** shim after renames / moves). `BACKEND_HOST` and **`BACKEND_PORT`** default to **127.0.0.1** and **8000**; if the port is **already in use** and `http://127.0.0.1:8000/health` works, the API is already up — do **not** start a second copy. **This process does not start edge or MJPEG**; use another terminal and `edge.main` for the camera stream (see the guide and `docs/PORTS.md`).
+
+**2. Open the guide:** **[http://127.0.0.1:8000/setup](http://127.0.0.1:8000/setup)** (use your `BACKEND_PORT` if you changed it: `http://127.0.0.1:<port>/setup`).
+
+**3. How it lines up with the repo:** step titles in the sidebar match **`docs/TEST_PLAN.md`** section titles where a delivery Phase applies; see the table at the **top** of that file. The canonical phase list and gates stay in **`docs/TEST_PLAN.md`**.
+
+**4. Where progress is stored:** `data/setup_wizard_progress.json` and browser **localStorage** (saved when you use **Save** or leave the page; same keys as step `id` in `backend/setup_guide.py`).
+
+**5. Optional — launch scripts from the UI:** set **`SETUP_ALLOW_LAUNCH=1`** and bind only to localhost, then restart the API; the Calibration step can start **`scripts/start_calibration.sh`** from the page.
+
+**6. Direct uvicorn (alternative to the script):** with venv active, `python3 -m uvicorn backend.app:app --host 127.0.0.1 --port 8000` (still prefer **`./scripts/run_backend.sh`** so port-in-use and shim issues are handled consistently).
 
 ## Jetson-family edge assumptions
 
@@ -59,13 +79,14 @@ scripts/docker_jetson_down.sh
 
 ## Docs
 
+- **`docs/TEST_PLAN.md`** — delivery phases, pass/fail gates, and the **table linking the browser setup guide** at `/setup` to Phases 1–9; read this to see how guide step names map to test phases
+- `docs/PORTS.md` — default **8000** (API / setup) vs **8001–8005** (MJPEG / edge)
+- `docs/FILE_HIERARCHY.md` — tree of components (includes `backend/setup_guide.py` and `static/setup/`)
 - `docs/ARCHITECTURE.md`
-- `docs/FILE_HIERARCHY.md`
 - `docs/MODEL_OPTIMIZATION.md` (optional train/tune; normal deploy reuses ONNX)
 - `docs/ORIN_NANO_TRAIN_AND_TEST.md` (train + pytest + phases **on the Orin Nano**; `/home/$USER/Billiards-AI` paths; legacy alias `docs/JETSON_NANO_TRAIN_AND_TEST.md`)
 - `docs/CALIBRATION.md`
 - `docs/EVENT_DETECTION.md`
 - `docs/RULES_ENGINE.md`
 - `docs/DEPLOYMENT_JETSON.md`
-- `docs/TEST_PLAN.md` (phase gates; includes **live CSI capture** for YOLO dataset build)
 
