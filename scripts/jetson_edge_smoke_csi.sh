@@ -13,7 +13,7 @@ CALIB_PATH="${CALIB_PATH:-$PROJECT_ROOT/calibration.json}"
 MODEL_PATH="${MODEL_PATH:-$PROJECT_ROOT/models/model.onnx}"
 CLASS_MAP_PATH="${CLASS_MAP_PATH:-$PROJECT_ROOT/models/class_map.json}"
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
-MJPEG_PORT="${MJPEG_PORT:-8080}"
+MJPEG_PORT="${MJPEG_PORT:-8001}"
 
 require_file "$MODEL_PATH"
 require_file "$CLASS_MAP_PATH"

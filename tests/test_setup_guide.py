@@ -25,7 +25,8 @@ def test_setup_page_and_api():
     assert "launch_enabled" in data
     assert data["launch_enabled"] is False
     assert isinstance(data.get("markdown_installed"), bool)
-    assert data.get("api_default_port") == 8780
+    assert data.get("api_default_port") == 8000
+    assert data.get("mjpeg_default_port") == 8001
     assert isinstance(data.get("api_port"), int)
     assert 1 <= int(data.get("api_port", 0)) <= 65535
 
@@ -95,7 +96,7 @@ def test_setup_page_and_api():
             "checklist_done": {},
             "notes": {},
             "last_step_id": "overview",
-            "mjpeg_port": 8080,
+            "mjpeg_port": 8001,
         },
     )
     assert r.status_code == 200

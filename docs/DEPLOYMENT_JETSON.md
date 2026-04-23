@@ -97,7 +97,7 @@ See `docs/MODEL_OPTIMIZATION.md` for ONNX/TensorRT steps.
 ```bash
 cd "/home/$USER/Billiards-AI"
 source .venv/bin/activate
-python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "./calibration.json" --mjpeg-port 8080
+python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "./calibration.json" --mjpeg-port 8001
 ```
 
 `--csi-flip-method` is passed through the GStreamer pipeline to **`nvvidconv`** `flip-method` on Jetson:

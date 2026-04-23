@@ -198,7 +198,7 @@ EOF
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "/home/$USER/Billiards-AI/calibration.json" --mjpeg-port 8080
+python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "/home/$USER/Billiards-AI/calibration.json" --mjpeg-port 8002
 ```
 
 ## 3) Negative test: invalid pocket label should fail
@@ -221,7 +221,7 @@ Run and confirm error:
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "/home/$USER/Billiards-AI/calibration_invalid.json" --mjpeg-port 8081
+python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "/home/$USER/Billiards-AI/calibration_invalid.json" --mjpeg-port 8003
 ```
 
 ## Pass criteria
@@ -283,10 +283,9 @@ NumPy 1.x. Pin NumPy `<2` in the venv and rerun Phase 2.
 
 If Phase 2 fails with `OSError: [Errno 98] Address already in use` when binding the
 MJPEG HTTP server, another process (often a previous `edge.main`) is already using
-that port. `scripts/phase2.sh` defaults to **`MJPEG_PORT=8080`**: the valid-calibration
-smoke uses that port, and the invalid-label check uses **`MJPEG_PORT+1`** (e.g. 8080 and
-8081). `MJPEG_PORT` must be **8000–9998** so both ports stay in **8000–9999**. If 8080 is
-taken, run with e.g. `MJPEG_PORT=8082 bash scripts/phase2.sh` or free the process on 8080.
+that port. `scripts/phase2.sh` uses fixed ports **8002** (valid calibration) and **8003**
+(invalid label). See **`docs/PORTS.md`**. Free those ports or set **`PHASE2_PORT_VALID`**
+/ **`PHASE2_PORT_INVALID`** to other values in **8001–8005** (not **8000**, API).
 
 If Argus logs **`No cameras available`** (often from `gstnvarguscamerasrc`), the
 kernel/Argus stack does not see any CSI sensor. That is not an OpenCV bug: check

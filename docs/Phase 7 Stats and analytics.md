@@ -9,13 +9,13 @@ Validate shot summaries and derived analytics fields.
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8780
+uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
 ## 2) Inject representative shot summary
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8780/event" \
+curl -s -X POST "http://127.0.0.1:8000/event" \
   -H "Content-Type: application/json" \
   -d '{
     "type":"shot_summary",

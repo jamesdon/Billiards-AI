@@ -74,7 +74,7 @@ This script performs:
 - MJPEG readiness checks for each run
 - per-run logs under repo root: `.phase3_n1.log`, `.phase3_n2.log`, `.phase3_n3.log`
 
-**Viewing video:** Phase 3 does **not** open a desktop window. `edge.main` serves an MJPEG stream over HTTP. When the script prints `Live MJPEG`, open **`http://127.0.0.1:<port>/mjpeg`** in Safari or Chrome. The script **defaults to `MJPEG_PORT=8080`**, with sweep segments on **base**, **base+2**, and **+3** (e.g. **8080, 8082, 8083**). `MJPEG_PORT` must be **8000–9996** so all three ports stay in **8000–9999**. Set **`export MJPEG_PORT=8090`** (or any valid base) if 8080 is busy. **`/health`** on the same port as each run reports JSON status.
+**Viewing video:** Phase 3 does **not** open a desktop window. `edge.main` serves an MJPEG stream over HTTP. When the script prints `Live MJPEG`, open the printed URL. The script uses fixed sweep ports **8001** (baseline, `detect_every_n=2`), **8004** (`detect_every_n=1`), and **8005** (`detect_every_n=3`). See **`docs/PORTS.md`**. Override with **`PHASE3_PORT_N2`**, **`PHASE3_PORT_N1`**, **`PHASE3_PORT_N3`** (each **8001–8005**; not **8000**, API). **`/health`** on each run’s port reports JSON status.
 
 ```bash
 cd "/home/$USER/Billiards-AI"
@@ -101,7 +101,7 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
   --onnx-model "/ABSOLUTE/PATH/TO/model.onnx" \
   --class-map "/home/$USER/Billiards-AI/models/class_map.json" \
   --detect-every-n 2 \
-  --mjpeg-port 8080
+  --mjpeg-port 8001
 ```
 
 On macOS for a manual run, use `--camera usb` (and `--usb-index` if needed) instead of `csi`.

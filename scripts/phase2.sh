@@ -50,17 +50,18 @@ phase2_build_cam_args() {
 
 phase2_build_cam_args
 
-# Fixed, documented defaults (8000–9999). Valid + invalid calib smokes use port and port+1.
-MJPEG_PORT="${MJPEG_PORT:-8080}"
-if ! [[ "$MJPEG_PORT" =~ ^[0-9]+$ ]]; then
-  echo "[Phase2] MJPEG_PORT must be a non-negative integer (got: ${MJPEG_PORT})" >&2
+# Fixed repo ports (docs/PORTS.md): 8002 = valid calib smoke, 8003 = invalid-label smoke.
+PHASE2_PORT_VALID="${PHASE2_PORT_VALID:-8002}"
+PHASE2_PORT_INVALID="${PHASE2_PORT_INVALID:-8003}"
+if ! [[ "$PHASE2_PORT_VALID" =~ ^[0-9]+$ ]] || ! [[ "$PHASE2_PORT_INVALID" =~ ^[0-9]+$ ]]; then
+  echo "[Phase2] PHASE2_PORT_VALID and PHASE2_PORT_INVALID must be integers" >&2
   exit 1
 fi
-if (( MJPEG_PORT < 8000 || MJPEG_PORT > 9998 )); then
-  echo "[Phase2] MJPEG_PORT must be 8000-9998 (uses ${MJPEG_PORT} and $((MJPEG_PORT + 1)) for the two smokes; both must be ≤9999)." >&2
+if (( PHASE2_PORT_VALID < 8001 || PHASE2_PORT_VALID > 8005 || PHASE2_PORT_INVALID < 8001 || PHASE2_PORT_INVALID > 8005 )); then
+  echo "[Phase2] MJPEG ports must be 8001-8005 (default valid=8002 invalid=8003; 8000 is API. See docs/PORTS.md." >&2
   exit 1
 fi
-echo "[Phase2] MJPEG ports: valid-calibration ${MJPEG_PORT}, invalid-label $((MJPEG_PORT + 1)) (set MJPEG_PORT to override; default 8080)" >&2
+echo "[Phase2] MJPEG ports: valid-calibration ${PHASE2_PORT_VALID}, invalid-label ${PHASE2_PORT_INVALID}" >&2
 
 # GNU coreutils timeout is not on all macOS installs; fall back to no timeout.
 run_with_timeout() {
@@ -127,7 +128,7 @@ phase2_hint_valid_log() {
   local log="$1"
   [[ -f "$log" ]] || return 0
   if grep -qE "Address already in use|Errno 98" "$log" 2>/dev/null; then
-    echo "[Phase2] Hint: MJPEG port is in use. Free it or set another in 8000-9998, e.g. MJPEG_PORT=8081 bash scripts/phase2.sh" >&2
+    echo "[Phase2] Hint: MJPEG port is in use. Free 8002/8003 or set PHASE2_PORT_VALID / PHASE2_PORT_INVALID (8001-8005). See docs/PORTS.md" >&2
   fi
   if grep -qE "No cameras available" "$log" 2>/dev/null; then
     echo "[Phase2] Hint: Argus reports no CSI sensors (ribbon, wrong CSI port, or unsupported module)." >&2
@@ -147,9 +148,9 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   echo "[Phase2] Running valid calibration edge startup smoke (camera=${PHASE2_CAMERA})..."
   echo "[Phase2] Note: /mjpeg never ends; we probe /health first, then one bounded /mjpeg download."
   PYTHONUNBUFFERED=1 run_with_timeout "${EDGE_TIMEOUT_SECONDS}" "$PYTHON_BIN" -u -m edge.main \
-    "${PHASE2_CAM_ARGS[@]}" --calib "$CALIB_PATH" --mjpeg-port "${MJPEG_PORT}" >"$VALID_LOG" 2>&1 &
+    "${PHASE2_CAM_ARGS[@]}" --calib "$CALIB_PATH" --mjpeg-port "${PHASE2_PORT_VALID}" >"$VALID_LOG" 2>&1 &
   EDGE_PID="$!"
-  echo "[Phase2] Waiting for MJPEG TCP on 127.0.0.1:${MJPEG_PORT} (first import can be slow on device)..." >&2
+  echo "[Phase2] Waiting for MJPEG TCP on 127.0.0.1:${PHASE2_PORT_VALID} (first import can be slow on device)..." >&2
   TCP_READY=0
   for i in $(seq 1 300); do
     if ! kill -0 "$EDGE_PID" 2>/dev/null; then
@@ -158,12 +159,12 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
       phase2_hint_valid_log "$VALID_LOG"
       exit 1
     fi
-    if "$PYTHON_BIN" -c "import socket; s=socket.socket(); s.settimeout(0.4); s.connect(('127.0.0.1',${MJPEG_PORT})); s.close()" 2>/dev/null; then
+    if "$PYTHON_BIN" -c "import socket; s=socket.socket(); s.settimeout(0.4); s.connect(('127.0.0.1',${PHASE2_PORT_VALID})); s.close()" 2>/dev/null; then
       TCP_READY=1
       break
     fi
     if (( i % 25 == 0 )); then
-      echo "[Phase2] still waiting for TCP ${MJPEG_PORT} ... (${i}/300, ~$((i / 5))s wall)" >&2
+      echo "[Phase2] still waiting for TCP ${PHASE2_PORT_VALID} ... (${i}/300, ~$((i / 5))s wall)" >&2
     fi
     sleep 0.2
   done
@@ -174,7 +175,7 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   fi
   READY=0
   for i in $(seq 1 30); do
-    if /usr/bin/curl -fsS "http://127.0.0.1:${MJPEG_PORT}/health" --max-time 2 -o /dev/null 2>/dev/null; then
+    if /usr/bin/curl -fsS "http://127.0.0.1:${PHASE2_PORT_VALID}/health" --max-time 2 -o /dev/null 2>/dev/null; then
       READY=1
       break
     fi
@@ -194,7 +195,7 @@ if [[ "$PHASE2_REQUIRE_CAMERA" == "1" ]]; then
   rm -f "$MJPEG_PROBE"
   echo "[Phase2] Probing first MJPEG bytes (max 25s; needs live camera frames)..." >&2
   set +e
-  /usr/bin/curl -sS "http://127.0.0.1:${MJPEG_PORT}/mjpeg" --max-time 25 -o "$MJPEG_PROBE" 2>/dev/null
+  /usr/bin/curl -sS "http://127.0.0.1:${PHASE2_PORT_VALID}/mjpeg" --max-time 25 -o "$MJPEG_PROBE" 2>/dev/null
   _mjpeg_rc=$?
   set -e
   _mjpeg_sz=0
@@ -231,7 +232,7 @@ PY
 
 set +e
 run_with_timeout 120 "$PYTHON_BIN" -m edge.main \
-  "${PHASE2_CAM_ARGS[@]}" --calib "$CALIB_INVALID_PATH" --mjpeg-port "$((MJPEG_PORT + 1))" >"$INVALID_LOG" 2>&1
+  "${PHASE2_CAM_ARGS[@]}" --calib "$CALIB_INVALID_PATH" --mjpeg-port "${PHASE2_PORT_INVALID}" >"$INVALID_LOG" 2>&1
 RC=$?
 set -e
 if [[ "$RC" -eq 0 ]]; then

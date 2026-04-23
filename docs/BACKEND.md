@@ -23,7 +23,7 @@
 ```bash
 cd "/home/$USER/Billiards-AI"
 source .venv/bin/activate
-uvicorn backend.app:app --host 0.0.0.0 --port 8780
+uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
 ## AWS stats store (optional)

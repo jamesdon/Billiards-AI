@@ -77,7 +77,7 @@ def _port_bind_failed_in_use(err: OSError) -> bool:
 @dataclass
 class MjpegServer:
     host: str = "0.0.0.0"
-    port: int = 8080
+    port: int = 8001
     jpeg_quality: int = 80
 
     _frame: Optional[np.ndarray] = None
@@ -95,7 +95,7 @@ class MjpegServer:
                 raise RuntimeError(
                     f"MJPEG port {self.port} is already in use. Stop the other process (e.g. a previous "
                     f"`edge.main` or a browser tab still holding the stream) or use `--mjpeg-port` with a "
-                    f"free port (e.g. 8081)."
+                    f"free port in 8001-8005 (e.g. 8002)."
                 ) from e
             raise
         httpd.mjpeg_server = self  # type: ignore[attr-defined]

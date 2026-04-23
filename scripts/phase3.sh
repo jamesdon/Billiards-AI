@@ -86,17 +86,22 @@ EOF
 fi
 require_file "$CLASS_MAP_PATH"
 
-# Fixed, documented defaults (8000–9999). Sweep uses base, base+2, base+3 (all must stay ≤9999).
-MJPEG_PORT="${MJPEG_PORT:-8080}"
-if ! [[ "$MJPEG_PORT" =~ ^[0-9]+$ ]]; then
-  echo "[Phase3] MJPEG_PORT must be a non-negative integer (got: ${MJPEG_PORT})" >&2
-  exit 1
-fi
-if (( MJPEG_PORT < 8000 || MJPEG_PORT > 9996 )); then
-  echo "[Phase3] MJPEG_PORT must be 8000-9996 (sweep uses ${MJPEG_PORT}, $((MJPEG_PORT + 2)), $((MJPEG_PORT + 3)); all must be ≤9999)." >&2
-  exit 1
-fi
-echo "[Phase3] MJPEG sweep ports: ${MJPEG_PORT} (n=2), $((MJPEG_PORT + 2)) (n=1), $((MJPEG_PORT + 3)) (n=3) (set MJPEG_PORT to override; default 8080)" >&2
+# Fixed repo ports (docs/PORTS.md): 8001 baseline (n=2), 8004 (n=1), 8005 (n=3).
+PHASE3_PORT_N2="${PHASE3_PORT_N2:-8001}"
+PHASE3_PORT_N1="${PHASE3_PORT_N1:-8004}"
+PHASE3_PORT_N3="${PHASE3_PORT_N3:-8005}"
+for v in PHASE3_PORT_N2 PHASE3_PORT_N1 PHASE3_PORT_N3; do
+  p="${!v}"
+  if ! [[ "$p" =~ ^[0-9]+$ ]]; then
+    echo "[Phase3] $v must be an integer (got: ${p})" >&2
+    exit 1
+  fi
+  if (( p < 8001 || p > 8005 )); then
+    echo "[Phase3] $v must be 8001-8005; 8000 is reserved for the API (see docs/PORTS.md)." >&2
+    exit 1
+  fi
+done
+echo "[Phase3] MJPEG sweep ports: ${PHASE3_PORT_N2} (n=2), ${PHASE3_PORT_N1} (n=1), ${PHASE3_PORT_N3} (n=3)" >&2
 
 EDGE_PID=""
 cleanup() {
@@ -153,9 +158,9 @@ run_case() {
   echo "[Phase3] ${label} PASS"
 }
 
-run_case 2 "${MJPEG_PORT}" "${BASELINE_SECONDS}" "${PROJECT_ROOT}/.phase3_n2.log" "baseline"
-run_case 1 "$((MJPEG_PORT + 2))" "${SWEEP_SECONDS}" "${PROJECT_ROOT}/.phase3_n1.log" "sweep-n1"
-run_case 3 "$((MJPEG_PORT + 3))" "${SWEEP_SECONDS}" "${PROJECT_ROOT}/.phase3_n3.log" "sweep-n3"
+run_case 2 "${PHASE3_PORT_N2}" "${BASELINE_SECONDS}" "${PROJECT_ROOT}/.phase3_n2.log" "baseline"
+run_case 1 "${PHASE3_PORT_N1}" "${SWEEP_SECONDS}" "${PROJECT_ROOT}/.phase3_n1.log" "sweep-n1"
+run_case 3 "${PHASE3_PORT_N3}" "${SWEEP_SECONDS}" "${PROJECT_ROOT}/.phase3_n3.log" "sweep-n3"
 
 echo "[Phase3] Automated checks PASS."
 echo "[Phase3] Manual gate still required: confirm ID continuity/re-acquisition in live overlay."

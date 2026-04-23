@@ -61,14 +61,14 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8780
+uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
 In another terminal:
 
 ```bash
-curl -s "http://127.0.0.1:8780/health"
-curl -s "http://127.0.0.1:8780/live/state"
+curl -s "http://127.0.0.1:8000/health"
+curl -s "http://127.0.0.1:8000/live/state"
 ```
 
 ## 4) Start edge (no model smoke test)
@@ -76,7 +76,7 @@ curl -s "http://127.0.0.1:8780/live/state"
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-/usr/bin/timeout 1200 python -m edge.main --camera csi --csi-sensor-id 0 --mjpeg-port 8080
+/usr/bin/timeout 1200 python -m edge.main --camera csi --csi-sensor-id 0 --mjpeg-port 8001
 ```
 
 To vertically flip the CSI camera image, add `--csi-flip-method 6`:
@@ -84,13 +84,13 @@ To vertically flip the CSI camera image, add `--csi-flip-method 6`:
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-/usr/bin/timeout 1200 python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --mjpeg-port 8080
+/usr/bin/timeout 1200 python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --mjpeg-port 8001
 ```
 
 In another terminal:
 
 ```bash
-curl -s "http://127.0.0.1:8080/mjpeg" >/dev/null
+curl -s "http://127.0.0.1:8001/mjpeg" >/dev/null
 ```
 
 ## Pass criteria
@@ -181,7 +181,7 @@ python -m pip install --upgrade --force-reinstall "numpy<2"
 cd "/home/$USER/Billiards-AI"
 scripts/docker_jetson_build.sh
 scripts/docker_jetson_up.sh
-curl -s "http://127.0.0.1:8780/health"
-curl -s "http://127.0.0.1:8080/mjpeg" >/dev/null
+curl -s "http://127.0.0.1:8000/health"
+curl -s "http://127.0.0.1:8001/mjpeg" >/dev/null
 ```
 

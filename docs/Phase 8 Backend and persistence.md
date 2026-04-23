@@ -17,14 +17,14 @@ export BILLIARDS_DDB_STICK_TABLE="billiards_stick_stats"
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8780
+uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
 ## 3) Inject shot summary and game over
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8780/event" -H "Content-Type: application/json" -d '{"type":"shot_summary","ts":1710000200.0,"payload":{"shot_summary":{"shot_idx":1,"ts_start":1710000199.0,"ts_end":1710000200.0,"shooter_profile_id":"p1","stick_profile_id":"s1","tags":["break"],"cue_peak_speed_mps":3.1,"shooter_player_idx":0,"shooter_team_idx":0}}}'
-curl -s -X POST "http://127.0.0.1:8780/event" -H "Content-Type: application/json" -d '{"type":"game_over","ts":1710000300.0,"payload":{"game_type":"9ball","play_mode":"singles","rulesets":{"9ball":"wpa"},"winner_team":0,"game_over_reason":"nine_ball_pocketed_legally","players":[{"name":"A","profile_id":"p1"}]}}'
+curl -s -X POST "http://127.0.0.1:8000/event" -H "Content-Type: application/json" -d '{"type":"shot_summary","ts":1710000200.0,"payload":{"shot_summary":{"shot_idx":1,"ts_start":1710000199.0,"ts_end":1710000200.0,"shooter_profile_id":"p1","stick_profile_id":"s1","tags":["break"],"cue_peak_speed_mps":3.1,"shooter_player_idx":0,"shooter_team_idx":0}}}'
+curl -s -X POST "http://127.0.0.1:8000/event" -H "Content-Type: application/json" -d '{"type":"game_over","ts":1710000300.0,"payload":{"game_type":"9ball","play_mode":"singles","rulesets":{"9ball":"wpa"},"winner_team":0,"game_over_reason":"nine_ball_pocketed_legally","players":[{"name":"A","profile_id":"p1"}]}}'
 ```
 
 ## 4) Verify SQLite persistence

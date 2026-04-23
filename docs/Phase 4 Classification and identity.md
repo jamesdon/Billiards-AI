@@ -9,7 +9,7 @@ Validate ball classes and persistent player/stick profiles with nicknames.
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8780
+uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
 In another terminal:
@@ -23,14 +23,14 @@ python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --onnx-mo
 ## 2) List profiles
 
 ```bash
-curl -s "http://127.0.0.1:8780/profiles"
+curl -s "http://127.0.0.1:8000/profiles"
 ```
 
 ## 3) Rename player/stick nickname
 
 ```bash
-curl -s -X PATCH "http://127.0.0.1:8780/profiles/player/PLAYER_PROFILE_ID" -H "Content-Type: application/json" -d '{"display_name":"Alex"}'
-curl -s -X PATCH "http://127.0.0.1:8780/profiles/stick/STICK_PROFILE_ID" -H "Content-Type: application/json" -d '{"display_name":"Break Cue"}'
+curl -s -X PATCH "http://127.0.0.1:8000/profiles/player/PLAYER_PROFILE_ID" -H "Content-Type: application/json" -d '{"display_name":"Alex"}'
+curl -s -X PATCH "http://127.0.0.1:8000/profiles/stick/STICK_PROFILE_ID" -H "Content-Type: application/json" -d '{"display_name":"Break Cue"}'
 ```
 
 ## 4) Restart edge and verify persistence

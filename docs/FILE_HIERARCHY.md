@@ -14,6 +14,7 @@ Billiards-AI/
     FEATURE_GAME_PHASE_VISION.md    Vision-derived match phase (rack/balls/shot)
     HARDWARE_IMX477_AUDIO.md        IMX477 + low-distortion lens; microphone fouls roadmap
     FILE_HIERARCHY.md               This file
+    PORTS.md                        Fixed `127.0.0.1` port map: **8000** (API) + **8001**–**8005** (MJPEG / phases)
     EDGE_PIPELINE.md                Edge runtime details + FPS/latency knobs
     RULES_ENGINE.md                 Rule engine interfaces and per-game rules
     EVENT_DETECTION.md              Pocket/collision/foul/shot detection logic
@@ -116,7 +117,7 @@ Billiards-AI/
   backend/                          Optional offload + history + dashboard API
     __init__.py
     app.py                          FastAPI app (`/event`, `/state`, `/live/state`, WebSocket hub); `/` → `/setup`; mounts `static/`
-    setup_guide.py                  Guided setup: `GET /api/setup/steps`, `GET/PUT /api/setup/progress`, `GET /api/setup/context` (includes `api_port` from the request Host + `api_default_port` 8780), `GET /api/setup/edge-health?port=` (server probes `http://127.0.0.1:{port}/health` for `edge.main` MJPEG, since the browser cannot read that cross-origin from the guide HTTP port without CORS), `GET /api/setup/doc?path=&textSize=` (Markdown→HTML; `textSize` read case-insensitively from query; first-paint size from query, then `setup_text_size` cookie, then `medium`; all viewer `href` values entity-encode `&` as `&amp;` so Safari does not truncate URLs; root font from `html[data-text-size]` + `!important`; `Set-Cookie` on each doc view), optional `POST /api/setup/launch` when `SETUP_ALLOW_LAUNCH=1`
+    setup_guide.py                  Guided setup: `GET /api/setup/steps`, `GET/PUT /api/setup/progress`, `GET /api/setup/context` (includes `api_port`, `api_default_port` 8000, `mjpeg_default_port` 8001; see `docs/PORTS.md`), `GET /api/setup/edge-health?port=` (server probes `http://127.0.0.1:{port}/health` for `edge.main` MJPEG, since the browser cannot read that cross-origin from the guide HTTP port without CORS), `GET /api/setup/doc?path=&textSize=` (Markdown→HTML; `textSize` read case-insensitively from query; first-paint size from query, then `setup_text_size` cookie, then `medium`; all viewer `href` values entity-encode `&` as `&amp;` so Safari does not truncate URLs; root font from `html[data-text-size]` + `!important`; `Set-Cookie` on each doc view), optional `POST /api/setup/launch` when `SETUP_ALLOW_LAUNCH=1`
     static/setup/                   Setup wizard UI (`index.html`, `app.js`, `style.css`); `setup_text_size` cookie + `localStorage` `billiards-setup-text-size`; sidebar API base URL + MJPEG port + live edge-health; `href_template` may include `{api_port}` and `{mjpeg_port}`; checklist `verify_actions` (buttons) plus **Copy** for full shell backticks; doc links add `&textSize=`; progress in `localStorage` and `data/setup_wizard_progress.json`; resizable sidebar; `pagehide`/`beforeunload` keepalive save
     reducer.py                      LiveGameReducer: merges snapshots + shot/pocket/collision/rail/foul events for `GET /live/state`
     ws.py                           WebSocket broadcast of live state/events
@@ -132,8 +133,8 @@ Billiards-AI/
     run_backend.sh                  FastAPI: `.venv/bin/python3 -m uvicorn backend.app:app` (avoids broken `uvicorn` shim if repo path changed after `venv` creation)
     run_phase.sh                    Entry point for phase scripts
     phase1.sh                       Environment + backend + CSI smoke checks
-    phase2.sh                       Headless calibration validation (no GUI); default `MJPEG_PORT=8080` (8000–9998: uses port and port+1); `PHASE2_CAMERA` (unset → **usb** on macOS/Darwin, **csi** on Linux/Jetson; or explicit `usb` / numeric V4L index) plus `CSI_*` / `PHASE2_USB_INDEX`; invalid-label `edge.main` same camera args
-    phase3.sh                       Detection/tracking verification sweep (n=1/2/3); default `MJPEG_PORT=8080` (8000–9996: sweep uses port, port+2, port+3; all in 8000–9999)
+    phase2.sh                       Headless calibration validation (no GUI); fixed MJPEG **8002** / **8003** (`PHASE2_PORT_VALID` / `PHASE2_PORT_INVALID`); `PHASE2_CAMERA` (unset → **usb** on macOS/Darwin, **csi** on Linux/Jetson; or explicit `usb` / numeric V4L index) plus `CSI_*` / `PHASE2_USB_INDEX`
+    phase3.sh                       Detection/tracking verification sweep (n=1/2/3); fixed MJPEG **8001** / **8004** / **8005** (`PHASE3_PORT_N2` / `N1` / `N3`)
     phase4.sh                       Identity/profile persistence checks
     phase5.sh                       Foul event injection sanity checks
     phase6.sh                       Rules test execution

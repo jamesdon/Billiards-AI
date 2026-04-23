@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.backend
     container_name: billiards-backend
     ports:
-      - "8780:8780"
+      - "8000:8000"
     environment:
       - AWS_REGION=${AWS_REGION:-}
       - BILLIARDS_DDB_PLAYER_TABLE=${BILLIARDS_DDB_PLAYER_TABLE:-}
@@ -26,7 +26,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:8080"
+      - "8001:8001"
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
@@ -48,7 +48,7 @@ services:
       --csi-flip-method ${CSI_FLIP_METHOD:-0}
       --width ${CAM_WIDTH:-1280}
       --height ${CAM_HEIGHT:-720}
-      --mjpeg-port ${MJPEG_PORT:-8080}
+      --mjpeg-port ${MJPEG_PORT:-8001}
       --onnx-model ${MODEL_PATH:-/models/model.onnx}
       --class-map ${CLASS_MAP_PATH:-/models/class_map.json}
       --identities /data/identities.json

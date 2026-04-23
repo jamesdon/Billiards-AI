@@ -19,13 +19,13 @@ Start backend:
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8780
+uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
 Inject synthetic game-over:
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8780/event" \
+curl -s -X POST "http://127.0.0.1:8000/event" \
   -H "Content-Type: application/json" \
   -d '{
     "type":"game_over",
@@ -47,7 +47,7 @@ curl -s -X POST "http://127.0.0.1:8780/event" \
 Check live state:
 
 ```bash
-curl -s "http://127.0.0.1:8780/live/state"
+curl -s "http://127.0.0.1:8000/live/state"
 ```
 
 ## Pass criteria

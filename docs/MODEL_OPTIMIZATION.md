@@ -70,7 +70,7 @@ Follow this once (or when refreshing the shared model). All paths use `"/home/$U
    (`*.onnx` is gitignored; this file lives only on disk or in your release storage.)
 
 8. **Verify** — Run `scripts/phase3.sh` with defaults, or a short smoke:  
-   `python -m edge.main --camera csi --onnx-model models/model.onnx --class-map models/class_map.json --detect-every-n 2 --mjpeg-port 8080`  
+   `python -m edge.main --camera csi --onnx-model models/model.onnx --class-map models/class_map.json --detect-every-n 2 --mjpeg-port 8001`  
    Tune `conf_thres` / training data if boxes are noisy; see **Runtime knobs** and Phase 3 docs.
 
 ## Do I have to train on another machine?
@@ -366,7 +366,7 @@ source "/home/$USER/Billiards-AI/.venv/bin/activate"
   --onnx-model "/home/$USER/Billiards-AI/models/model.onnx" \
   --class-map "/home/$USER/Billiards-AI/models/class_map.json" \
   --detect-every-n 2 \
-  --mjpeg-port 8080
+  --mjpeg-port 8001
 ```
 
 ## Detector choice

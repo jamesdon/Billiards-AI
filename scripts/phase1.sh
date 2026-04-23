@@ -63,7 +63,7 @@ echo "[Phase1] /live/state => ${STATE_JSON}"
 
 CSI_SENSOR_ID="${CSI_SENSOR_ID:-0}"
 CSI_FLIP_METHOD="${CSI_FLIP_METHOD:-0}"
-MJPEG_PORT="${MJPEG_PORT:-8080}"
+MJPEG_PORT="${MJPEG_PORT:-8001}"
 EDGE_TIMEOUT_SECONDS="${EDGE_TIMEOUT_SECONDS:-1200}"
 
 echo "[Phase1] Starting edge CSI smoke test..."

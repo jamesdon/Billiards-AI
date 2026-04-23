@@ -7,7 +7,7 @@
       checklist_done: {},
       notes: {},
       last_step_id: null,
-      mjpeg_port: 8080,
+      mjpeg_port: 8001,
     },
     activeId: null,
     saveTimer: null,
@@ -177,7 +177,7 @@
 
   function getMjpegPort() {
     const v = parseInt(mjpegInput?.value, 10);
-    if (!Number.isFinite(v) || v < 1) return state.progress.mjpeg_port || 8080;
+    if (!Number.isFinite(v) || v < 1) return state.progress.mjpeg_port || 8001;
     return v;
   }
 
@@ -190,7 +190,7 @@
     }
     const d = state.context && state.context.api_default_port;
     if (typeof d === "number" && d >= 1) return d;
-    return 8780;
+    return 8000;
   }
 
   function resolveLinkHref(tpl) {
@@ -769,7 +769,10 @@
         void putProgress().catch(() => {});
       }
       if (typeof state.progress.mjpeg_port !== "number" || state.progress.mjpeg_port < 1) {
-        state.progress.mjpeg_port = 8080;
+        state.progress.mjpeg_port = 8001;
+      }
+      if (state.progress.mjpeg_port < 8001 || state.progress.mjpeg_port > 8005) {
+        state.progress.mjpeg_port = 8001;
       }
       if (mjpegInput) mjpegInput.value = String(state.progress.mjpeg_port);
 
@@ -780,7 +783,7 @@
         apiHint.textContent =
           "This guide: http://127.0.0.1:" +
           getApiPort() +
-          "/setup (BACKEND_PORT, default 8780 — distinct from edge MJPEG on 8080).";
+          "/setup (BACKEND_PORT default 8000; MJPEG 8001–8005, see docs/PORTS.md).";
       }
 
       state.activeId =
@@ -808,7 +811,7 @@
       renderContent();
     } catch (e) {
       content.innerHTML =
-        "<p>Could not load setup data. Start the backend: <code>./scripts/run_backend.sh</code> or <code>uvicorn backend.app:app --host 127.0.0.1 --port 8780</code></p>";
+        "<p>Could not load setup data. Start the backend: <code>./scripts/run_backend.sh</code> or <code>uvicorn backend.app:app --host 127.0.0.1 --port 8000</code></p>";
     }
   }
 

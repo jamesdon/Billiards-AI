@@ -33,5 +33,5 @@ fi
   --identities "$IDENTITIES_PATH" \
   --players "${PLAYERS:-Player A,Player B}" \
   --game "${GAME_TYPE:-8ball}" \
-  --mjpeg-port "${MJPEG_PORT:-8080}"
+  --mjpeg-port "${MJPEG_PORT:-8001}"
 

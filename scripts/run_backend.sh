@@ -13,6 +13,6 @@ fi
 cd "$PROJECT_ROOT"
 export PYTHONPATH="${PROJECT_ROOT}${PYTHONPATH:+:$PYTHONPATH}"
 HOST="${BACKEND_HOST:-127.0.0.1}"
-PORT="${BACKEND_PORT:-8780}"
+PORT="${BACKEND_PORT:-8000}"
 echo "run_backend.sh: $PY -m uvicorn backend.app:app --host $HOST --port $PORT"
 exec "$PY" -m uvicorn backend.app:app --host "$HOST" --port "$PORT" "$@"

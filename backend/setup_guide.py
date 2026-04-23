@@ -27,8 +27,9 @@ from pydantic import BaseModel, Field
 # Repo root: backend/setup_guide.py -> parents[1]
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-# FastAPI + setup guide HTTP port (run_backend.sh, Dockerfile). Chosen to sit away from edge MJPEG (8080).
-DEFAULT_API_PORT: int = 8780
+# FastAPI + setup guide HTTP port (run_backend.sh, Dockerfile). See docs/PORTS.md.
+DEFAULT_API_PORT: int = 8000
+DEFAULT_MJPEG_PORT: int = 8001
 
 
 def _api_port_from_request(request: Request) -> int:
@@ -305,7 +306,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
             {
                 "label": "Preview live table overlay (MJPEG via edge)",
                 "href_template": "http://127.0.0.1:{mjpeg_port}/mjpeg",
-                "note": "Start edge.main with your calibration first; set MJPEG port below (default 8080).",
+                "note": "Start edge.main with your calibration first; set MJPEG port below (default 8001, docs/PORTS.md).",
             },
         ],
         "hints": [
@@ -378,7 +379,7 @@ SETUP_STEPS: list[dict[str, Any]] = [
                 "item": "Profiles persist across edge restarts",
                 "verify": (
                     "1) With edge in the loop, use a USB or CSI run as you prefer (example USB):\n"
-                    '`cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --identities identities.json --calib calibration.json --mjpeg-port 8080`'
+                    '`cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --identities identities.json --calib calibration.json --mjpeg-port {mjpeg_port}`'
                     "\n\n2) `PATCH` a nickname through `/profiles` (see Phase 4 doc), restart edge, and confirm the name returns after restart."
                 ),
                 "record": "Note a profile id you used for this test, if you want a paper trail.",
@@ -520,7 +521,7 @@ class SetupProgress(BaseModel):
     checklist_done: dict[str, list[bool]] = Field(default_factory=dict)
     notes: dict[str, str] = Field(default_factory=dict)
     last_step_id: str | None = None
-    mjpeg_port: int = 8080
+    mjpeg_port: int = 8001
 
 
 def _load_progress() -> SetupProgress:
@@ -579,6 +580,7 @@ def build_router() -> APIRouter:
             "markdown_installed": _HAS_MARKDOWN,
             "api_port": _api_port_from_request(request),
             "api_default_port": DEFAULT_API_PORT,
+            "mjpeg_default_port": DEFAULT_MJPEG_PORT,
         }
 
     @router.get("/api/setup/steps")

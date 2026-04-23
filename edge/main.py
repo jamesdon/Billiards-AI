@@ -126,7 +126,7 @@ def parse_args() -> argparse.Namespace:
         help="Pocket radius (meters) used by --auto-calib-out",
     )
     ap.add_argument("--game", type=str, default="8ball", choices=[g.value for g in GameType])
-    ap.add_argument("--mjpeg-port", type=int, default=8080)
+    ap.add_argument("--mjpeg-port", type=int, default=8001)
     ap.add_argument("--players", type=str, default="Player A,Player B")
     ap.add_argument("--onnx-model", type=str, default=None, help="YOLO-like ONNX model path (optional); convention: models/model.onnx")
     ap.add_argument("--class-map", type=str, default=None, help="JSON mapping class_id->label; convention: models/class_map.json")

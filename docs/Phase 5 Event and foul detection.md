@@ -9,13 +9,13 @@ Validate event stream and foul logic (auto + manual injection).
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8780
+uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
 ## 2) Inject manual foul (pool)
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8780/fouls/manual" \
+curl -s -X POST "http://127.0.0.1:8000/fouls/manual" \
   -H "Content-Type: application/json" \
   -d '{"game_type":"8ball","foul_type":"touched_ball","player_idx":0,"team_idx":0,"notes":"ref touch foul"}'
 ```
@@ -23,7 +23,7 @@ curl -s -X POST "http://127.0.0.1:8780/fouls/manual" \
 ## 3) Inject manual foul (snooker with points)
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8780/fouls/manual" \
+curl -s -X POST "http://127.0.0.1:8000/fouls/manual" \
   -H "Content-Type: application/json" \
   -d '{"game_type":"snooker","foul_type":"no_foot_on_floor","player_idx":0,"team_idx":0,"foul_points":6}'
 ```
@@ -31,7 +31,7 @@ curl -s -X POST "http://127.0.0.1:8780/fouls/manual" \
 ## 4) Verify live reducer changed
 
 ```bash
-curl -s "http://127.0.0.1:8780/live/state"
+curl -s "http://127.0.0.1:8000/live/state"
 ```
 
 ## 5) Verify event persistence

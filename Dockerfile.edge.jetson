@@ -24,8 +24,8 @@ RUN python3 -m pip install --upgrade pip && \
 COPY core /app/core
 COPY edge /app/edge
 
-EXPOSE 8080
+EXPOSE 8001
 
 # Default to CSI camera on Jetson-family hardware.
-CMD ["python3", "-m", "edge.main", "--camera", "csi", "--mjpeg-port", "8080"]
+CMD ["python3", "-m", "edge.main", "--camera", "csi", "--mjpeg-port", "8001"]
 

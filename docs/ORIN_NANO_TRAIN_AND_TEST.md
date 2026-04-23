@@ -24,7 +24,7 @@ Use **`~/Billiards-AI`** (or `cd "$PROJECT_ROOT"`). Plain one-liners also live i
 | **Calibration (headless check)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 2` |
 | **Backend + CSI smoke (Phase 1)** | `cd ~/Billiards-AI && bash scripts/run_phase.sh 1` |
 | **Detector + tracking (Phase 3)** | Requires `models/model.onnx`. Then: `cd ~/Billiards-AI && bash scripts/run_phase.sh 3` — or `bash scripts/jetson_phases_1_3.sh` (runs 1 then 3) |
-| **Live app + MJPEG** | With calib + ONNX in place: `cd ~/Billiards-AI && bash scripts/jetson_edge_smoke_csi.sh` — open `http://<device-ip>:8080/mjpeg` until Ctrl+C |
+| **Live app + MJPEG** | With calib + ONNX in place: `cd ~/Billiards-AI && bash scripts/jetson_edge_smoke_csi.sh` — open `http://<device-ip>:8001/mjpeg` until Ctrl+C |
 | **YOLO train → ONNX → smoke again** | After labeled images exist: `jetson_yolo_train.sh` → `jetson_yolo_export_latest.sh` → Phase 3 or `jetson_edge_smoke_csi.sh` again |
 
 **Minimum “it works on the table” path:** `jetson_train_env.sh` → `start_calibration.sh` → place or export `models/model.onnx` → `jetson_edge_smoke_csi.sh` (confirm overlay/stream).

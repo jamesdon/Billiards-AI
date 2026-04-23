@@ -9,7 +9,7 @@ Run a full real-world match and validate output correctness.
 ```bash
 cd "/home/$USER/Billiards-AI"
 source "/home/$USER/Billiards-AI/.venv/bin/activate"
-uvicorn backend.app:app --host 0.0.0.0 --port 8780
+uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
 
 ## 2) Start edge with full config
@@ -27,13 +27,13 @@ python -m edge.main \
   --identities "/home/$USER/Billiards-AI/identities.json" \
   --players "Player A,Player B" \
   --game 8ball \
-  --mjpeg-port 8080
+  --mjpeg-port 8001
 ```
 
 ## 3) Monitor live reducer while playing
 
 ```bash
-watch -n 1 curl -s "http://127.0.0.1:8780/live/state"
+watch -n 1 curl -s "http://127.0.0.1:8000/live/state"
 ```
 
 The reducer ingests **events** automatically when you `POST /event`. For **turn order and scoreboard** fields to stay authoritative, also **`POST /state`** with a JSON snapshot of `GameState` (or a compatible subset) on a steady cadence from the edge or a small bridge—see `docs/BACKEND.md`.
@@ -41,7 +41,7 @@ The reducer ingests **events** automatically when you `POST /event`. For **turn 
 ## 4) Inject manual fouls if needed during match
 
 ```bash
-curl -s -X POST "http://127.0.0.1:8780/fouls/manual" -H "Content-Type: application/json" -d '{"game_type":"8ball","foul_type":"unsportsmanlike_conduct","player_idx":1,"team_idx":1,"notes":"time violation"}'
+curl -s -X POST "http://127.0.0.1:8000/fouls/manual" -H "Content-Type: application/json" -d '{"game_type":"8ball","foul_type":"unsportsmanlike_conduct","player_idx":1,"team_idx":1,"notes":"time violation"}'
 ```
 
 ## 5) Post-game audit
