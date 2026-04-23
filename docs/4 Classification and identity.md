@@ -14,7 +14,7 @@ Follow these **phases in order**. Each **gate** tells you when you may continue.
 
 | Phase | What you do | Gate (do not continue until) |
 | --- | --- | --- |
-| **1. One identities path** | Same file for API (`BILLIARDS_IDENTITIES_PATH` or default) and `edge.main` `--identities`. | You can name that path (absolute if unsure). |
+| **1. Same file for API and edge** | Default: one `identities.json` in the repo; edge uses `--identities` to that path; API reads it (or set `BILLIARDS_IDENTITIES_PATH` to match). | **Live status** / mental check: not two different paths. |
 | **2. Edge running** | Start `edge.main` with that flag **only if** it is not already up (e.g. **§3**). Check MJPEG **edge /health** in the sidebar. | Edge answers; stream can run. |
 | **3. Non-empty profiles** | `GET /profiles`, live panel, camera in view, or **Bootstrap** / minimal JSON. | At least one `players` or `sticks` row. |
 | **4. Set a name** | Score Keeper or `PATCH` with a **real** id. | New `display_name` in `GET /profiles`. |
@@ -22,13 +22,13 @@ Follow these **phases in order**. Each **gate** tells you when you may continue.
 
 **If you are reading `/setup` in a browser, the API is already running—do not start a second `run_backend.sh` on the same port.** Only use **Environment and startup** / `run_backend.sh` when nothing is listening or the sidebar API lamp is red. “Port already in use” from the script means a server is already there.
 
-### 1. Preconditions
+### 1. Same identities file (why and what to do)
 
-1. You have completed or can run **§3**-class bring-up: `models/model.onnx`, `models/class_map.json`, and a working camera path for `edge.main`.
-2. Pick **one** identities file path and use it everywhere:
-   - **Recommended:** absolute path, e.g. `/Users/you/Billiards-AI/identities.json` (macOS) or `/home/you/Billiards-AI/identities.json` (Linux/Jetson).
-   - The **backend** reads `BILLIARDS_IDENTITIES_PATH` if set; otherwise **`./identities.json` relative to the directory where you start uvicorn**. If that disagrees with edge’s `--identities`, you will see **empty** profiles or **split** files.
-3. **Gate:** you can state the single path aloud: “edge writes here, API reads here.”
+**Why:** Edge **writes** profiles to disk; the API **reads** that file. Two different paths ⇒ empty `GET /profiles`, missing names, or “it saved but I don’t see it.”
+
+**Default:** one file `{project_root}/identities.json`—edge already passes `--identities` there; start the API from the repo root (or set `BILLIARDS_IDENTITIES_PATH` to that full path and restart the API). **Custom path:** set `BILLIARDS_IDENTITIES_PATH` before starting the API, then use the **identical** string for `edge.main --identities`.
+
+**You still need** §3-class bring-up (`model.onnx`, `class_map.json`, camera) for live rows from the table.
 
 ### 2. Edge (not the API in the common case)
 
