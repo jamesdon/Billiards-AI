@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Jetson Orin Nano CSI camera setup/check"
-echo "This script targets NVIDIA Jetson-family boards with nvarguscamerasrc (JetPack 5.x baseline: Orin Nano)."
+echo "Jetson-family CSI camera setup/check"
+echo "Targets boards with nvarguscamerasrc (JetPack 5.x Orin Nano baseline; older Jetson Nano may differ)."
 
 echo
 echo "[1/6] Verify project path"
@@ -34,10 +34,27 @@ sudo systemctl status nvargus-daemon --no-pager || true
 
 echo
 echo "[4/6] List camera/video devices"
-v4l2-ctl --list-devices || true
+v4l2-ctl --list-devices 2>&1 || true
+echo "If v4l2-ctl also printed 'Cannot open device /dev/video0': that is normal when no USB UVC camera exists — ignore it for CSI."
 ls -l /dev/video* 2>/dev/null || echo "(no /dev/video* nodes — normal for CSI-only; USB UVC cameras create /dev/video0, etc.)"
 echo
 echo "CSI uses Argus (nvarguscamerasrc), not /dev/video0. Seeing only /dev/media0 (tegra-camrtc) is expected on many Jetson images."
+
+echo
+echo "[4b/6] Media controller topology (entities = drivers + sensor pipeline)"
+if command -v media-ctl >/dev/null 2>&1; then
+  _top="$(media-ctl -d /dev/media0 -p 2>/dev/null || true)"
+  echo "$_top"
+  _entities="$(echo "$_top" | /usr/bin/grep '^entity ' 2>/dev/null | /usr/bin/wc -l | tr -d '[:space:]')"
+  _entities="${_entities:-0}"
+  if [[ "${_entities}" -lt 2 ]]; then
+    echo "" >&2
+    echo ">>> Few or no 'entity' lines: the kernel likely did NOT link a CSI sensor driver to this media device." >&2
+    echo ">>> That matches Argus 'No cameras available'. Fix hardware (ribbon, port, module) or board config (jetson-io / device tree), then cold boot." >&2
+  fi
+else
+  echo "(install v4l-utils for media-ctl: sudo apt-get install -y v4l-utils)"
+fi
 
 echo
 echo "[5/6] Run CSI GStreamer smoke test (10 seconds)"
@@ -70,5 +87,6 @@ echo "    Missing /dev/video0 alone is NOT proof the CSI stack is broken — try
 echo "    Re-seat the CSI ribbon (correct orientation), try the other CSI port (sensor-id=1),"
 echo "    confirm a supported camera module is installed, and check carrier docs / jetson-io."
 echo "  • No 'imx' (or similar) lines in sudo dmesg after boot: kernel likely never probed a camera."
+echo "  • media-ctl -d /dev/media0 -p with almost no 'entity' lines: same as above — no sensor graph."
 echo "If failures occurred, re-check ribbon cable, camera module model vs carrier, and L4T/Argus stack."
 
