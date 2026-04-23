@@ -400,7 +400,6 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
         ],
         "links": [
-            {"label": "Setup wizard (this UI)", "href": "/setup"},
             {"label": "GET /profiles (JSON)", "href_template": "http://127.0.0.1:{api_port}/profiles"},
             {"label": "Backend /health (debug)", "href_template": "http://127.0.0.1:{api_port}/health"},
         ],
