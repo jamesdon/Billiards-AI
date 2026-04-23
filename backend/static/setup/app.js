@@ -243,19 +243,19 @@
         rsn === "connection_refused" ||
         /Connection refused|Errno 61|Errno 111/i.test(d)
       ) {
-        const apiP = getApiPort();
         mjpegStatusEl.textContent = "";
         mjpegStatusEl.appendChild(
           document.createTextNode(
             "Port " +
               port +
-              ": no edge (MJPEG) listener. The setup guide is already served on port " +
-              apiP +
-              " — you do not need to start the API again. In another shell, start edge (see example) or set this MJPEG field to match a running edge (same as --mjpeg-port)."
+              ": no edge (MJPEG) yet — only this matters for the stream. " +
+              "In a new terminal, run the example line below, or set this number to your edge --mjpeg-port if it is already running."
           )
         );
         mjpegStatusEl.appendChild(document.createElement("br"));
-        mjpegStatusEl.appendChild(document.createTextNode("Example: " + example + "."));
+        mjpegStatusEl.appendChild(
+          document.createTextNode("Example: " + example + ".")
+        );
         return;
       }
       mjpegStatusEl.textContent =
