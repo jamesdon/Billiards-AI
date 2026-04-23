@@ -1515,8 +1515,33 @@ def _image_xy_to_table_m(h_image_to_table: np.ndarray, ix: float, iy: float) -> 
     return float(t[0] / w), float(t[1] / w)
 
 
+def _shipped_repo_overlay_label_anchors() -> List[Dict[str, Any]]:
+    """Labels (id, text, x_L, y_W) from repo config/calib_overlay.json — default positions for all users."""
+    path = _REPO_ROOT / "config" / "calib_overlay.json"
+    if not path.is_file():
+        return []
+    data = _load_calib_overlay_json(path)
+    raw = data.get("labels")
+    if not isinstance(raw, list) or not raw:
+        return []
+    out: List[Dict[str, Any]] = []
+    for x in raw:
+        r = _parse_overlay_label_row(x)
+        if r is not None:
+            out.append(r)
+    return out
+
+
 def _default_overlay_labels(l_m: float, w_m: float) -> List[Dict[str, Any]]:
-    """Kitchen / foot quarter + schematic captions; anchors as x_L,y_W fractions of L,W."""
+    """Kitchen / foot quarter + schematic captions; anchors as x_L,y_W fractions of L,W.
+
+    Prefer ``config/calib_overlay.json`` in the repo (same defaults as start_calibration.sh) so
+    x,y text placement is consistent for everyone. Fall back to geometry from the table diagram
+    if that file is missing or has no valid labels.
+    """
+    shipped = _shipped_repo_overlay_label_anchors()
+    if shipped:
+        return shipped
     if build_table_diagram_m is None:
         return []
     L = float(l_m)

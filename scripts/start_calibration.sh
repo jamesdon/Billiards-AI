@@ -53,7 +53,7 @@ Environment overrides (optional):
   POCKET_CLASS_MAP  (optional; default: \$PROJECT_ROOT/models/class_map.json)
   POCKET_MIN_CONF   (optional; forwarded as --pocket-min-conf)
   RACK_STYLE        (default: 8ball; also 9ball — schematic rack overlay in calib_click)
-  CALIB_OVERLAY_JSON  (optional; path to JSON for break_box and label anchors; see config/calib_overlay.json; GUI key e edits labels)
+  CALIB_OVERLAY_JSON  (default: \$PROJECT_ROOT/config/calib_overlay.json when present; break_box + label x_L,y_W anchors; GUI key e edits labels)
 
 Example:
   bash /home/$USER/Billiards-AI/scripts/start_calibration.sh
@@ -237,6 +237,12 @@ main() {
 
   echo "Launching calibration GUI from: $CALIB_SCRIPT"
   echo "Output calibration path: $CALIB_OUT"
+  CALIB_OVERLAY_JSON="${CALIB_OVERLAY_JSON:-$PROJECT_ROOT/config/calib_overlay.json}"
+  if [[ -f "$CALIB_OVERLAY_JSON" ]]; then
+    echo "Overlay config (label positions, break box): $CALIB_OVERLAY_JSON"
+  else
+    echo "Note: no overlay JSON at $CALIB_OVERLAY_JSON (optional; calib_click uses built-in table-geometry label positions only)."
+  fi
   pocket_extra=()
   if [[ -n "$POCKET_ONNX" ]]; then
     pocket_extra+=(--pocket-onnx "$POCKET_ONNX")
@@ -248,7 +254,12 @@ main() {
     pocket_extra+=(--pocket-min-conf "$POCKET_MIN_CONF")
   fi
   pocket_extra+=(--rack-style "$RACK_STYLE")
+  overlay_arg=()
+  if [[ -f "$CALIB_OVERLAY_JSON" ]]; then
+    overlay_arg+=(--overlay-json "$CALIB_OVERLAY_JSON")
+  fi
   exec "$(python_bin)" "$CALIB_SCRIPT" \
+    "${overlay_arg[@]}" \
     --camera "$CAMERA_SOURCE" \
     --csi-sensor-id "$CSI_SENSOR_ID" \
     --csi-framerate "$CSI_FRAMERATE" \
