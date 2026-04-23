@@ -2,7 +2,7 @@
 
 ## Goal
 
-Validate ball classes and persistent player/stick profiles with nicknames.
+Validate ball classes and persistent **player/stick profile** records (stable ids and nicknames in `identities.json` via the backend). This is **not** face recognition, logins, or “user detection” in the security sense: profiles are file-backed labels tied to tracking, as produced when edge and the API run together.
 
 ## 1) Start backend and edge with identities file
 

@@ -38,6 +38,13 @@ def test_setup_page_and_api():
     steps = r.json()["steps"]
     assert len(steps) >= 3
     assert any(s["id"] == "phase3" for s in steps)
+    p4 = next(s for s in steps if s["id"] == "phase4")
+    assert p4["checklist"][0]["item"] == "GET /profiles returns real profile records"
+    assert "GET /profiles" in (p4["checklist"][0].get("verify") or "")
+    p4links = p4.get("links") or []
+    assert any(
+        (isinstance(x, dict) and x.get("label") == "GET /profiles (JSON)") for x in p4links
+    )
     p3 = next(s for s in steps if s["id"] == "phase3")
     v0 = p3["checklist"][0].get("verify") or ""
     assert "tail" in v0 and "phase3_n2" in v0

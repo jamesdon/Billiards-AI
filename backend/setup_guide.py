@@ -373,37 +373,41 @@ SETUP_STEPS: list[dict[str, Any]] = [
     {
         "id": "phase4",
         "title": "Classification and identity",
-        "summary": "Backend + edge with `identities.json` (TEST_PLAN §4). Persistent player/stick profiles and class-aware behavior as in docs/4 Classification and identity.md.",
+        "summary": "Ball **classes** (from `class_map` / ONNX) plus **file-backed** player/stick **profiles** in `identities.json` (TEST_PLAN §4). This is not face, login, or “who is in the room” user detection; see the checklist and docs/4.",
         "checklist": [
             {
-                "item": "Backend responds on /health",
+                "item": "GET /profiles returns real profile records",
                 "verify": (
-                    "1) The API must be responding on port {api_port} (set `BACKEND_PORT` in `run_backend.sh` or the environment if you use a non-default). "
-                    "If you are reading the setup guide in the browser on that port, the API is already running — do not start a second `run_backend` or a second `uvicorn` on {api_port}. "
-                    "Otherwise, from a terminal, start it:\n"
+                    "The API on {api_port} must be up. If you are reading **this** page from that backend, it already is; do not start a second `run_backend` on {api_port}. If not, run:\n"
                     '`cd "{project_root}" && ./scripts/run_backend.sh`'
-                    "\n\nThat script runs python3 -m uvicorn via the venv (not the broken .venv/bin/uvicorn shim after a folder rename). "
-                    "\n\n2) When it is up (or you already have this page open):\n"
-                    "`curl -s http://127.0.0.1:{api_port}/health`"
-                    "\nExpect JSON with an ok field (see §4 doc for the exact response)."
+                    "\n\nLoad profiles: open **GET /profiles** below, or in a terminal run\n"
+                    '`curl -s "http://127.0.0.1:{api_port}/profiles" | python3 -m json.tool`'
+                    "\n\nYou should see JSON for **player** and **stick** entries: stable `id` strings, `display_name`, and other fields. Those ids tie **track-linked** entities to names stored in `identities.json`; there is no separate visual “user recognition” model in this step."
                 ),
-                "record": "If `/health` is not what you expect, paste the `curl` body in Notes.",
+                "record": "Optionally copy one `player/…` or `stick/…` `id` you will rename in the next line.",
             },
             {
-                "item": "Profiles persist across edge restarts",
+                "item": "PATCH nickname, restart edge, same id and name",
                 "verify": (
-                    "1) With edge in the loop, use a USB or CSI run as you prefer (example USB):\n"
+                    "1) Start edge with a writable `identities.json` (example USB; match your `--mjpeg-port` to the sidebar field):\n"
                     '`cd "{project_root}" && .venv/bin/python3 -m edge.main --camera usb --onnx-model models/model.onnx --class-map models/class_map.json --identities identities.json --calib calibration.json --mjpeg-port {mjpeg_port}`'
-                    "\n\n2) `PATCH` a nickname through `/profiles` (see §4 doc), restart edge, and confirm the name returns after restart."
+                    "\n\n2) `PATCH` a display name for an id you saw from GET /profiles, e.g.:\n"
+                    '`curl -s -X PATCH "http://127.0.0.1:{api_port}/profiles/player/PLAYER_PROFILE_ID" -H "Content-Type: application/json" -d \'{"display_name":"TestName"}\'`'
+                    "\n(replace `PLAYER_PROFILE_ID` with a real id; `stick/…` path per docs/4 if you test a stick).\n\n"
+                    "3) Stop that edge, start the **same** command again, then `GET /profiles` once more. The **same** profile id should still show **`display_name`: `TestName`**—that is persistence in the file, not a live re-identify pass."
                 ),
-                "record": "Note a profile id you used for this test, if you want a paper trail.",
+                "record": "If the name did not round-trip, put the profile id and response snippet in Notes.",
             },
         ],
         "links": [
             {"label": "Setup wizard (this UI)", "href": "/setup"},
-            {"label": "Backend health", "href_template": "http://127.0.0.1:{api_port}/health"},
+            {"label": "GET /profiles (JSON)", "href_template": "http://127.0.0.1:{api_port}/profiles"},
+            {"label": "Backend /health (debug)", "href_template": "http://127.0.0.1:{api_port}/health"},
         ],
-        "hints": ["Replace --camera usb with csi on Jetson."],
+        "hints": [
+            "Replace --camera usb with csi on Jetson.",
+            "“Profiles” are persisted table-entity labels (file-backed with edge); they are not face or person recognition.",
+        ],
         "doc_refs": [{"label": "4 — Classification and identity", "path": "docs/4 Classification and identity.md"}],
     },
     {
