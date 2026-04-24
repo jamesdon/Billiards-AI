@@ -12,7 +12,7 @@ Billiards-AI/
     FEATURE_REALTIME_RULES.md       Rules engine contract (isolated from trajectory)
     FEATURE_VOICE_OVERLAYS_PROJECTOR.md  Voice (EN first), projector layers, projector homography notes
     FEATURE_GAME_PHASE_VISION.md    Vision-derived match phase (rack/balls/shot)
-    HARDWARE_IMX477_AUDIO.md        IMX477 + low-distortion lens; micro-foul audio + PortAudio (`libportaudio2`) on Jetson
+    HARDWARE_IMX477_AUDIO.md        IMX477 + low-distortion lens; Movo VXR10-Pro + USB-AC + ALSA; micro-foul audio + PortAudio (`libportaudio2`) on Jetson
     FILE_HIERARCHY.md               This file
     PORTS.md                        Port map: **8000** (API, setup **`/setup`**, Score Keeper **`/scorekeeper`**) + **8001**–**8005** (MJPEG / `run_phase` / `phase*.sh`); LAN access via `BACKEND_HOST=0.0.0.0` and `GET /api/setup/context` (`scorekeeper_url`, `public_http_base`)
     EDGE_PIPELINE.md                Edge runtime details + FPS/latency knobs

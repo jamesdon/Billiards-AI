@@ -18,6 +18,13 @@
 - **PortAudio on Jetson / Ubuntu**: `pip install sounddevice` is not enough. Install **`libportaudio2`** (or `portaudio19-dev`, which pulls it in) before importing `sounddevice`, or you get `OSError: PortAudio library not found`. Quick check: `python3 -c "import sounddevice as sd; print(sd.query_devices())"`.
 - **Processing**: short-time energy + transient detection → features fed to a lightweight classifier or rule thresholds; timestamp alignment with `GameState.shot` timeline.
 
+### Deployed rig (Orin Nano, reference)
+
+- **Microphones**: **Movo VXR10-Pro** (compact shotgun).
+- **Analog path**: each mic’s **3.5 mm TRS** plug → **Movo USB-AC** TRS-to-USB adapter (USB audio interface).
+- **Cabling**: **USB extension** from each adapter into the Nano’s **first** USB host ports (closest / primary pair—re-check `arecord -l` / `dmesg` after any replug; card index order can change).
+- **Kernel / ALSA name**: adapters enumerate as **GeneralPlus USB Audio Device** (two units → typically **`hw:0,0`** and **`hw:1,0`** when those ports win card 0 and 1). Use `arecord -l` and `/proc/asound/cards` to confirm after cable or hub changes.
+
 ## Privacy
 
 - Audio should be **opt-in** per venue; document retention and mute for casual play.
