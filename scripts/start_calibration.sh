@@ -46,6 +46,7 @@ Environment overrides (optional):
   CSI_FRAMERATE     (default: 30)
   CSI_OPEN_RETRIES  (default: 8; Argus CSI reopen attempts in calib_click.py)
   SKIP_CSI_PREFLIGHT  (if non-empty, skip Jetson CSI gst-launch probe before GUI)
+  CALIB_NO_FULLSCREEN (if set to 1, pass --no-fullscreen: windowed OpenCV; fixes some Jetson/GTK mouse maps)
   FRAME_WIDTH       (default: 1280)
   FRAME_HEIGHT      (default: 720)
   UNITS             (default: imperial)
@@ -322,12 +323,17 @@ main() {
     pocket_extra+=(--pocket-min-conf "$POCKET_MIN_CONF")
   fi
   pocket_extra+=(--rack-style "$RACK_STYLE")
+  noff_extra=()
+  if [[ "${CALIB_NO_FULLSCREEN:-}" == "1" ]]; then
+    noff_extra+=(--no-fullscreen)
+  fi
   overlay_arg=()
   if [[ -f "$CALIB_OVERLAY_JSON" ]]; then
     overlay_arg+=(--overlay-json "$CALIB_OVERLAY_JSON")
   fi
   exec "$(python_bin)" "$CALIB_SCRIPT" \
     "${overlay_arg[@]}" \
+    "${noff_extra[@]}" \
     --camera "$CAMERA_SOURCE" \
     --csi-sensor-id "$CSI_SENSOR_ID" \
     --csi-framerate "$CSI_FRAMERATE" \

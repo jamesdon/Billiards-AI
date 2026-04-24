@@ -286,12 +286,22 @@ def _parse_args() -> argparse.Namespace:
             "Default: <repo>/config/calib_overlay.json if present."
         ),
     )
+    p.add_argument(
+        "--no-fullscreen",
+        action="store_true",
+        help=(
+            "Do not maximize/fullscreen the OpenCV window (stay windowed). "
+            "Use on Jetson/GTK if mouse clicks map wrong; or set CALIB_NO_FULLSCREEN=1 in start_calibration.sh."
+        ),
+    )
     args = p.parse_args()
     rs = str(args.rack_style).strip().lower().replace(" ", "").replace("_", "")
     if rs in ("9ball", "9", "nineball", "diamond"):
         args.rack_style = "9ball"
     else:
         args.rack_style = "8ball"
+    if os.environ.get("CALIB_NO_FULLSCREEN", "").strip() == "1":
+        args.no_fullscreen = True
     return args
 
 
@@ -2801,7 +2811,7 @@ def main() -> None:
         )
         cv2.putText(
             view,
-            "Drag header to move · r corners · Enter save · q / Esc quit",
+            "Drag header | r corners | Enter save | q / Esc quit",
             (hx1 + 14, hy2 - 8),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.36,
@@ -3295,23 +3305,27 @@ def main() -> None:
         return None
 
     def _mouse_event_to_image_xy(mx: int, my: int) -> Tuple[int, int]:
-        """Map HighGUI mouse coords to image/view pixel space (fullscreen scales the canvas).
+        """Map HighGUI mouse coords to the w_img x h_img canvas.
 
-        getWindowImageRect returns (x, y, w, h) of the *image* region inside the window client
-        area. Letterboxing/centering yields non-zero x,y; mouse (mx, my) must be shifted by
-        that origin before scaling — otherwise clicks miss corners and controls (Jetson/GTK
-        fullscreen often letterboxes a 1280x720 buffer inside a larger desktop).
+        OpenCV may letterbox/pillarbox the image inside getWindowImageRect's (rx,ry,rw,rh).
+        Use a **uniform** scale and centered offsets; independent sx/sy scaling is wrong when
+        the window aspect ratio differs from the frame (common on fullscreen Jetson + GTK).
         """
         try:
             r = cv2.getWindowImageRect(win)
             if r is not None and len(r) >= 4:
-                rx, ry = int(r[0]), int(r[1])
-                rw, rh = int(r[2]), int(r[3])
-                if rw > 1 and rh > 1:
-                    mx_adj = (float(mx) - float(rx)) * float(w_img) / float(rw)
-                    my_adj = (float(my) - float(ry)) * float(h_img) / float(rh)
-                    vx = int(round(mx_adj))
-                    vy = int(round(my_adj))
+                rx, ry = float(r[0]), float(r[1])
+                rw, rh = float(r[2]), float(r[3])
+                if rw > 1.0 and rh > 1.0:
+                    s = min(rw / float(w_img), rh / float(h_img))
+                    dw = s * float(w_img)
+                    dh = s * float(h_img)
+                    ox = rx + 0.5 * (rw - dw)
+                    oy = ry + 0.5 * (rh - dh)
+                    ix = (float(mx) - ox) / s
+                    iy = (float(my) - oy) / s
+                    vx = int(round(ix))
+                    vy = int(round(iy))
                     return int(np.clip(vx, 0, w_img - 1)), int(np.clip(vy, 0, h_img - 1))
         except Exception:
             pass
@@ -3547,7 +3561,8 @@ def main() -> None:
     cv2.setMouseCallback(win, on_mouse)
     redraw()
     cv2.imshow(win, view)
-    _apply_fullscreen_window(win)
+    if not bool(getattr(args, "no_fullscreen", False)):
+        _apply_fullscreen_window(win)
 
     while True:
         _refresh_live_frame()
