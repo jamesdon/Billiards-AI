@@ -100,6 +100,7 @@ The helper now opens with auto-detected corner proposals and in-window controls:
     points remain in source image coordinates.
   - Overlay layout now auto-scales to stay fully on-screen so controls remain clickable.
   - **Fullscreen / letterboxing:** mouse coordinates are mapped using `cv2.getWindowImageRect`’s full `(x, y, width, height)` so clicks line up with the video when the image is centered with black bars (common on Jetson + GTK); without that offset, clicks could appear to do nothing.
+  - **Panel vs corners:** after flip/pan/rotate, corner handles move in *display* space and can sit under the setup panel; clicks on the panel are handled as UI first so they are not captured as corner drags (which used to make controls feel dead or “stuck” after toggling orientation).
 - The helper uses the CLI-selected camera source only (no in-UI camera source
   menu), which removes startup probing overhead and keeps launch latency low.
 - During editing, camera preview is continuously refreshed from the active
