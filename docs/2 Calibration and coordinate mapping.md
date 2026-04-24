@@ -99,6 +99,7 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   - These are display-only transforms for calibration UX; saved calibration
     points remain in source image coordinates.
   - Overlay layout now auto-scales to stay fully on-screen so controls remain clickable.
+  - **Fullscreen / letterboxing:** mouse coordinates are mapped using `cv2.getWindowImageRect`’s full `(x, y, width, height)` so clicks line up with the video when the image is centered with black bars (common on Jetson + GTK); without that offset, clicks could appear to do nothing.
 - The helper uses the CLI-selected camera source only (no in-UI camera source
   menu), which removes startup probing overhead and keeps launch latency low.
 - During editing, camera preview is continuously refreshed from the active

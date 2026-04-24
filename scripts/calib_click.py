@@ -3295,14 +3295,23 @@ def main() -> None:
         return None
 
     def _mouse_event_to_image_xy(mx: int, my: int) -> Tuple[int, int]:
-        """Map HighGUI mouse coords to image/view pixel space (fullscreen scales the canvas)."""
+        """Map HighGUI mouse coords to image/view pixel space (fullscreen scales the canvas).
+
+        getWindowImageRect returns (x, y, w, h) of the *image* region inside the window client
+        area. Letterboxing/centering yields non-zero x,y; mouse (mx, my) must be shifted by
+        that origin before scaling — otherwise clicks miss corners and controls (Jetson/GTK
+        fullscreen often letterboxes a 1280x720 buffer inside a larger desktop).
+        """
         try:
             r = cv2.getWindowImageRect(win)
             if r is not None and len(r) >= 4:
+                rx, ry = int(r[0]), int(r[1])
                 rw, rh = int(r[2]), int(r[3])
                 if rw > 1 and rh > 1:
-                    vx = int(round(float(mx) * float(w_img) / float(rw)))
-                    vy = int(round(float(my) * float(h_img) / float(rh)))
+                    mx_adj = (float(mx) - float(rx)) * float(w_img) / float(rw)
+                    my_adj = (float(my) - float(ry)) * float(h_img) / float(rh)
+                    vx = int(round(mx_adj))
+                    vy = int(round(my_adj))
                     return int(np.clip(vx, 0, w_img - 1)), int(np.clip(vy, 0, h_img - 1))
         except Exception:
             pass
