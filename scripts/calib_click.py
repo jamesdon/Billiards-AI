@@ -85,6 +85,27 @@ _JETSON_CSI_HINT = (
 )
 
 
+def map_highgui_mouse_to_image_xy(
+    mx: int,
+    my: int,
+    rect: Optional[Tuple[int, int, int, int]],
+    w_img: int,
+    h_img: int,
+) -> Tuple[int, int]:
+    """Map OpenCV HighGUI mouse (mx, my) into ``w_img``×``h_img`` buffer coordinates.
+
+    Uses the same scale-only mapping as long-standing calibration behavior (rect
+    width/height only). Pure function for unit tests.
+    """
+    if rect is not None and len(rect) >= 4:
+        rw, rh = int(rect[2]), int(rect[3])
+        if rw > 1 and rh > 1:
+            vx = int(round(float(mx) * float(w_img) / float(rw)))
+            vy = int(round(float(my) * float(h_img) / float(rh)))
+            return int(np.clip(vx, 0, w_img - 1)), int(np.clip(vy, 0, h_img - 1))
+    return int(np.clip(mx, 0, w_img - 1)), int(np.clip(my, 0, h_img - 1))
+
+
 def _csi_troubleshoot_footer(args: argparse.Namespace) -> str:
     return (
         _JETSON_CSI_HINT
@@ -3305,28 +3326,13 @@ def main() -> None:
         return None
 
     def _mouse_event_to_image_xy(mx: int, my: int) -> Tuple[int, int]:
-        """Map HighGUI mouse coords to the w_img x h_img canvas.
-
-        OpenCV may letterbox/pillarbox the image inside getWindowImageRect's (rx,ry,rw,rh).
-        Use a **uniform** scale and centered offsets; independent sx/sy scaling is wrong when
-        the window aspect ratio differs from the frame (common on fullscreen Jetson + GTK).
-        """
+        """Map HighGUI mouse coords to image/view pixel space (see ``map_highgui_mouse_to_image_xy``)."""
         try:
             r = cv2.getWindowImageRect(win)
+            rect_t: Optional[Tuple[int, int, int, int]] = None
             if r is not None and len(r) >= 4:
-                rx, ry = float(r[0]), float(r[1])
-                rw, rh = float(r[2]), float(r[3])
-                if rw > 1.0 and rh > 1.0:
-                    s = min(rw / float(w_img), rh / float(h_img))
-                    dw = s * float(w_img)
-                    dh = s * float(h_img)
-                    ox = rx + 0.5 * (rw - dw)
-                    oy = ry + 0.5 * (rh - dh)
-                    ix = (float(mx) - ox) / s
-                    iy = (float(my) - oy) / s
-                    vx = int(round(ix))
-                    vy = int(round(iy))
-                    return int(np.clip(vx, 0, w_img - 1)), int(np.clip(vy, 0, h_img - 1))
+                rect_t = (int(r[0]), int(r[1]), int(r[2]), int(r[3]))
+            return map_highgui_mouse_to_image_xy(int(mx), int(my), rect_t, w_img, h_img)
         except Exception:
             pass
         return int(np.clip(mx, 0, w_img - 1)), int(np.clip(my, 0, h_img - 1))
@@ -3413,76 +3419,66 @@ def main() -> None:
                     _set_active_points(pts)
                     redraw()
                     return
-            # Setup panel (table / units / view) must win over corner hit-testing. After
-            # flip/pan/rotate, corners move in *display* space and can land under the panel;
-            # _find_nearest_point (22px) would then steal clicks meant for radios and buttons.
-            layout_cd = _menu_layout()
-            pl = int(layout_cd["panel_left"])
-            pt = int(layout_cd["panel_top"])
-            pw = int(layout_cd["panel_w"])
-            ph = int(layout_cd["panel_h"])
-            if _point_in_rect(ix, iy, (pl, pt, pl + pw, pt + ph)):
-                hit_table = _hit_table_option(ix, iy)
-                if hit_table is not None:
-                    selected_table_size = hit_table
-                    redraw()
-                    return
-                hit_units = _hit_units_option(ix, iy)
-                if hit_units is not None:
-                    selected_units = hit_units
-                    redraw()
-                    return
-                if _hit_redetect(ix, iy):
-                    _redetect_corners()
-                    redraw()
-                    return
-                hit_view = _hit_view_control(ix, iy)
-                if hit_view is not None:
-                    step = _current_view_step()
-                    zoom_delta = int(round(step["zoom_delta"]))
-                    rotate_delta = float(step["rotate_deg"])
-                    pan_dx = float(step["pan_frac_x"]) * float(w_img)
-                    pan_dy = float(step["pan_frac_y"]) * float(h_img)
-                    if hit_view == "flip_h":
-                        flip_view_h = not flip_view_h
-                        _clamp_pan_center()
-                    elif hit_view == "flip_v":
-                        flip_view_v = not flip_view_v
-                        _clamp_pan_center()
-                    elif hit_view == "zoom_in":
-                        _zoom_step(+zoom_delta)
-                    elif hit_view == "zoom_out":
-                        _zoom_step(-zoom_delta)
-                    elif hit_view == "rot_left":
-                        _rotate_step(-rotate_delta)
-                    elif hit_view == "rot_right":
-                        _rotate_step(+rotate_delta)
-                    elif hit_view == "rot_90_ccw":
-                        _rotate_step(-90.0)
-                    elif hit_view == "rot_90_cw":
-                        _rotate_step(+90.0)
-                    elif hit_view == "pan_up":
-                        _nudge_pan_display(0.0, -pan_dy)
-                    elif hit_view == "pan_left":
-                        _nudge_pan_display(-pan_dx, 0.0)
-                    elif hit_view == "pan_right":
-                        _nudge_pan_display(+pan_dx, 0.0)
-                    elif hit_view == "pan_down":
-                        _nudge_pan_display(0.0, +pan_dy)
-                    elif hit_view == "step_fine":
-                        view_step_mode = "fine"
-                    elif hit_view == "step_coarse":
-                        view_step_mode = "coarse"
-                    elif hit_view == "view_reset":
-                        _reset_view()
-                    redraw()
-                    return
-                return
-
             idx = _find_nearest_point(float(ix), float(iy))
             if idx is not None:
                 active_point_idx = idx
                 dragging = True
+                return
+
+            hit_table = _hit_table_option(ix, iy)
+            if hit_table is not None:
+                selected_table_size = hit_table
+                redraw()
+                return
+            hit_units = _hit_units_option(ix, iy)
+            if hit_units is not None:
+                selected_units = hit_units
+                redraw()
+                return
+            if _hit_redetect(ix, iy):
+                _redetect_corners()
+                redraw()
+                return
+            hit_view = _hit_view_control(ix, iy)
+            if hit_view is not None:
+                step = _current_view_step()
+                zoom_delta = int(round(step["zoom_delta"]))
+                rotate_delta = float(step["rotate_deg"])
+                pan_dx = float(step["pan_frac_x"]) * float(w_img)
+                pan_dy = float(step["pan_frac_y"]) * float(h_img)
+                if hit_view == "flip_h":
+                    flip_view_h = not flip_view_h
+                    _clamp_pan_center()
+                elif hit_view == "flip_v":
+                    flip_view_v = not flip_view_v
+                    _clamp_pan_center()
+                elif hit_view == "zoom_in":
+                    _zoom_step(+zoom_delta)
+                elif hit_view == "zoom_out":
+                    _zoom_step(-zoom_delta)
+                elif hit_view == "rot_left":
+                    _rotate_step(-rotate_delta)
+                elif hit_view == "rot_right":
+                    _rotate_step(+rotate_delta)
+                elif hit_view == "rot_90_ccw":
+                    _rotate_step(-90.0)
+                elif hit_view == "rot_90_cw":
+                    _rotate_step(+90.0)
+                elif hit_view == "pan_up":
+                    _nudge_pan_display(0.0, -pan_dy)
+                elif hit_view == "pan_left":
+                    _nudge_pan_display(-pan_dx, 0.0)
+                elif hit_view == "pan_right":
+                    _nudge_pan_display(+pan_dx, 0.0)
+                elif hit_view == "pan_down":
+                    _nudge_pan_display(0.0, +pan_dy)
+                elif hit_view == "step_fine":
+                    view_step_mode = "fine"
+                elif hit_view == "step_coarse":
+                    view_step_mode = "coarse"
+                elif hit_view == "view_reset":
+                    _reset_view()
+                redraw()
                 return
 
             pts = _active_points()

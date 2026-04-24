@@ -99,8 +99,7 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   - These are display-only transforms for calibration UX; saved calibration
     points remain in source image coordinates.
   - Overlay layout now auto-scales to stay fully on-screen so controls remain clickable.
-  - **Fullscreen / letterboxing:** mouse coordinates are mapped with a **uniform** scale and centered offsets from `cv2.getWindowImageRect` (not independent X/Y stretch), so clicks match the video when the window aspect ratio differs from the camera frame (common on Jetson + GTK fullscreen). If clicks are still wrong, run with **`CALIB_NO_FULLSCREEN=1`** (windowed OpenCV) or pass **`--no-fullscreen`**.
-  - **Panel vs corners:** after flip/pan/rotate, corner handles move in *display* space and can sit under the setup panel; clicks on the panel are handled as UI first so they are not captured as corner drags (which used to make controls feel dead or “stuck” after toggling orientation).
+  - **Mouse → image:** OpenCV passes `getWindowImageRect` into `map_highgui_mouse_to_image_xy` (scale by rect **width/height** only; see `tests/test_calib_highgui_mouse_map.py`). Optional **`CALIB_NO_FULLSCREEN=1`** / **`--no-fullscreen`** skips maximize/fullscreen if your WM misbehaves. A brief 2026-04 experiment (panel-first hit testing + alternate letterbox math) broke **all** clicks and was **reverted**; checklist order is again corner-nudge → nearest-corner drag → table/units/redetect/view.
 - The helper uses the CLI-selected camera source only (no in-UI camera source
   menu), which removes startup probing overhead and keeps launch latency low.
 - During editing, camera preview is continuously refreshed from the active
