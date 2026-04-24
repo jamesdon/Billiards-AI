@@ -94,15 +94,32 @@ def map_highgui_mouse_to_image_xy(
 ) -> Tuple[int, int]:
     """Map OpenCV HighGUI mouse (mx, my) into ``w_img``×``h_img`` buffer coordinates.
 
-    Uses the same scale-only mapping as long-standing calibration behavior (rect
-    width/height only). Pure function for unit tests.
+    Many GTK backends pass ``(mx, my)`` **already in image pixel space** (0..w-1, 0..h-1)
+    while ``getWindowImageRect`` reports a **larger** client rect — scaling then shifts
+    every click and breaks hit-testing. If raw coords already lie in the image and the
+    scaled mapping disagrees, keep raw. ``CALIB_MOUSE_RAW=1`` forces raw clip (escape hatch).
+
+    Otherwise uses scale-only mapping from rect width/height (legacy).
     """
+    if os.environ.get("CALIB_MOUSE_RAW", "").strip() == "1":
+        return int(np.clip(mx, 0, w_img - 1)), int(np.clip(my, 0, h_img - 1))
     if rect is not None and len(rect) >= 4:
         rw, rh = int(rect[2]), int(rect[3])
         if rw > 1 and rh > 1:
-            vx = int(round(float(mx) * float(w_img) / float(rw)))
-            vy = int(round(float(my) * float(h_img) / float(rh)))
-            return int(np.clip(vx, 0, w_img - 1)), int(np.clip(vy, 0, h_img - 1))
+            sx = int(round(float(mx) * float(w_img) / float(rw)))
+            sy = int(round(float(my) * float(h_img) / float(rh)))
+            # If the *window* rect is larger than the camera buffer, GTK often reports mouse
+            # coords already in buffer space; scaling would mis-map. Do not use this branch
+            # when rw<=w_img (small window): those coords are client pixels, not buffer px.
+            rect_larger_than_buffer = rw > w_img + 2 or rh > h_img + 2
+            if (
+                rect_larger_than_buffer
+                and 0 <= mx < w_img
+                and 0 <= my < h_img
+                and (abs(sx - mx) > 2 or abs(sy - my) > 2)
+            ):
+                return int(np.clip(mx, 0, w_img - 1)), int(np.clip(my, 0, h_img - 1))
+            return int(np.clip(sx, 0, w_img - 1)), int(np.clip(sy, 0, h_img - 1))
     return int(np.clip(mx, 0, w_img - 1)), int(np.clip(my, 0, h_img - 1))
 
 
@@ -1789,8 +1806,12 @@ def main() -> None:
     args = _parse_args()
     out_path = Path(str(args.out)).expanduser()
     detected_default_table_size = _detected_default_table_size(out_path)
-    selected_table_size = _detected_default_table_size(out_path)
-    selected_units = str(args.units)
+    _st0 = _detected_default_table_size(out_path)
+    if _st0 not in TABLE_PRESETS_M:
+        _st0 = "9ft"
+    selected_table_size = _st0
+    _u0 = str(args.units).strip().lower()
+    selected_units = _u0 if _u0 in UNIT_MENU else "imperial"
     live_capture: Optional[cv2.VideoCapture] = None
     # Backward compatibility for direct invocation snippets on Orin Nano:
     # newer script expects --csi-flip-method, older snippets may pass --flip.
@@ -3419,12 +3440,9 @@ def main() -> None:
                     _set_active_points(pts)
                     redraw()
                     return
-            idx = _find_nearest_point(float(ix), float(iy))
-            if idx is not None:
-                active_point_idx = idx
-                dragging = True
-                return
-
+            # Panel chrome (table / units / view) must run *before* corner hit-testing.
+            # Otherwise _find_nearest_point (22px) steals clicks whenever a yellow handle's
+            # display position overlaps the setup panel (common with centered panel + pan/zoom).
             hit_table = _hit_table_option(ix, iy)
             if hit_table is not None:
                 selected_table_size = hit_table
@@ -3479,6 +3497,12 @@ def main() -> None:
                 elif hit_view == "view_reset":
                     _reset_view()
                 redraw()
+                return
+
+            idx = _find_nearest_point(float(ix), float(iy))
+            if idx is not None:
+                active_point_idx = idx
+                dragging = True
                 return
 
             pts = _active_points()

@@ -47,6 +47,7 @@ Environment overrides (optional):
   CSI_OPEN_RETRIES  (default: 8; Argus CSI reopen attempts in calib_click.py)
   SKIP_CSI_PREFLIGHT  (if non-empty, skip Jetson CSI gst-launch probe before GUI)
   CALIB_NO_FULLSCREEN (if set to 1, pass --no-fullscreen: windowed OpenCV; fixes some Jetson/GTK mouse maps)
+  CALIB_MOUSE_RAW     (if set to 1, skip getWindowImageRect scaling — use mouse coords clipped to frame only)
   FRAME_WIDTH       (default: 1280)
   FRAME_HEIGHT      (default: 720)
   UNITS             (default: imperial)

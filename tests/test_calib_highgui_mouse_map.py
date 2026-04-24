@@ -40,3 +40,11 @@ def test_map_highgui_mouse_clips(calib_click_mod) -> None:
 def test_map_highgui_mouse_no_rect_uses_raw_clip(calib_click_mod) -> None:
     f = calib_click_mod.map_highgui_mouse_to_image_xy
     assert f(10, 20, None, 1280, 720) == (10, 20)
+
+
+def test_map_highgui_prefers_raw_when_coords_already_image_space(calib_click_mod, monkeypatch) -> None:
+    """GTK often reports mouse in image pixels while getWindowImageRect is the full window."""
+    monkeypatch.delenv("CALIB_MOUSE_RAW", raising=False)
+    f = calib_click_mod.map_highgui_mouse_to_image_xy
+    # Mouse at image center in buffer coords, but rect is a larger fullscreen client
+    assert f(640, 360, (0, 0, 1920, 1080), 1280, 720) == (640, 360)

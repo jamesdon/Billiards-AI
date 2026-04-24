@@ -99,7 +99,7 @@ The helper now opens with auto-detected corner proposals and in-window controls:
   - These are display-only transforms for calibration UX; saved calibration
     points remain in source image coordinates.
   - Overlay layout now auto-scales to stay fully on-screen so controls remain clickable.
-  - **Mouse → image:** OpenCV passes `getWindowImageRect` into `map_highgui_mouse_to_image_xy` (scale by rect **width/height** only; see `tests/test_calib_highgui_mouse_map.py`). Optional **`CALIB_NO_FULLSCREEN=1`** / **`--no-fullscreen`** skips maximize/fullscreen if your WM misbehaves. A brief 2026-04 experiment (panel-first hit testing + alternate letterbox math) broke **all** clicks and was **reverted**; checklist order is again corner-nudge → nearest-corner drag → table/units/redetect/view.
+  - **Mouse → image:** `map_highgui_mouse_to_image_xy` scales by `getWindowImageRect` **unless** the rect is **larger** than the buffer **and** the mouse lies in ``0..w-1``, ``0..h-1`` **and** scaling would move it by >2px (GTK: mouse already in buffer space on fullscreen). **`CALIB_MOUSE_RAW=1`** forces clip-only mapping. **`CALIB_NO_FULLSCREEN=1`** / **`--no-fullscreen`** skips fullscreen. **Click order:** after corner nudge, **table / units / Re-detect / view** run **before** nearest-corner drag so the 22px corner grab cannot steal panel clicks when handles overlap the panel.
 - The helper uses the CLI-selected camera source only (no in-UI camera source
   menu), which removes startup probing overhead and keeps launch latency low.
 - During editing, camera preview is continuously refreshed from the active
