@@ -149,16 +149,20 @@
         const delta = ev.clientX - startX;
         applySidebarWidth(startW + delta);
       };
-      const up = () => {
+      function endResize() {
         document.removeEventListener("pointermove", move);
-        document.removeEventListener("pointerup", up);
-        document.removeEventListener("pointercancel", up);
+        document.removeEventListener("pointerup", endResize);
+        document.removeEventListener("pointercancel", endResize);
+        window.removeEventListener("pointerup", endResize, true);
+        window.removeEventListener("blur", endResize);
         document.body.classList.remove("is-resizing-sidebar");
         persistCurrentWidth();
-      };
+      }
       document.addEventListener("pointermove", move);
-      document.addEventListener("pointerup", up);
-      document.addEventListener("pointercancel", up);
+      document.addEventListener("pointerup", endResize);
+      document.addEventListener("pointercancel", endResize);
+      window.addEventListener("pointerup", endResize, true);
+      window.addEventListener("blur", endResize);
     }
 
     handle.addEventListener("pointerdown", onPointerDown);
@@ -282,6 +286,11 @@
     if (mode === "scorekeeper" && skIframe && !skIframeSrcSet) {
       skIframe.src = scorekeeperFrameSrc();
       skIframeSrcSet = true;
+    }
+    /* Score Keeper embed follows <main> in DOM; keep it inert + non-hit-target in setup so it cannot eat clicks. */
+    if (skEmbed) {
+      if (mode === "setup") skEmbed.setAttribute("inert", "");
+      else skEmbed.removeAttribute("inert");
     }
     syncSkQrBlockVisibility();
   }
@@ -1089,6 +1098,10 @@
       renderNav();
       renderContent();
       startHealthPollers();
+      /* Re-sync text-size radios after async init (covers rare races where UI predates applyTextSize). */
+      requestAnimationFrame(() => {
+        applyTextSize(getCurrentTextSize());
+      });
     } catch (e) {
       content.innerHTML =
         "<p>Could not load setup data. Start the backend: <code>./scripts/run_backend.sh</code> or <code>uvicorn backend.app:app --host 127.0.0.1 --port 8000</code></p>";

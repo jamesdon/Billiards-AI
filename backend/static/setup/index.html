@@ -136,12 +136,14 @@
         <main id="content" class="main-panel main-panel--setup">
           <p>Loading…</p>
         </main>
-        <div id="sk-embed" class="sk-embed">
+        <!-- inert + setup-mode CSS keeps this subtree from stealing mouse hits when Score Keeper is hidden (Chromium/GTK quirks on some Jetson desktops). Removed in applyUiMode when switching to scorekeeper. -->
+        <div id="sk-embed" class="sk-embed" inert>
           <iframe
             class="sk-iframe"
             id="sk-iframe"
             title="Score Keeper"
             src="about:blank"
+            tabindex="-1"
           ></iframe>
         </div>
       </div>

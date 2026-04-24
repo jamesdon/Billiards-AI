@@ -484,10 +484,36 @@ body[data-ui-mode="scorekeeper"] .nav-steps {
   padding: 0.75rem clamp(0.9rem, 2.5vw, 1.25rem) 1rem;
 }
 
+/* Setup mode: never let the hidden Score Keeper stack steal pointer events (keyboard can still tab into #content). */
+body[data-ui-mode="setup"] .sk-embed {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  flex: 0 0 0 !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+body[data-ui-mode="setup"] .sk-iframe {
+  pointer-events: none !important;
+}
+
+body[data-ui-mode="setup"] main.main-panel--setup {
+  position: relative;
+  z-index: 1;
+}
+
 body[data-ui-mode="scorekeeper"] .sk-embed {
   display: flex;
   max-width: none;
   align-self: stretch;
+  visibility: visible !important;
+  flex: 1 1 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0.75rem clamp(0.9rem, 2.5vw, 1.25rem) 1rem;
 }
 
 .sk-iframe {
