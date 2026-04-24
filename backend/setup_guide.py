@@ -221,12 +221,25 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "Confirm Python 3.10+ will be used for the project venv",
-                "verify": "Run `python3 --version` (or `which python3`). Expect Python 3.10 or newer.",
+                "verify": (
+                    "You only need the **system** `python3` that will run `python3 -m venv` (the `.venv` interpreter comes later).\n\n"
+                    "```bash\n"
+                    "python3 --version\n"
+                    "which python3\n"
+                    "```\n\n"
+                    "Expect **Python 3.10** or newer in the version line."
+                ),
                 "record": "If the version is odd for your team, put the one line of output in Notes.",
             },
             {
                 "item": "Know your absolute repo path",
-                "verify": "The repo on this machine is {project_root} (see the sidebar on this page). In a terminal, `cd` to the repo and run `pwd` — the path should match.",
+                "verify": (
+                    "The path for this checkout is also shown in the sidebar (`{project_root}`). Confirm in a terminal:\n\n"
+                    "```bash\n"
+                    'cd "{project_root}" && pwd\n'
+                    "```\n\n"
+                    "The printed path should match the sidebar (symlinks can differ slightly if it is the same tree)."
+                ),
                 "record": "If you have several clones, note in Notes which machine this path refers to.",
             },
         ],
@@ -245,7 +258,13 @@ SETUP_STEPS: list[dict[str, Any]] = [
         "checklist": [
             {
                 "item": "Virtual environment exists at .venv",
-                "verify": "From the repository root, run `test -d .venv && echo OK`. You should see `OK`. If not, run step 1) of the next checklist line (core dependencies install) first, then re-check this box.",
+                "verify": (
+                    "From the repository root:\n\n"
+                    "```bash\n"
+                    'cd "{project_root}" && test -d .venv && echo OK\n'
+                    "```\n\n"
+                    "You should see **OK**. If not, run step 1) of the next checklist line (core dependencies install) first, then re-check this box."
+                ),
                 "record": "If you rebuilt the venv, note the date and `.venv` Python version in Notes.",
             },
             {
@@ -300,7 +319,13 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
             {
                 "item": "class_map.json matches the ONNX output order/count",
-                "verify": "From the repo root, run `more models/class_map.json` (or open that path in an editor) and compare per-class order to the names in your YOLO `data` YAML. Class count and order must match the ONNX head and that YAML’s `names` list.",
+                "verify": (
+                    "Inspect **class index order** (must match the ONNX head and your YOLO `data` YAML `names`). From the repo root:\n\n"
+                    "```bash\n"
+                    'cd "{project_root}" && (test -f models/class_map.json && cat models/class_map.json || echo "missing models/class_map.json")\n'
+                    "```\n\n"
+                    "Compare the list order to your training YAML. **Count and order** must match the exported ONNX."
+                ),
                 "record": "If the mapping is non-obvious, add a short free-form line in Notes (e.g. index order vs names).",
             },
         ],
@@ -552,7 +577,13 @@ SETUP_STEPS: list[dict[str, Any]] = [
             },
             {
                 "item": "CSI camera smoke passes",
-                "verify": "On the device, run `bash scripts/jetson_csi_setup.sh`, or a short `edge.main` run with `--camera csi` (see DEPLOYMENT_JETSON for flags).",
+                "verify": (
+                    "On the device, from the repository root (Argus / nvarguscamerasrc smoke):\n\n"
+                    "```bash\n"
+                    'cd "{project_root}" && bash scripts/jetson_csi_setup.sh\n'
+                    "```\n\n"
+                    "Alternatively, a short **`python3 -m edge.main`** run with **`--camera csi`** proves the same stack once the script passes — see **DEPLOYMENT_JETSON** in Documentation for full flags."
+                ),
                 "record": "If a flip method or sensor id was required, put it in Notes.",
             },
         ],
