@@ -25,6 +25,30 @@
 - **Cabling**: **USB extension** from each adapter into the Nano’s **first** USB host ports (closest / primary pair—re-check `arecord -l` / `dmesg` after any replug; card index order can change).
 - **Kernel / ALSA name**: adapters enumerate as **GeneralPlus USB Audio Device** (two units → typically **`hw:0,0`** and **`hw:1,0`** when those ports win card 0 and 1). Use `arecord -l` and `/proc/asound/cards` to confirm after cable or hub changes.
 
+### Testing without speakers
+
+You do not need **`aplay`** or headphones on the Nano. Record a few seconds, then inspect level in the shell or copy the WAV elsewhere.
+
+```bash
+chmod +x /home/jdonn/Billiards-AI/scripts/test_venue_usb_mics_headless.sh
+RECORD_SECONDS=4 bash /home/jdonn/Billiards-AI/scripts/test_venue_usb_mics_headless.sh
+```
+
+Optional: treat very quiet captures as failure after you tap the table (`peak_abs` should jump):
+
+```bash
+MIN_PEAK=800 RECORD_SECONDS=4 bash /home/jdonn/Billiards-AI/scripts/test_venue_usb_mics_headless.sh
+```
+
+Match **`edge/audio/mic_stream.py`** sample rate (48 kHz) if you want parity with `--mic-device`:
+
+```bash
+SAMPLE_RATE=48000 MIC_DEVICES="plughw:0,0 plughw:1,0" RECORD_SECONDS=3 \
+  bash /home/jdonn/Billiards-AI/scripts/test_venue_usb_mics_headless.sh
+```
+
+Single-file stats only: `/home/jdonn/Billiards-AI/scripts/jetson_mic_peak_check.py /tmp/your.wav`
+
 ## Privacy
 
 - Audio should be **opt-in** per venue; document retention and mute for casual play.
