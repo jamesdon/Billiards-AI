@@ -49,6 +49,21 @@ SAMPLE_RATE=48000 MIC_DEVICES="plughw:0,0 plughw:1,0" RECORD_SECONDS=3 \
 
 Single-file stats only: `/home/jdonn/Billiards-AI/scripts/jetson_mic_peak_check.py /tmp/your.wav`
 
+### Asymmetric peaks after swapping USB ports
+
+`hw:0,0` vs `hw:1,0` is **enumeration order**, not “left vs right USB socket.” After replugging, **`arecord -l`** and **`/proc/asound/cards`** still name **card 0** as whichever device won **card 0** this boot — often the same physical dongle if it always sits on the same bus path.
+
+If one path stays near **peak_abs ~250** and the other in the **thousands**, **unplug one dongle entirely** and test each chain alone (only one card exists → it becomes **`hw:0,0`**):
+
+```bash
+# Chain A only (unplug the other USB-AC from the Nano)
+RECORD_SECONDS=4 MIC_DEVICES="hw:0,0" bash /home/jdonn/Billiards-AI/scripts/test_venue_usb_mics_headless.sh
+# Power cycle or replug, then chain B only
+RECORD_SECONDS=4 MIC_DEVICES="hw:0,0" bash /home/jdonn/Billiards-AI/scripts/test_venue_usb_mics_headless.sh
+```
+
+Whichever run stays **~250** while you clap at **that** mic isolates the fault to **that** VXR10, TRS plug, extension, or USB-AC. Optional: **`/usr/bin/lsusb -t`** after each layout to match **USB topology** to **`/proc/asound/cards`**.
+
 ## Privacy
 
 - Audio should be **opt-in** per venue; document retention and mute for casual play.
