@@ -237,7 +237,7 @@ _print_csi_preflight_failure() {
   echo "  1) Re-seat the CSI ribbon (correct orientation, full latch)." >&2
   echo "  2) sudo systemctl restart nvargus-daemon && sleep 2" >&2
   echo "  3) bash \"$PROJECT_ROOT/scripts/jetson_csi_setup.sh\"" >&2
-  echo "  4) Other CSI connector: CSI_SENSOR_ID=1 bash \"$PROJECT_ROOT/scripts/start_calibration.sh\"" >&2
+  echo "  4) Second Argus camera: CSI_SENSOR_ID=1 only if a second sensor probed OK (see dmesg). If one CSI sensor failed probe, Argus may only expose index 0 — use CSI_SENSOR_ID=0." >&2
   echo "  5) Lighter mode: bash \"$PROJECT_ROOT/scripts/start_calibration.sh\" --width 640 --height 480 --csi-framerate 15" >&2
   echo "  6) USB instead (if you have /dev/video0): bash \"$PROJECT_ROOT/scripts/start_calibration.sh\" --camera 0" >&2
   echo "  7) Cold boot; then: sudo dmesg | grep -iE 'imx|tegra|nv_camera'" >&2
@@ -272,6 +272,14 @@ _preflight_csi_argus() {
   _out="$(run_with_timeout 15 /usr/bin/gst-launch-1.0 -e nvarguscamerasrc sensor-id="$CSI_SENSOR_ID" num-buffers=1 ! fakesink 2>&1)"
   set -e
 
+  if echo "$_out" | /usr/bin/grep -qiE "Invalid camera device specified|max index"; then
+    echo "" >&2
+    echo "Argus: no camera at this index (often '0 max index' = only one sensor enumerated)." >&2
+    echo "  sensor-id is the Argus camera list (0..N-1 for working sensors), not 'CAM1' vs 'CAM0'." >&2
+    echo "  If a second CSI module failed driver probe (e.g. imx477 i2c -121 in dmesg), only index 0 exists — use CSI_SENSOR_ID=0." >&2
+    _print_csi_preflight_failure "$_out"
+    exit 3
+  fi
   if echo "$_out" | /usr/bin/grep -qi "No cameras available"; then
     _print_csi_preflight_failure "$_out"
     exit 3
