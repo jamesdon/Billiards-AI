@@ -64,6 +64,10 @@ RECORD_SECONDS=4 MIC_DEVICES="hw:0,0" bash /home/jdonn/Billiards-AI/scripts/test
 
 Whichever run stays **~250** while you clap at **that** mic isolates the fault to **that** VXR10, TRS plug, extension, or USB-AC. Optional: **`/usr/bin/lsusb -t`** after each layout to match **USB topology** to **`/proc/asound/cards`**.
 
+**Confirmed pattern (venue rig):** when you move hardware and **which ALSA card is “strong” vs ~250 peak swaps** (`hw:0,0` vs `hw:1,0`), but **one physical USB path is always weak**, the Nano ports and ALSA are behaving correctly — the fault **follows one physical chain** (mic, TRS, extension, or Movo USB-AC). Put tape on that cable and swap **only** the suspect USB-AC or VXR10 with a spare to confirm.
+
+Example mapping: **`/proc/asound/cards`** lines ending in **`usb-…-2.2`** vs **`usb-…-2.4`** pair with **`lsusb -t`** hub **Port 2** vs **Port 4** (different `Dev` numbers, same `snd-usb-audio`). Use that to name “table left” vs “table right” in your notes; **card index can change** after reboot or replug order.
+
 ## Privacy
 
 - Audio should be **opt-in** per venue; document retention and mute for casual play.
