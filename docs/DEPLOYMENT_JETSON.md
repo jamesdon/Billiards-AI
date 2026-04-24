@@ -59,6 +59,27 @@ python -m edge.main --camera csi --csi-sensor-id 0 --csi-flip-method 6 --calib "
 
 ## CSI troubleshooting (Jetson / Argus)
 
+### `media-ctl` shows nvcsi with **0 link**
+
+The media graph never connected a sensor to **nvcsi**. Argus will report **No cameras available** until a sensor subdev probes successfully.
+
+### `dmesg` shows `imx477 ... i2c read probe (-121)`
+
+`-121` is an I2C-level failure: the kernel bound the **IMX477** driver to the address in device tree, but **reads from the sensor fail**. Typical causes:
+
+1. **Ribbon / connector** — re-seat both ends, correct orientation, full latch; try the **other** CAM port on the carrier.
+2. **Wrong camera for the enabled profile** — `sudo /opt/nvidia/jetson-io/jetson-io.py` must match your **physical** module (e.g. Raspberry Pi HQ IMX477 vs Arducam IMX477 vs other); save and **reboot**.
+3. **Defective or incompatible module** — swap in a known-good IMX477 on the same cable/port to isolate.
+4. **I2C sanity** (with camera powered): `sudo i2cdetect -y 9` and `sudo i2cdetect -y 10` — IMX477 often appears at **0x1a** on one bus when wiring is good.
+
+**`jetson-io.py`:** run from a **local console or desktop session** (SSH without `-X` may not show the UI). You must complete the flow and reboot for DT overlays to apply.
+
+### Apt lock during `jetson_csi_setup.sh`
+
+If `apt-get` reports lock held by **packagekitd**: `sudo systemctl stop packagekit`, wait a few seconds, re-run the script.
+
+---
+
 If startup fails with `RuntimeError: Failed to open camera source=...`, validate
 the camera stack before retrying the app:
 

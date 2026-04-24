@@ -22,7 +22,9 @@ upd_rc=$?
 set -e
 if [[ "$upd_rc" -ne 0 ]]; then
   echo "WARNING: apt-get update exited $upd_rc (often a broken /etc/apt/sources.list.d entry)." >&2
-  echo "  Fix or remove that source, then: sudo apt-get update && sudo apt-get install -y v4l-utils gstreamer1.0-tools" >&2
+  echo "  If the log says apt lock is held by packagekitd: wait a minute, or run:" >&2
+  echo "    sudo systemctl stop packagekit && sleep 2" >&2
+  echo "  Then: sudo apt-get update && sudo apt-get install -y v4l-utils gstreamer1.0-tools" >&2
 fi
 sudo apt-get install -y v4l-utils gstreamer1.0-tools
 
@@ -51,6 +53,13 @@ if command -v media-ctl >/dev/null 2>&1; then
     echo "" >&2
     echo ">>> Few or no 'entity' lines: the kernel likely did NOT link a CSI sensor driver to this media device." >&2
     echo ">>> That matches Argus 'No cameras available'. Fix hardware (ribbon, port, module) or board config (jetson-io / device tree), then cold boot." >&2
+  fi
+  if echo "$_top" | /usr/bin/grep -q "0 link"; then
+    echo "" >&2
+    echo ">>> nvcsi shows '0 link': no sensor is linked into the CSI graph (driver probe failed or wrong overlay)." >&2
+    echo ">>> Check: sudo dmesg | grep -i imx477" >&2
+    echo "    'i2c read probe (-121)' means the IMX477 driver cannot read the chip — cable, wrong camera for the" >&2
+    echo "    enabled jetson-io profile, defective module, or use the other CAM connector + matching jetson-io entry." >&2
   fi
 else
   echo "(install v4l-utils for media-ctl: sudo apt-get install -y v4l-utils)"
