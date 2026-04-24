@@ -1,5 +1,8 @@
 # Optional: live microphone → AudioRingBuffer for micro-foul fusion.
-# Requires PortAudio. Debian / Jetson example:
+# Requires PortAudio at the OS level (pip does not ship it). If you see
+#   OSError: PortAudio library not found
+# install runtime libs first, then this file:
+#   sudo apt-get install -y libportaudio2
+# Headers optional unless you build something against PortAudio C API:
 #   sudo apt-get install -y portaudio19-dev
-# Then: pip install -r requirements-audio.txt
 sounddevice>=0.4.6
